@@ -305,7 +305,55 @@ create (the spec: { "subject": {...}, "extensions": {...} }):
 
 ${SIGNING_USAGE}`;
 
+const CHAIN_USAGE = `\
+pkinative chain — Certification paths (RFC 5280 §6)
+
+Usage:
+  pkinative chain verify [<leaf>] --trust <roots> [--untrusted <file>]...
+                         [--host <name> | --ip <address>] [--purpose <p>]...
+                         [--crl <file>]... [--ocsp <file>]...
+                         [--require-revocation] [--at <instant>]
+  pkinative chain build [<leaf>] --trust <roots> [--untrusted <file>]...
+  pkinative chain validate --path <leaf> --path <ca>... --trust <roots>
+
+verify is the one-call verdict: path building, every signature, RFC 5280
+validation, the server name (RFC 6125), the purposes and, with CRLs or OCSP
+responses, revocation. build finds a path without checking signatures.
+validate takes the path in order and verifies each link's signature first.
+A negative verdict prints the report, then exits 1 (E_VERIFY_FAILED).
+
+Inputs:
+  --input, -i <file>        The leaf certificate (default: the positional)
+  --trust <file>            Trust anchors, PEM bundle or DER (repeatable)
+  --untrusted <file>        Intermediate candidates (repeatable)
+  --path <file>             validate: the path, leaf first (repeatable)
+  --at <instant>            Validation time: ISO 8601 (UTC unless zoned),
+                            epoch milliseconds or "now" (default now)
+
+Checks:
+  --purpose <name|oid>      Required extended key usage (repeatable):
+                            serverAuth, clientAuth, codeSigning, ...
+  --host <name>             verify: the DNS name the leaf must hold
+  --ip <address>            verify: the IP address the leaf must hold
+  --policy <oid>            Initial policy set (repeatable)
+  --require-explicit-policy --inhibit-policy-mapping --inhibit-any-policy
+                            RFC 5280 §6.1.1 policy inputs
+
+Revocation (verify):
+  --crl <file>              CRLs, PEM bundle or DER (repeatable)
+  --ocsp <file>             OCSP responses, DER (repeatable)
+  --ocsp-nonce <hex>        The nonce the OCSP request carried
+  --require-ocsp-nonce      Refuse an OCSP response without that nonce
+  --require-revocation      Fail when a certificate's status is unknown
+
+  --no-signatures           validate: skip the link signatures (structural)
+  --format, -f <text|json>  Report format (json under --json)
+
+Offline: CRLs and OCSP responses are files you fetched; nothing is fetched.
+`;
+
 export const COMMAND_USAGE: Readonly<Record<string, string>> = {
+    chain: CHAIN_USAGE,
     cert: CERT_USAGE,
     csr: CSR_USAGE,
     pem: PEM_USAGE,

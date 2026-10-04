@@ -73,6 +73,15 @@ const signing: readonly FlagSpec[] = [
     { name: 'password-stdin' },
 ];
 const chainFlag: FlagSpec = { name: 'chain', value: 'file', repeatable: true };
+const pathInputs: readonly FlagSpec[] = [
+    { name: 'trust', value: 'file', repeatable: true },
+    { name: 'at', value: 'instant' },
+    { name: 'purpose', value: 'name|oid', repeatable: true },
+    { name: 'policy', value: 'oid', repeatable: true },
+    { name: 'require-explicit-policy' },
+    { name: 'inhibit-policy-mapping' },
+    { name: 'inhibit-any-policy' },
+];
 
 export const COMMANDS: readonly CommandSpec[] = [
     {
@@ -130,6 +139,13 @@ export const COMMANDS: readonly CommandSpec[] = [
             { name: 'inspect', summary: 'Decode a request', flags: [input, format, { name: 'raw-extensions' }] },
             { name: 'create', summary: 'Create a request from a JSON spec', flags: [{ name: 'spec', value: 'file' }, { name: 'public-key', value: 'file' }, ...signing, ...artefact] },
             { name: 'verify', summary: 'Verify the request self-signature', flags: [input, format] },
+        ],
+    },
+    {
+        name: 'chain', group: 'Paths & revocation', summary: 'Verify, build and validate certification paths (RFC 5280)', flags: [], subcommands: [
+            { name: 'verify', summary: 'One-call verdict: path, signatures, name, purpose, revocation', flags: [input, ...pathInputs, { name: 'untrusted', value: 'file', repeatable: true }, { name: 'host', value: 'name' }, { name: 'ip', value: 'address' }, { name: 'crl', value: 'file', repeatable: true }, { name: 'ocsp', value: 'file', repeatable: true }, { name: 'ocsp-nonce', value: 'hex' }, { name: 'require-ocsp-nonce' }, { name: 'require-revocation' }, format] },
+            { name: 'build', summary: 'Find a path from the leaf to a trust anchor', flags: [input, ...pathInputs, { name: 'untrusted', value: 'file', repeatable: true }, format] },
+            { name: 'validate', summary: 'Validate a given path, leaf first, signatures included', flags: [{ name: 'path', value: 'file', repeatable: true }, ...pathInputs, { name: 'no-signatures' }, format] },
         ],
     },
     { name: 'limits', group: 'Meta', summary: 'The 22 pkinative security bounds: flags, defaults, effective', subcommands: [], flags: [format] },
