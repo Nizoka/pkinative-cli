@@ -419,7 +419,104 @@ check exits 1 (E_CHECK_FAILED) unless the answer is a clean, signed,
 authorised "good" for this certificate.
 `;
 
+const CMS_USAGE = `\
+pkinative cms — CMS SignedData (RFC 5652, RFC 5035, RFC 6211)
+
+Usage:
+  pkinative cms sign --content <file> --cert <cert> --key <key> [--detached]
+                     [--chain <file>]... [-o out.p7s]
+  pkinative cms verify [<p7s>] [--content <file>] --trust <roots>
+  pkinative cms inspect [<p7s>]
+  pkinative cms verify-signer [<p7s>] --cert <cert> [--signer-index <n>]
+  pkinative cms add-attribute [<p7s>] --attribute <der> [--signer-index <n>]
+  pkinative cms add-timestamp [<p7s>] --token <tst|tsr> [--signer-index <n>]
+
+sign (the new signature is verified under --cert before it is written):
+  --content <file>          The content to sign
+  --content-digest <hex>    Sign a precomputed digest instead (needs --detached)
+  --cert <file>             The signer certificate (or the one in --p12)
+  --chain <file>            Certificates to embed (repeatable)
+  --crl <file>              CRLs to embed (repeatable)
+  --detached                Leave the content out of the SignedData
+  --content-type <oid>      eContentType (default id-data)
+  --sid <issuer-serial|ski> Signer identifier form (default issuer-serial)
+  --signing-time <instant|now|none>   signingTime attribute (default now)
+  --no-signing-certificate  Omit ESS signing-certificate-v2 (RFC 5035)
+  --no-algorithm-protection Omit CMS algorithm protection (RFC 6211)
+  --signed-attribute <file>     Extra signed attribute, DER (repeatable)
+  --unsigned-attribute <file>   Extra unsigned attribute, DER (repeatable)
+  --output, -o <file>       Output file (default: stdout)
+  --encoding <pem|der|hex>  Output encoding (default der; PEM label CMS)
+
+verify (exit 1, E_VERIFY_FAILED, unless every signer verifies):
+  --input, -i <file>        The SignedData, PEM or DER (default: positional)
+  --content <file>          The content of a detached signature
+  --content-digest <hex>    ... or its digest
+  --trust <file>            Trust anchors (repeatable, required)
+  --untrusted <file>        Extra certificates for the chains (repeatable)
+  --purpose <name|oid>      Required extended key usage (repeatable)
+  --crl <file> --ocsp <file> --require-revocation   Revocation evidence
+  --at <instant>            Validation time (default now)
+  --at-timestamp            Validate at the signer's verified time-stamp
+  --require-signing-certificate  --require-algorithm-protection
+  --allow-trailing          Accept bytes after the SignedData
+
+verify-signer / add-attribute / add-timestamp:
+  --signer-index <n>        Which signer (default 0)
+  --cert <file>             verify-signer: the signer certificate
+  --content <file>          verify-signer: content of a detached signature
+  --attribute <file>        add-attribute: one Attribute, DER
+  --token <file>            add-timestamp: a TimeStampToken or TimeStampResp
+  --output, -o <file>       add-*: output file (default: stdout)
+  --encoding <pem|der|hex>  add-*: output encoding (default der)
+
+  --format, -f <text|json>  Report format (json under --json)
+
+${SIGNING_USAGE}`;
+
+const TSP_USAGE = `\
+pkinative tsp — RFC 3161 time-stamping, offline
+
+Usage:
+  pkinative tsp request --data <file> | --digest <hex> [--hash SHA-256]
+                        [--nonce <n>|random] [--policy <oid>] [-o req.tsq]
+  pkinative tsp inspect [<file>] [--as response|token|tstinfo]
+  pkinative tsp verify --response <tsr> | --token <tst> --trust <roots>
+                       [--request <tsq>] [--data <file> | --digest <hex>]
+
+The CLI writes the request and judges the answer; posting it to a TSA is yours
+(curl --data-binary @req.tsq -H 'Content-Type: application/timestamp-query').
+
+request:
+  --data <file>             The data to time-stamp (hashed with --hash)
+  --digest <hex>            ... or its digest
+  --hash <SHA-256|SHA-384|SHA-512>  Imprint hash (default SHA-256)
+  --nonce <n|random>        A nonce (decimal, 0x-hex, or random 63 bits)
+  --policy <oid>            Requested TSA policy
+  --no-cert-req             Do not ask the TSA to embed its certificate
+  --output, -o <file>       Output file      --encoding <pem|der|hex> (der)
+
+inspect:
+  --input, -i <file>        The object (default: the positional)
+  --as <response|token|tstinfo>   Skip the detection
+
+verify (exit 1, E_VERIFY_FAILED, unless the time-stamp verifies):
+  --response <file>         A TimeStampResp (or the positional)
+  --token <file>            ... or a bare TimeStampToken
+  --request <file>          The request: nonce and imprint must match it
+  --data <file>             The time-stamped data
+  --digest <hex>            ... or its digest
+  --trust <file>            Trust anchors (repeatable, required)
+  --untrusted <file>        Extra certificates (repeatable)
+  --crl <file> --ocsp <file> --require-revocation   Revocation evidence
+  --at <instant>            Validation time (default now)
+  --allow-noncritical-eku   Accept a TSA whose timeStamping EKU is not critical
+  --format, -f <text|json>  Report format (json under --json)
+`;
+
 export const COMMAND_USAGE: Readonly<Record<string, string>> = {
+    cms: CMS_USAGE,
+    tsp: TSP_USAGE,
     crl: CRL_USAGE,
     ocsp: OCSP_USAGE,
     chain: CHAIN_USAGE,

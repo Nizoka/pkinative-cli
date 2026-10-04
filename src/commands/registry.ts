@@ -165,6 +165,23 @@ export const COMMANDS: readonly CommandSpec[] = [
             { name: 'check', summary: 'Decide a certificate status from an OCSP response', flags: [input, { name: 'cert', value: 'file' }, { name: 'issuer', value: 'file' }, { name: 'responder', value: 'file' }, { name: 'responder-trusted' }, { name: 'hash', value: 'SHA-1|SHA-256' }, { name: 'nonce', value: 'hex' }, { name: 'require-nonce' }, { name: 'at', value: 'instant' }, { name: 'stale-tolerance', value: 'ms' }, { name: 'future-tolerance', value: 'ms' }, format] },
         ],
     },
+    {
+        name: 'cms', group: 'Signatures & time-stamps', summary: 'Sign, verify and inspect CMS SignedData (RFC 5652)', flags: [], subcommands: [
+            { name: 'sign', summary: 'Sign content into a SignedData', flags: [{ name: 'content', value: 'file' }, { name: 'content-digest', value: 'hex' }, { name: 'cert', value: 'file' }, chainFlag, { name: 'crl', value: 'file', repeatable: true }, { name: 'detached' }, { name: 'content-type', value: 'oid' }, { name: 'sid', value: 'issuer-serial|ski' }, { name: 'signing-time', value: 'instant|now|none' }, { name: 'no-signing-certificate' }, { name: 'no-algorithm-protection' }, { name: 'signed-attribute', value: 'file', repeatable: true }, { name: 'unsigned-attribute', value: 'file', repeatable: true }, ...signing, ...artefact] },
+            { name: 'verify', summary: 'Verify a SignedData: signatures, chains, time-stamps', flags: [input, { name: 'content', value: 'file' }, { name: 'content-digest', value: 'hex' }, { name: 'trust', value: 'file', repeatable: true }, { name: 'untrusted', value: 'file', repeatable: true }, { name: 'purpose', value: 'name|oid', repeatable: true }, { name: 'crl', value: 'file', repeatable: true }, { name: 'ocsp', value: 'file', repeatable: true }, { name: 'require-revocation' }, { name: 'at', value: 'instant' }, { name: 'at-timestamp' }, { name: 'require-signing-certificate' }, { name: 'require-algorithm-protection' }, { name: 'allow-trailing' }, format] },
+            { name: 'inspect', summary: 'Decode a SignedData', flags: [input, { name: 'allow-trailing' }, format] },
+            { name: 'verify-signer', summary: 'Verify one signer signature against a certificate', flags: [input, { name: 'cert', value: 'file' }, { name: 'signer-index', value: 'n' }, { name: 'content', value: 'file' }, format] },
+            { name: 'add-attribute', summary: 'Add an unsigned attribute to a signer', flags: [input, { name: 'signer-index', value: 'n' }, { name: 'attribute', value: 'file' }, ...artefact] },
+            { name: 'add-timestamp', summary: 'Add an RFC 3161 counter time-stamp to a signer', flags: [input, { name: 'signer-index', value: 'n' }, { name: 'token', value: 'file' }, ...artefact] },
+        ],
+    },
+    {
+        name: 'tsp', group: 'Signatures & time-stamps', summary: 'RFC 3161 time-stamp requests, tokens and verdicts', flags: [], subcommands: [
+            { name: 'request', summary: 'Build a time-stamp request', flags: [{ name: 'data', value: 'file' }, { name: 'digest', value: 'hex' }, { name: 'hash', value: 'SHA-256|SHA-384|SHA-512' }, { name: 'nonce', value: 'n|random' }, { name: 'policy', value: 'oid' }, { name: 'no-cert-req' }, ...artefact] },
+            { name: 'inspect', summary: 'Decode a response, a token or a TSTInfo', flags: [input, { name: 'as', value: 'response|token|tstinfo' }, format] },
+            { name: 'verify', summary: 'Verify a time-stamp token or response', flags: [{ name: 'token', value: 'file' }, { name: 'response', value: 'file' }, { name: 'request', value: 'file' }, { name: 'data', value: 'file' }, { name: 'digest', value: 'hex' }, { name: 'trust', value: 'file', repeatable: true }, { name: 'untrusted', value: 'file', repeatable: true }, { name: 'crl', value: 'file', repeatable: true }, { name: 'ocsp', value: 'file', repeatable: true }, { name: 'require-revocation' }, { name: 'at', value: 'instant' }, { name: 'allow-noncritical-eku' }, format] },
+        ],
+    },
     { name: 'limits', group: 'Meta', summary: 'The 22 pkinative security bounds: flags, defaults, effective', subcommands: [], flags: [format] },
 ];
 
