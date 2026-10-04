@@ -112,31 +112,43 @@ export async function loadSigner(ctx: Ctx, sc: SignerContext): Promise<LoadedSig
     if ((keyPath === undefined) === (p12Path === undefined)) throw usageError(`${ctx.command} needs a signing key: --key <pkcs8> or --p12 <file>.`);
     const password = await readPassword(ctx.io, ctx.args, sc.stdinTaken);
     if (p12Path !== undefined) return loadPkcs12(ctx, p12Path, password);
+    const key = await importKeyFile(ctx, keyPath, password, sc.hint);
+    return { signer: key.signer, certificate: undefined, chain: [], publicKey: key.publicKey };
+}
 
-    const obj = await readPkiObject(ctx, keyPath, 'private key', [...LABELS.privateKey, ...LABELS.encryptedPrivateKey]);
+export interface ImportedKey {
+    readonly signer: SigningKey;
+    readonly encrypted: boolean;
+    /** The SPKI DER, derived for an unencrypted key. */
+    readonly publicKey: Uint8Array | undefined;
+}
+
+/** Import a PKCS#8 file (plain, or PBES2-encrypted with `password`) into a signing key. */
+export async function importKeyFile(ctx: Ctx, path: string | undefined, password: string | undefined, hint: KeyType | undefined): Promise<ImportedKey> {
+    const obj = await readPkiObject(ctx, path, 'private key', [...LABELS.privateKey, ...LABELS.encryptedPrivateKey]);
     const encrypted = obj.label === undefined ? isEncryptedPkcs8(ctx, obj.der) : (LABELS.encryptedPrivateKey as readonly string[]).includes(obj.label);
     if (!encrypted) {
         const info = guard('Cannot read the private key', () => parsePrivateKeyInfo(obj.der, parseOptions(ctx)));
         if (info.kind === 'unknown') throw new CliError(`The private key algorithm ${info.algorithm.oid} cannot sign through Web Crypto.`, 1, ErrorCode.UNSUPPORTED);
         const algorithm = signatureAlgorithm(ctx, info.kind, info.curve);
         const signer = await guardAsync('Cannot import the private key', () => importPrivateKey(obj.der, { ...parseOptions(ctx), algorithm }));
-        return { signer, certificate: undefined, chain: [], publicKey: derivePublicKey(obj.der) };
+        return { signer, encrypted, publicKey: derivePublicKey(obj.der) };
     }
     if (password === undefined) {
         throw usageError('The key is encrypted: give its password.', PASSWORD_REMEDY);
     }
     const typeFlag = getChoiceFlag(ctx.args.flags, 'key-type', KEY_TYPES);
-    const type = typeFlag !== undefined ? KEY_TYPE_MAP[typeFlag] : sc.hint;
+    const type = typeFlag !== undefined ? KEY_TYPE_MAP[typeFlag] : hint;
     if (type === undefined) {
         throw usageError('An encrypted key needs its type before it can be decrypted: pass --key-type, or the matching certificate or public key.', `--key-type ${KEY_TYPES.join('|')}`);
     }
     const algorithm = signatureAlgorithm(ctx, type.kind, type.curve);
     const signer = await guardAsync('Cannot decrypt the private key', () => decryptPrivateKey(obj.der, { ...parseOptions(ctx), password, algorithm }));
-    return { signer, certificate: undefined, chain: [], publicKey: undefined };
+    return { signer, encrypted, publicKey: undefined };
 }
 
 /** A DER key is encrypted when parseEncryptedPrivateKeyInfo reads it; one neither reader reads is refused with the PKCS#8 cause. */
-function isEncryptedPkcs8(ctx: Ctx, der: Uint8Array): boolean {
+export function isEncryptedPkcs8(ctx: Ctx, der: Uint8Array): boolean {
     try {
         parsePrivateKeyInfo(der, parseOptions(ctx));
         return false;

@@ -120,6 +120,12 @@ openssl pkcs12 -export -inkey leaf.key.pem -in leaf.crt.pem -certfile inter.crt.
 openssl pkcs12 -export -inkey rsa.key.pem -in rsa.crt.pem -name "test rsa" -keypbe AES-256-CBC -certpbe AES-256-CBC -pbmac1_pbkdf2 -passout pass:$PASS -out rsa.p12
 openssl pkcs12 -export -legacy -inkey leaf.key.pem -in leaf.crt.pem -passout pass:$PASS -out legacy.p12
 
+# The worst case for a report: an UNENCRYPTED keyBag (plaintext PKCS#8), PBMAC1.
+openssl pkcs12 -export -inkey leaf.key.pem -in leaf.crt.pem -keypbe NONE -certpbe NONE -pbmac1_pbkdf2 -passout pass:$PASS -out plain-keybag.p12
+
+# A PKCS#12 file without a MAC and without encryption (certificates only).
+openssl pkcs12 -export -in inter.crt.pem -nokeys -certpbe NONE -nomac -passout pass: -out nomac.p12
+
 # A PKCS#12 file with certificates only (no key bag).
 openssl pkcs12 -export -nokeys -in inter.crt.pem -certpbe AES-256-CBC -pbmac1_pbkdf2 -passout pass:$PASS -out certs-only.p12
 

@@ -182,6 +182,20 @@ export const COMMANDS: readonly CommandSpec[] = [
             { name: 'verify', summary: 'Verify a time-stamp token or response', flags: [{ name: 'token', value: 'file' }, { name: 'response', value: 'file' }, { name: 'request', value: 'file' }, { name: 'data', value: 'file' }, { name: 'digest', value: 'hex' }, { name: 'trust', value: 'file', repeatable: true }, { name: 'untrusted', value: 'file', repeatable: true }, { name: 'crl', value: 'file', repeatable: true }, { name: 'ocsp', value: 'file', repeatable: true }, { name: 'require-revocation' }, { name: 'at', value: 'instant' }, { name: 'allow-noncritical-eku' }, format] },
         ],
     },
+    {
+        name: 'key', group: 'Keys', summary: 'Inspect and test-import PKCS#8 private keys (never printed)', flags: [], subcommands: [
+            { name: 'inspect', summary: 'Describe a key: algorithm, curve, encryption', flags: [input, format] },
+            { name: 'check', summary: 'Import or decrypt a key to prove it is usable', flags: [input, { name: 'key-type', value: 'type' }, { name: 'hash', value: 'SHA-256|SHA-384|SHA-512' }, { name: 'rsa-scheme', value: 'pkcs1|pss' }, { name: 'salt-length', value: 'n' }, { name: 'password-file', value: 'file' }, { name: 'password-stdin' }, format] },
+        ],
+    },
+    {
+        name: 'p12', group: 'Keys', summary: 'Inspect, verify and open PKCS#12 files (PBES2, PBMAC1)', flags: [], subcommands: [
+            { name: 'inspect', summary: 'Describe the structure without the password', flags: [input, format] },
+            { name: 'verify-mac', summary: 'Verify the integrity MAC', flags: [input, { name: 'password-file', value: 'file' }, { name: 'password-stdin' }, format] },
+            { name: 'bags', summary: 'List every bag, decrypting the encrypted contents', flags: [input, { name: 'password-file', value: 'file' }, { name: 'password-stdin' }, format] },
+            { name: 'open', summary: 'Open: verify, decrypt, import keys, export certificates', flags: [input, { name: 'password-file', value: 'file' }, { name: 'password-stdin' }, { name: 'allow-unverified-integrity' }, { name: 'rsa-scheme', value: 'pkcs1|pss' }, { name: 'hash', value: 'SHA-256|SHA-384|SHA-512' }, { name: 'certs-out', value: 'file' }, format] },
+        ],
+    },
     { name: 'limits', group: 'Meta', summary: 'The 22 pkinative security bounds: flags, defaults, effective', subcommands: [], flags: [format] },
 ];
 

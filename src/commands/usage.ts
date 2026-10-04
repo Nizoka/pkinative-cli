@@ -514,7 +514,62 @@ verify (exit 1, E_VERIFY_FAILED, unless the time-stamp verifies):
   --format, -f <text|json>  Report format (json under --json)
 `;
 
+const KEY_USAGE = `\
+pkinative key — PKCS#8 private keys (RFC 5958, PBES2 per RFC 8018)
+
+Usage:
+  pkinative key inspect [<file>]
+  pkinative key check [<file>] [--key-type <type>] [--rsa-scheme pkcs1|pss]
+
+inspect describes a key (algorithm, curve, attributes, or the PBES2
+parameters of an encrypted key) without a password. check imports it, or
+decrypts it, into a non-extractable Web Crypto key to prove it is usable.
+No report ever contains a key byte.
+
+Options:
+  --input, -i <file>        The key, PEM or DER (default: the positional)
+  --key-type <type>         check: type of an encrypted key: ec-p256,
+                            ec-p384, ec-p521, ed25519, ed448, rsa, rsa-pss
+  --hash <SHA-256|SHA-384|SHA-512>  check: the digest the key will sign with
+  --rsa-scheme <pkcs1|pss>  check: REQUIRED for an RSA key
+  --salt-length <n>         check: RSA-PSS salt length
+  --password-file <file>    check: the password, first line of the file
+  --password-stdin          check: ... or the first line of stdin
+                            (or PKINATIVE_PASSWORD; never on the command line)
+  --format, -f <text|json>  Report format (json under --json)
+`;
+
+const P12_USAGE = `\
+pkinative p12 — PKCS#12 (RFC 7292), PBES2 and PBMAC1 (RFC 9579) only
+
+Usage:
+  pkinative p12 inspect [<file>]
+  pkinative p12 verify-mac [<file>]
+  pkinative p12 bags [<file>]
+  pkinative p12 open [<file>] [--certs-out <bundle.pem>] [--rsa-scheme ...]
+
+inspect needs no password; the others read it from --password-file,
+--password-stdin or PKINATIVE_PASSWORD. The legacy RC2 / 3DES ciphers and the
+RFC 7292 Appendix B MAC are refused by doctrine (E_SECURITY); re-export with
+openssl pkcs12 -export -pbmac1_pbkdf2. No report ever contains a key byte.
+
+Options:
+  --input, -i <file>        The PKCS#12 file (default: the positional)
+  --password-file <file>    The password, first line of the file
+  --password-stdin          ... or the first line of stdin
+  --allow-unverified-integrity  open: accept a file whose MAC cannot be checked
+  --rsa-scheme <pkcs1|pss>  open: import an RSA key for this scheme
+  --hash <SHA-256|SHA-384|SHA-512>  open: the RSA key's digest (default SHA-256)
+  --certs-out <file>        open: write the certificates and CRLs as PEM
+  --format, -f <text|json>  Report format (json under --json)
+
+verify-mac exits 1 (E_VERIFY_FAILED) on a wrong password or an altered file;
+open exits 1 (E_PASSWORD on a MAC mismatch) unless everything opened.
+`;
+
 export const COMMAND_USAGE: Readonly<Record<string, string>> = {
+    key: KEY_USAGE,
+    p12: P12_USAGE,
     cms: CMS_USAGE,
     tsp: TSP_USAGE,
     crl: CRL_USAGE,

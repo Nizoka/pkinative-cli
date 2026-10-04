@@ -25,6 +25,8 @@ CA, OCSP-responder and TSA keys were deleted after signing.
 | `leaf.p12` | PKCS#12 with the leaf key and certificate plus the intermediate; PBES2 AES-256-CBC, PBMAC1 integrity (RFC 9579) |
 | `rsa.p12` | PKCS#12 with the RSA key and certificate; PBES2, PBMAC1 |
 | `legacy.p12` | The leaf key and certificate in the legacy form (RC2 / 3DES, RFC 7292 SHA-1 HMAC) pkinative refuses |
+| `plain-keybag.p12` | The leaf key in an UNENCRYPTED keyBag and its certificate, PBMAC1: proves no report prints key bytes |
+| `nomac.p12` | The intermediate certificate in a PKCS#12 with no MAC and no encryption |
 | `certs-only.p12` | PKCS#12 holding the intermediate certificate only (no key bag); PBES2, PBMAC1 |
 | `revoked.crt.pem` | `revoked.example.test`, serial 0x1002, revoked (keyCompromise, 2026-06-01) |
 | `rsa.crt.{pem,der}`, `rsa.key.pem`, `rsa.key.enc.pem` | `rsa.example.test`, RSA 2048, serial 0x1003, and its key (plain and PBES2) |
