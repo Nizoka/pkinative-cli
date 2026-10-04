@@ -42,7 +42,7 @@ export function commandList(): string {
     const groups = new Map<string, string[]>();
     for (const c of COMMANDS) {
         const lines = groups.get(c.group) ?? [];
-        lines.push(`  ${c.name.padEnd(12)}${c.summary}`);
+        lines.push(`  ${c.name.padEnd(13)}${c.summary}`);
         groups.set(c.group, lines);
     }
     const body = [...groups].map(([group, lines]) => ` ${group}\n${lines.join('\n')}`).join('\n\n');
@@ -567,7 +567,76 @@ verify-mac exits 1 (E_VERIFY_FAILED) on a wrong password or an altered file;
 open exits 1 (E_PASSWORD on a MAC mismatch) unless everything opened.
 `;
 
+const DOCTOR_USAGE = `\
+pkinative doctor — Offline preflight of the runtime
+
+Usage:
+  pkinative doctor [--format text|json]
+
+Checks the Node.js security floor (CVE-2026-21713), the installed pkinative
+against the range this CLI was built for, and whether Web Crypto can verify,
+sign and decrypt. Exit 1 (E_CHECK_FAILED) when a check fails. Never online.
+
+Options:
+  --format, -f <text|json>  Report format (json under --json)
+`;
+
+const EXPLAIN_USAGE = `\
+pkinative explain — Explain a code
+
+Usage:
+  pkinative explain <code>
+  pkinative explain --list [--kind error|reason|diagnostic|cli]
+
+Covers the CLI's E_* classes and pkinative's PKI_* errors (with the CLI class
+and the flag that lifts each refusal), PKI_REASON_* reasons and PKI_DIAG_*
+diagnostics, from the registries of the pinned pkinative release.
+
+Options:
+  --list                    List every code
+  --kind <error|reason|diagnostic|cli>  With --list: one family only
+  --format, -f <text|json>  Report format (json under --json)
+`;
+
+const SCHEMA_USAGE = `\
+pkinative schema — The machine contract
+
+Usage:
+  pkinative schema [list]
+  pkinative schema <subject>
+
+Subjects:
+  manifest    Commands, flags, exit codes, error classes, the wire form
+  errors      E_* classes and the 57 PKI_* to E_* mappings with remedies
+  limits      The 22 limits: flag, kind, effective value
+  status      JSON Schema of the --json success envelope
+  error       JSON Schema of the --json failure envelope
+  asn1-spec   JSON Schema of the asn1 encode spec
+  cert-spec   JSON Schema of the cert create spec
+  csr-spec    JSON Schema of the csr create spec
+  config      JSON Schema of .pkinativerc.json
+
+JSON Schemas are draft 2020-12 with an $id versioned by the CLI release.
+`;
+
+const COMPLETION_USAGE = `\
+pkinative completion — Shell completion
+
+Usage:
+  pkinative completion <bash|zsh|fish|powershell>
+
+Install:
+  pkinative completion bash > /etc/bash_completion.d/pkinative
+  pkinative completion zsh  > "\${fpath[1]}/_pkinative"
+  pkinative completion fish > ~/.config/fish/completions/pkinative.fish
+  pkinative completion powershell >> $PROFILE
+`;
+
 export const COMMAND_USAGE: Readonly<Record<string, string>> = {
+    doctor: DOCTOR_USAGE,
+    explain: EXPLAIN_USAGE,
+    schema: SCHEMA_USAGE,
+    completion: COMPLETION_USAGE,
     key: KEY_USAGE,
     p12: P12_USAGE,
     cms: CMS_USAGE,

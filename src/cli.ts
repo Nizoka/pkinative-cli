@@ -32,7 +32,11 @@ export async function loadCommand(name: string): Promise<CommandHandler> {
         case 'tsp': return (await import('./commands/tsp.js')).tsp;
         case 'key': return (await import('./commands/key.js')).key;
         case 'p12': return (await import('./commands/p12.js')).p12;
+        case 'doctor': return (await import('./commands/doctor.js')).doctor;
         case 'limits': return (await import('./commands/limits.js')).limits;
+        case 'explain': return (await import('./commands/explain.js')).explain;
+        case 'schema': return (await import('./commands/schema.js')).schema;
+        case 'completion': return (await import('./commands/completion.js')).completion;
         default:
             throw new CliError(`Unknown command: ${name}. Run pkinative --help.`, 2);
     }

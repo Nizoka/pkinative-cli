@@ -196,7 +196,11 @@ export const COMMANDS: readonly CommandSpec[] = [
             { name: 'open', summary: 'Open: verify, decrypt, import keys, export certificates', flags: [input, { name: 'password-file', value: 'file' }, { name: 'password-stdin' }, { name: 'allow-unverified-integrity' }, { name: 'rsa-scheme', value: 'pkcs1|pss' }, { name: 'hash', value: 'SHA-256|SHA-384|SHA-512' }, { name: 'certs-out', value: 'file' }, format] },
         ],
     },
+    { name: 'doctor', group: 'Meta', summary: 'Offline preflight: Node.js floor, pkinative, Web Crypto', subcommands: [], flags: [format] },
     { name: 'limits', group: 'Meta', summary: 'The 22 pkinative security bounds: flags, defaults, effective', subcommands: [], flags: [format] },
+    { name: 'explain', group: 'Meta', summary: 'Explain any E_*, PKI_*, PKI_REASON_* or PKI_DIAG_* code', subcommands: [], flags: [{ name: 'list' }, { name: 'kind', value: 'error|reason|diagnostic|cli' }, format] },
+    { name: 'schema', group: 'Meta', summary: 'JSON Schemas, the capability manifest, the error catalogue', subcommands: [], flags: [] },
+    { name: 'completion', group: 'Meta', summary: 'Shell completion script (bash, zsh, fish, powershell)', subcommands: [], flags: [] },
 ];
 
 /** Every command name, in table order. */

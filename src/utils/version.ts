@@ -26,3 +26,8 @@ export function engineVersion(resolve: (id: string) => unknown = createRequire(i
 export function resetEngineVersionCache(): void {
     cachedEngine = undefined;
 }
+
+/** The running Node.js version (a function, so tests can probe both sides of the floor). */
+export function nodeVersion(): string {
+    return process.versions.node;
+}
