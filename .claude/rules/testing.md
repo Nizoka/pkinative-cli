@@ -15,7 +15,7 @@ paths:
 - `tests/parity/` compare the CLI's `--json` with pkinative's own result; `tests/fuzz/` are seeded (`tests/helpers/prng.ts`), so a failure reproduces from its seed.
 - `tests/integration/` run `dist/cli.cjs` (skipped without a build, required under `GATE_REQUIRE_ARTIFACTS=1`); `tests/interop/` run OpenSSL 3 (required under `REQUIRE_INTEROP=1`).
 - `tests/regression/` pin the samples and map the engine's CHANGELOG bullets to tests or typed waivers.
-- `tests/tools/` hold the release tooling (gate, bundle probe, package files, npm drift, release-prepare, verify-docs), the agent guard hook and the issue-draft verifier to synthetic inputs.
+- `tests/tools/` hold the release tooling (gate, bundle probe, package files, npm drift, release-prepare, verify-docs), the workflows and rulesets, the agent guard hook and the issue-draft verifier to their invariants.
 
 ## Rules
 

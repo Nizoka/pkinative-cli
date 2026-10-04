@@ -70,10 +70,12 @@ repository:
       - uri: https://www.npmjs.com/package/pkinative-cli
         comment: >-
           npm, published by .github/workflows/publish.yml on a published GitHub
-          Release, through Trusted Publishing (OIDC) with provenance; the same
-          workflow produces the SBOM.
+          Release, through Trusted Publishing (OIDC) with provenance.
       - uri: https://github.com/Nizoka/pkinative-cli/releases
-        comment: GitHub Releases, published by the maintainer; each one triggers the publish workflow.
+        comment: >-
+          GitHub Releases, published by the maintainer; each one triggers the
+          publish workflow, which attaches the registry's tarball, the SBOMs
+          and their Sigstore attestation.
     changelog: https://github.com/Nizoka/pkinative-cli/blob/main/CHANGELOG.md
   security:
     assessments:
@@ -86,9 +88,51 @@ repository:
           suite). There is no coverage-guided fuzzing and no third-party audit.
         evidence: https://github.com/Nizoka/pkinative-cli/blob/main/SECURITY.md
     tools:
+      - name: CodeQL
+        type: SAST
+        rulesets: [security-extended]
+        integration: { adhoc: false, ci: true, release: false }
+        results: {}
+        comment: TypeScript and the GitHub Actions workflows, on every push and pull request to main and weekly (codeql.yml); its results are required by the main ruleset.
+      - name: zizmor
+        type: SAST
+        rulesets: [default]
+        integration: { adhoc: false, ci: true, release: false }
+        results: {}
+        comment: Security analysis of the workflows on every change (ci.yml, workflow lint).
+      - name: actionlint
+        type: other
+        rulesets: [default]
+        integration: { adhoc: false, ci: true, release: false }
+        results: {}
+        comment: Workflow syntax and expression checks on every change (ci.yml, workflow lint).
+      - name: REUSE
+        type: other
+        rulesets: [default]
+        integration: { adhoc: false, ci: true, release: false }
+        results: {}
+        comment: Licence and copyright of every file (REUSE.toml) on every change (ci.yml, workflow lint).
+      - name: OSV-Scanner
+        type: SCA
+        rulesets: [default]
+        integration: { adhoc: true, ci: true, release: false }
+        results: {}
+        comment: The lockfile against the OSV database, weekly and on demand (audit.yml).
       - name: Dependabot
         type: SCA
         rulesets: [default]
         integration: { adhoc: false, ci: true, release: false }
         results: {}
         comment: Weekly update pull requests for npm and GitHub Actions, after a seven-day cooldown (.github/dependabot.yml).
+      - name: Dependency Review
+        type: SCA
+        rulesets: [default]
+        integration: { adhoc: false, ci: true, release: false }
+        results: {}
+        comment: The dependency changes of every pull request, a required check (dependency-review.yml).
+      - name: Scorecard
+        type: other
+        rulesets: [default]
+        integration: { adhoc: false, ci: true, release: false }
+        results: {}
+        comment: OpenSSF Scorecard on every push to main and weekly (scorecard.yml).

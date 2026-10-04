@@ -1,0 +1,106 @@
+name: Sample Regression
+
+# Guards every subcommand's output against unintended change. Builds the CLI,
+# runs every sample of the plan (scripts/lib/sample-plan.ts) through the BUILT
+# binary and fingerprints each output against
+# tests/regression/baselines/samples.sha256.json: byte for byte for
+# deterministic output (stdout reports, Ed25519 certificates and requests,
+# OCSP and time-stamp requests), over the TBS for ECDSA and RSA-PSS
+# signatures, which are randomised.
+#
+# On a pull request it also holds the re-pin rule: a change to the baseline is
+# an announced change of output, so the same pull request must touch
+# CHANGELOG.md (CONTRIBUTING.md, Pull Request Checklist).
+#
+# No path filter: `sample-regression` is a required check, and a filtered-out
+# required check would leave the pull request waiting forever.
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sample-regression-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sample-regression:
+    # The required check name (.github/rulesets/main.json) — keep it equal.
+    name: sample-regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+            registry.npmjs.org:443
+            nodejs.org:443
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          # Needed to diff against the pull request's base commit.
+          fetch-depth: 0
+
+      - name: A re-pinned baseline is announced in the CHANGELOG
+        if: github.event_name == 'pull_request'
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          CHANGED=$(git diff --name-only "${BASE}...HEAD")
+          if grep -qx 'tests/regression/baselines/samples.sha256.json' <<< "${CHANGED}" \
+            && ! grep -qx 'CHANGELOG.md' <<< "${CHANGED}"; then
+            echo "::error::the sample baseline changed but CHANGELOG.md did not: declare the intended output change"
+            exit 1
+          fi
+
+      - name: Setup Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      # The samples drive dist/cli.cjs, never the source tree.
+      - name: Build
+        run: npm run build
+
+      - name: Verify the samples against the baseline
+        run: npx tsx scripts/verify-samples.ts
+
+      - name: Report divergences
+        if: failure()
+        run: |
+          {
+            echo '## Sample regression'
+            echo
+            echo 'A pinned sample no longer produces its baseline output.'
+            echo 'If the change is intended, declare it in the CHANGELOG and re-pin with:'
+            echo
+            echo '```'
+            echo 'npm run build && npx tsx scripts/verify-samples.ts --update'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the sample outputs on failure
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: sample-regression-output
+          path: test-output/samples/
+          retention-days: 7
+          if-no-files-found: ignore

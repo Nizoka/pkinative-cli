@@ -1,0 +1,64 @@
+name: CodeQL
+
+# No path filter: the main ruleset's code_scanning rule needs CodeQL results
+# for every pull request and its base, and a filtered-out analysis would
+# leave the merge waiting for results that never come.
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  schedule:
+    - cron: '27 3 * * 1'
+
+# Read-only at the workflow level; the one write the analysis needs is granted
+# to the job that needs it (OpenSSF Scorecard, Token-Permissions).
+permissions:
+  contents: read
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      security-events: write # Upload the analysis to code scanning.
+      actions: read # Read the workflow run the analysis belongs to.
+      contents: read # Read the source.
+
+    # `actions` reads the workflows themselves (injection, untrusted checkout,
+    # excessive permissions); `javascript-typescript` the CLI and the
+    # scripts. Neither needs a build: CodeQL extracts both from source.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { language: actions, build-mode: none }
+          - { language: javascript-typescript, build-mode: none }
+
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit # 2026-10-01: the CodeQL bundle and its query packs come from hosts not baselined yet
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+          queries: security-extended
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
+        with:
+          category: /language:${{ matrix.language }}

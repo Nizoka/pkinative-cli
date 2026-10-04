@@ -1,0 +1,125 @@
+# Documentation consistency
+# =========================
+# ci.yml runs the whole gate — verify:docs included — on every pull request.
+# This workflow is the fast, documentation-only answer to the same question:
+# it runs scripts/verify-docs.ts, which holds every figure, version, command,
+# link and generated file of the documentation to the source.
+#
+# The PR job is hermetic (no network beyond the install). A weekly scheduled
+# job compares package.json with the npm registry (scripts/check-npm-drift.ts,
+# anonymous `npm view`, no secret), so a release tagged but never published,
+# or a version published that main does not describe, surfaces on its own.
+
+name: Docs
+
+on:
+  pull_request:
+    branches: [main, master]
+    paths:
+      - 'docs/**'
+      - '**.md'
+      - 'llms.txt'
+      - 'CITATION.cff'
+      - 'samples/**'
+      - 'scripts/**'
+      - '.github/**'
+      - '.claude/**'
+      # The commands and figures rules read src/, so a rename there can break
+      # the docs without touching them.
+      - 'src/**'
+      - 'package.json'
+  push:
+    branches: [main, master]
+    paths:
+      - 'docs/**'
+      - '**.md'
+      - 'llms.txt'
+      - 'CITATION.cff'
+      - 'samples/**'
+      - 'scripts/**'
+      - '.github/**'
+      - '.claude/**'
+      - 'src/**'
+      - 'package.json'
+  schedule:
+    # Mondays 06:00 UTC — catch npm drift without blocking anyone's PR.
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Verify documentation consistency
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+            registry.npmjs.org:443
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Type check scripts
+        run: npm run typecheck:scripts
+
+      - name: Verify documentation
+        run: npm run verify:docs
+
+  npm-drift:
+    name: Check package.json against npm
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # Only on the schedule and on manual runs: a package published between a
+    # PR opening and merging should not turn someone else's docs change red.
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+            registry.npmjs.org:443
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Check the npm registry against package.json
+        run: npm run check:npm-drift

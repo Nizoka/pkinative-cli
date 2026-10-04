@@ -1,0 +1,212 @@
+name: CI
+
+# The `ci` jobs run `scripts/gate.ts --ci`, the single definition of "green":
+# the step list lives in that file's STEPS table and is not repeated here, so
+# CI and the contributor loop cannot drift apart. `--require-all` turns any
+# SKIP into a FAIL: a runner without OpenSSL, or on a Node.js below the
+# security floor, goes red instead of quietly passing.
+#
+# `npm audit` runs outside the gate on purpose: the gate's verdict should be
+# the same on a laptop and on a runner, and the advisory database is not.
+#
+# No path filter. Every job here reports a check the ruleset requires, and
+# GitHub leaves the checks of a path-filtered workflow pending forever, which
+# blocks the pull request.
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # One job, four runs. `name:` decides the status-check name: `ci (22)`,
+  # `ci (24)`, `windows` and `macos` are the contexts .github/rulesets/main.json
+  # requires, and renaming one leaves every pull request waiting for a context
+  # that never reports again.
+  #
+  # Windows and macOS are blocking from day one: CRLF line endings in PEM
+  # files, path separators, the npm.cmd shim, Windows symbolic-link semantics
+  # for the exclusive writes, and the OpenSSL build each platform carries are
+  # facts a Linux runner never exercises. Both run the Node version of .nvmrc;
+  # the second Node line is covered on Linux.
+  ci:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: 'ci (22)', os: ubuntu-latest, node-version: 22, slug: linux-node22, audit: true }
+          - { name: 'ci (24)', os: ubuntu-latest, node-version: 24, slug: linux-node24, audit: false }
+          - { name: windows, os: windows-latest, node-version: 22, slug: windows, audit: false }
+          - { name: macos, os: macos-latest, node-version: 22, slug: macos, audit: false }
+
+    steps:
+      # One step serves all four legs, so the policy is the one the Windows
+      # and macOS legs allow (audit: the vendor matrix at the pinned SHA).
+      - name: Harden the runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit # 2026-10-04: audit only on Windows/macOS (vendor matrix), and one step serves every leg
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+
+      # macOS answers `openssl` with LibreSSL; the interop suite is written
+      # against OpenSSL 3, which the image carries through Homebrew.
+      - name: Put OpenSSL 3 first on PATH (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          PREFIX=$(brew --prefix openssl@3)
+          test -x "${PREFIX}/bin/openssl"
+          echo "${PREFIX}/bin" >> "$GITHUB_PATH"
+
+      - name: Record the OpenSSL version
+        shell: bash
+        run: openssl version
+
+      # No lifecycle script of any dependency runs on the runner; the
+      # repository's own .npmrc says the same for every developer machine.
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      # Once per commit, not once per platform: the advisory database does not
+      # depend on the runner.
+      - name: Audit dependencies
+        if: matrix.audit
+        run: npm audit --audit-level=high
+
+      - name: Run the quality gate (CI profile)
+        run: npx tsx scripts/gate.ts --ci --require-all
+
+      - name: Upload the gate logs on failure
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: gate-logs-${{ matrix.slug }}
+          path: test-output/.gate/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  # The package declares Node.js; this runs the BUILT binary under Deno and
+  # Bun as well, so a user who tries one learns from the README what works.
+  # Advisory: `runtimes` is not a required check.
+  runtimes:
+    name: runtimes
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit # 2026-10-04: the Deno and Bun downloads are not baselined yet
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Build the CLI under test
+        run: npm run build
+
+      # Exact versions, so a red run names its runtime.
+      - name: Setup Deno
+        uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
+        with:
+          deno-version: 2.9.7
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.2
+          no-cache: true
+
+      - name: Smoke test on Deno and Bun
+        shell: bash
+        run: |
+          set -euo pipefail
+          CERT=tests/fixtures/pki/root.crt.pem
+          for RUN in "deno run --allow-all" "bun"; do
+            echo "== ${RUN}"
+            ${RUN} dist/cli.cjs --version
+            ${RUN} dist/cli.cjs cert inspect "${CERT}" --json --fields subject
+            ${RUN} dist/cli.cjs fingerprint "${CERT}" --alg SHA-256
+          done
+
+  # The workflows themselves are code that holds tokens. zizmor reads them for
+  # the GitHub Actions weaknesses (template injection, excessive permissions,
+  # unpinned or impostor actions, cache poisoning); actionlint checks syntax,
+  # expressions and every `run:` script through shellcheck; `reuse lint`
+  # checks that every file carries its licence (REUSE.toml). Pinned: zizmor
+  # by the action and its version, actionlint by the SHA-256 of its release
+  # archive, reuse by its version.
+  workflow-lint:
+    name: workflow lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit # 2026-10-04: the container registry hosts behind ghcr.io and PyPI are not baselined yet
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: zizmor
+        uses: zizmorcore/zizmor-action@cc914d7f3750a2d13d75c7f184a1060aa0e9d482 # v0.6.4
+        with:
+          version: 1.30.1
+          min-severity: medium
+          advanced-security: false
+          annotations: true
+
+      - name: actionlint
+        env:
+          ACTIONLINT_VERSION: 1.7.12
+          ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+        run: |
+          set -euo pipefail
+          ARCHIVE="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          curl --fail --silent --show-error --location --proto '=https' \
+            --output "${RUNNER_TEMP}/${ARCHIVE}" \
+            "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/${ARCHIVE}"
+          echo "${ACTIONLINT_SHA256}  ${RUNNER_TEMP}/${ARCHIVE}" | sha256sum --check --strict
+          tar -xzf "${RUNNER_TEMP}/${ARCHIVE}" -C "${RUNNER_TEMP}" actionlint
+          shellcheck --version | head -2
+          "${RUNNER_TEMP}/actionlint" -color
+
+      - name: REUSE compliance
+        env:
+          REUSE_VERSION: 6.2.0
+        run: pipx run --spec "reuse==${REUSE_VERSION}" reuse lint

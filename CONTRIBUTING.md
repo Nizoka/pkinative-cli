@@ -114,7 +114,7 @@ A pkinative minor can add exports, codes or diagnostics. Bumping `^1.x`:
 The rules for `main` are versioned in [.github/rulesets/main.json](.github/rulesets/main.json): no deletion, no force-push, pull request required (squash only, threads resolved, stale reviews dismissed), CodeQL results required, and the status checks of `ci.yml`, `conformance.yml`, `sample-regression.yml` and `dependency-review.yml` required and up to date.
 No required workflow is path-filtered: GitHub would leave a filtered-out check pending forever. The tag rules ([.github/rulesets/tags.json](.github/rulesets/tags.json)) forbid deleting, moving or updating a `v*` tag.
 
-**Import the rulesets after the first push to `main`**, never before (Settings → Rules → Rulesets → Import a ruleset): a ruleset that requires a pull request leaves no legal path to seed the branch. Single-maintainer choices, as in pkinative: zero required approvals, an admin bypass in pull-request mode only, signed commits asked for rather than required.
+**Import the rulesets after the first push to `main`**, never before (Settings → Rules → Rulesets → Import a ruleset): a ruleset that requires a pull request leaves no legal path to seed the branch. Single-maintainer choices, as in pkinative: zero required approvals, and an admin bypass in pull-request mode only. **Signed commits are not required.** GitHub checks every commit of the head branch, so one unsigned commit of a first-time contributor would block the squash merge; sign yours anyway.
 
 Settings outside the rulesets, set once:
 
