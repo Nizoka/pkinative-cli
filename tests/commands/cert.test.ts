@@ -522,3 +522,12 @@ describe('signature algorithm selection', () => {
         expect(envelope(legacy.stderr)).toMatchObject({ error: { code: 'E_VERIFY_FAILED', reasons: expect.any(Array) } });
     });
 });
+
+describe('strict mode', () => {
+    it('escalates the first engine warning to E_CHECK_FAILED', async () => {
+        expect((await cli(['cert', 'inspect', fixture('revoked.crt.pem')])).code).toBe(0);
+        const r = await cli(['cert', 'inspect', fixture('revoked.crt.pem'), '--strict', '--json']);
+        expect(r.code).toBe(1);
+        expect(envelope(r.stderr)).toMatchObject({ error: { code: 'E_CHECK_FAILED', pkiCode: 'PKI_STRICT_DIAGNOSTIC', remedy: expect.stringMatching(/drop --strict/) } });
+    });
+});

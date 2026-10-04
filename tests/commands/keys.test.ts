@@ -151,3 +151,11 @@ describe('key views', () => {
         expect((await cli(['key', 'check', fixture('ed25519.key.pem')])).stdout).toBe('key imported: {"name":"Ed25519"} (private, non-extractable)\n');
     });
 });
+
+describe('engine bounds through the CLI', () => {
+    it('bounds the PBKDF2 work of a whole PKCS#12', async () => {
+        const r = await cli(['p12', 'open', fixture('leaf.p12'), '--max-pkcs12-kdf-iterations', '1000', '--json'], { env: ENV });
+        expect(r.code).toBe(1);
+        expect(envelope(r.stderr)).toMatchObject({ error: { reasons: [{ code: 'PKI_REASON_INPUT_MALFORMED', errorCode: 'PKI_LIMIT_EXCEEDED', path: 'pkcs12' }] } });
+    });
+});

@@ -212,3 +212,23 @@ describe('tsp', () => {
         expect((await cli(['tsp', 'verify', '--token', fixture('content.tst'), '--response', fixture('content.tsr'), ...TRUST])).code).toBe(2);
     });
 });
+
+describe('verdict diagnostics and Ed448', () => {
+    it('routes the diagnostics of a verdict to the envelope', async () => {
+        const r = await cli(['tsp', 'verify', fixture('content.tsr'), '--data', fixture('content.txt'), ...TRUST, '--at', AT, '--json']);
+        expect(envelope(r.stderr)).toMatchObject({ ok: true, diagnostics: [{ code: 'PKI_DIAG_CMS_SET_NOT_SORTED' }] });
+        const text = await cli(['tsp', 'verify', fixture('content.tsr'), '--data', fixture('content.txt'), ...TRUST, '--at', AT]);
+        expect(text.stderr).toMatch(/^warning PKI_DIAG_CMS_SET_NOT_SORTED/);
+    });
+
+    it('signs and verifies CMS with an Ed448 signer', async () => {
+        const { generateKeyPairSync } = await import('node:crypto');
+        const dir = emptyDir();
+        const { privateKey } = generateKeyPairSync('ed448');
+        writeFileSync(join(dir, 'k.der'), privateKey.export({ type: 'pkcs8', format: 'der' }));
+        writeFileSync(join(dir, 's.json'), JSON.stringify({ subject: { CN: 'ed448' }, notBefore: '2026-01-01T00:00:00Z', extensions: { basicConstraints: { ca: true }, keyUsage: ['digitalSignature', 'keyCertSign'] } }));
+        expect((await cli(['cert', 'create', '--spec', join(dir, 's.json'), '--key', join(dir, 'k.der'), '-o', join(dir, 'c.pem')])).code).toBe(0);
+        expect((await cli(['cms', 'sign', '--content', fixture('content.txt'), '--cert', join(dir, 'c.pem'), '--key', join(dir, 'k.der'), '-o', join(dir, 's.p7s')])).code).toBe(0);
+        expect((await cli(['cms', 'verify', join(dir, 's.p7s'), '--trust', join(dir, 'c.pem'), '--at', AT])).code).toBe(0);
+    });
+});
