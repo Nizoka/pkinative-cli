@@ -1,10 +1,123 @@
-import { describe, expect, it, vi } from 'vitest';
-import { run } from '../src/cli.js';
+import { writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { describe, expect, it } from 'vitest';
+import { CONFIG_FILENAME } from '../src/utils/config.js';
+import { CLI_VERSION } from '../src/utils/version.js';
+import { cli, emptyDir, envelope } from './helpers/io.js';
 
-describe('run', () => {
-    it('returns exit code 0', async () => {
-        const write = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
-        await expect(run([])).resolves.toBe(0);
-        write.mockRestore();
+describe('run: help and version', () => {
+    it('prints the help with no arguments or --help', async () => {
+        for (const argv of [[], ['--help'], ['-h']]) {
+            const r = await cli(argv);
+            expect(r.code).toBe(0);
+            expect(r.stdout).toMatch(/^pkinative-cli — Official CLI/);
+            expect(r.stdout).toMatch(/Commands \(\d+\):/);
+        }
+    });
+
+    it('prints the version, with engine version under --json', async () => {
+        expect((await cli(['--version'])).stdout).toBe(`${CLI_VERSION}\n`);
+        expect((await cli(['-V'])).stdout).toBe(`${CLI_VERSION}\n`);
+        const json = JSON.parse((await cli(['--version', '--json'])).stdout) as Record<string, string>;
+        expect(json).toMatchObject({ name: 'pkinative-cli', version: CLI_VERSION });
+        expect(json['pkinative']).toMatch(/^1\./);
+        expect(JSON.parse((await cli(['-V'], { env: { PKINATIVE_JSON: '1' } })).stdout)).toHaveProperty('pkinative');
+    });
+
+    it('prints a command help', async () => {
+        const r = await cli(['limits', '--help']);
+        expect(r.code).toBe(0);
+        expect(r.stdout).toMatch(/^pkinative limits —/);
+    });
+});
+
+describe('run: usage errors', () => {
+    it('refuses flags without a command', async () => {
+        const r = await cli(['--quiet']);
+        expect(r.code).toBe(2);
+        expect(r.stderr).toMatch(/^error E_USAGE: No command given/);
+    });
+
+    it('refuses an unknown command, listing the commands', async () => {
+        const r = await cli(['frobnicate']);
+        expect(r.code).toBe(2);
+        expect(r.stderr).toMatch(/Unknown command: frobnicate\. Commands: .*limits/);
+    });
+
+    it('refuses an unknown flag', async () => {
+        const r = await cli(['limits', '--frob']);
+        expect(r.code).toBe(2);
+        expect(r.stderr).toMatch(/Unknown flag --frob for "limits"/);
+    });
+
+    it('refuses a literal password anywhere, before the command runs', async () => {
+        const r = await cli(['limits', '--password', 'hunter2', '--json']);
+        expect(r.code).toBe(2);
+        const env = envelope(r.stderr);
+        expect(env).toMatchObject({ ok: false, command: null, error: { code: 'E_USAGE', remedy: expect.stringMatching(/--password-file/) } });
+        expect(r.stderr).not.toContain('hunter2');
+    });
+
+    it('writes a JSON envelope for usage errors under --json', async () => {
+        const r = await cli(['--json', 'limits', '--max-depth', '0']);
+        expect(r.code).toBe(2);
+        expect(envelope(r.stderr)).toMatchObject({ ok: false, command: 'limits', error: { code: 'E_USAGE' }, diagnostics: [] });
+    });
+});
+
+describe('run: a command', () => {
+    it('runs limits in text and json, flags before or after the command', async () => {
+        const text = await cli(['limits']);
+        expect(text.code).toBe(0);
+        expect(text.stdout).toMatch(/--max-input-bytes\s+67108864\s+CWE-400/);
+        const json = await cli(['--max-depth', '8', 'limits', '--json']);
+        expect(json.code).toBe(0);
+        const report = JSON.parse(json.stdout) as { limits: { limit: string; effective: number; default: number }[] };
+        expect(report.limits).toHaveLength(22);
+        expect(report.limits.find((l) => l.limit === 'maxDepth')).toMatchObject({ effective: 8, default: 64 });
+        expect(envelope(json.stderr)).toEqual({ ok: true, command: 'limits', diagnostics: [] });
+    });
+
+    it('marks changed bounds in text, and summarises them', async () => {
+        const text = await cli(['limits', '--max-depth', '8']);
+        expect(text.stdout).toMatch(/--max-depth\s+8 \(default 64\)/);
+        const summary = await cli(['limits', '--json', '--summary', '--max-depth', '8']);
+        expect(JSON.parse(summary.stdout)).toEqual({ changed: [{ limit: 'maxDepth', effective: 8 }] });
+    });
+
+    it('applies a config file, and refuses a relaxing key in it', async () => {
+        const dir = emptyDir();
+        writeFileSync(join(dir, CONFIG_FILENAME), JSON.stringify({ limits: { format: 'json' } }));
+        const r = await cli(['limits'], { cwd: dir });
+        expect(JSON.parse(r.stdout)).toHaveProperty('limits');
+        expect((await cli(['limits', '--no-config'], { cwd: dir })).stdout).toMatch(/^--max-input-bytes/);
+        const bad = emptyDir();
+        writeFileSync(join(bad, CONFIG_FILENAME), JSON.stringify({ 'max-depth': '1000' }));
+        expect((await cli(['limits'], { cwd: bad })).code).toBe(2);
+        const unknown = emptyDir();
+        writeFileSync(join(unknown, CONFIG_FILENAME), JSON.stringify({ limits: { frob: true } }));
+        expect((await cli(['limits'], { cwd: unknown })).stderr).toMatch(/Unknown flag --frob/);
+    });
+
+    it('prints a stack trace with PKINATIVE_DEBUG=1', async () => {
+        const r = await cli(['limits', '--max-depth', 'x'], { env: { PKINATIVE_DEBUG: '1' } });
+        expect(r.code).toBe(2);
+        expect(r.stderr).toMatch(/\n\s+at /);
+    });
+});
+
+describe('run: defensive paths', () => {
+    it('refuses to load a command the registry does not know', async () => {
+        const { loadCommand } = await import('../src/cli.js');
+        await expect(loadCommand('nope')).rejects.toMatchObject({ code: 'E_USAGE' });
+    });
+
+    it('reports a non-CliError failure as E_RUNTIME', async () => {
+        const { reportFailure } = await import('../src/cli.js');
+        const { memoryIo } = await import('./helpers/io.js');
+        const m = memoryIo();
+        expect(reportFailure(m.io, 'x', new Error('boom'), undefined, false)).toBe(1);
+        expect(reportFailure(m.io, 'x', 'str', undefined, false)).toBe(1);
+        expect(m.stderr()).toBe('error E_RUNTIME: boom\nerror E_RUNTIME: str\n');
     });
 });
