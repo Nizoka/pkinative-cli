@@ -121,3 +121,30 @@ describe('run: defensive paths', () => {
         expect(m.stderr()).toBe('error E_RUNTIME: boom\nerror E_RUNTIME: str\n');
     });
 });
+
+describe('run: quiet success', () => {
+    it('prints nothing on stderr under --quiet', async () => {
+        const r = await cli(['limits', '-q']);
+        expect(r.code).toBe(0);
+        expect(r.stderr).toBe('');
+    });
+});
+
+describe('run: diagnostics', () => {
+    it('prints the diagnostics before the error, and in the envelopes', async () => {
+        const { emptyDir: tmp } = await import('./helpers/io.js');
+        const dir = tmp();
+        const file = join(dir, 'ber.der');
+        writeFileSync(file, Buffer.from('308005000000', 'hex'));
+        const failed = await cli(['asn1', 'decode', file, '--ber', '--path', '5']);
+        expect(failed.stderr).toMatch(/^info PKI_DIAG_BER_CONSTRUCT_ACCEPTED: .*\nerror E_NOT_FOUND/);
+        const quiet = await cli(['asn1', 'decode', file, '--ber', '--path', '5', '-q']);
+        expect(quiet.stderr).toMatch(/^error E_NOT_FOUND/);
+        const ok = await cli(['asn1', 'decode', file, '--ber']);
+        expect(ok.stderr).toMatch(/^info PKI_DIAG_BER_CONSTRUCT_ACCEPTED/);
+        const json = await cli(['asn1', 'decode', file, '--ber', '--json']);
+        expect(envelope(json.stderr)).toMatchObject({ ok: true, diagnostics: [{ code: 'PKI_DIAG_BER_CONSTRUCT_ACCEPTED', severity: 'info' }] });
+        const jsonFail = await cli(['asn1', 'decode', file, '--ber', '--path', '5', '--json']);
+        expect(envelope(jsonFail.stderr)).toMatchObject({ ok: false, diagnostics: [{ code: 'PKI_DIAG_BER_CONSTRUCT_ACCEPTED' }] });
+    });
+});

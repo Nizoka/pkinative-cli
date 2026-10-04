@@ -19,6 +19,10 @@ export type CommandHandler = (ctx: Ctx) => Promise<void>;
 
 export async function loadCommand(name: string): Promise<CommandHandler> {
     switch (name) {
+        case 'pem': return (await import('./commands/pem.js')).pem;
+        case 'oid': return (await import('./commands/oid.js')).oid;
+        case 'fingerprint': return (await import('./commands/fingerprint.js')).fingerprint;
+        case 'asn1': return (await import('./commands/asn1.js')).asn1;
         case 'limits': return (await import('./commands/limits.js')).limits;
         default:
             throw new CliError(`Unknown command: ${name}. Run pkinative --help.`, 2);
@@ -63,29 +67,30 @@ export async function run(argv: readonly string[], io: Io = processIo()): Promis
         }
         commandLabel = name;
         let args = parseArgs(rest, booleans);
+        const help = hasFlag(args.flags, 'help', 'h');
         let sub: string | undefined;
         if (spec.subcommands.length > 0) {
+            const names = spec.subcommands.map((s) => s.name);
             sub = args.positionals[0];
-            if (sub !== undefined && !spec.subcommands.includes(sub)) {
-                throw usageError(`Unknown subcommand "${name} ${sub}". Subcommands: ${spec.subcommands.join(', ')}.`);
-            }
-            if (sub !== undefined) {
+            if (sub === undefined) {
+                if (!help) throw usageError(`"${name}" needs a subcommand: ${names.join(', ')}. Run pkinative ${name} --help.`);
+            } else if (!names.includes(sub)) {
+                throw usageError(`Unknown subcommand "${name} ${sub}". Subcommands: ${names.join(', ')}.`);
+            } else {
                 commandLabel = `${name} ${sub}`;
                 args = { flags: args.flags, positionals: args.positionals.slice(1) };
             }
         }
-        if (hasFlag(args.flags, 'help', 'h') || (sub === undefined && spec.subcommands.length > 0)) {
-            if (sub === undefined && spec.subcommands.length > 0 && !hasFlag(args.flags, 'help', 'h')) {
-                throw usageError(`"${name}" needs a subcommand: ${spec.subcommands.join(', ')}. Run pkinative ${name} --help.`);
-            }
-            io.stdout.write(COMMAND_USAGE[name] ?? USAGE);
+        if (help) {
+            // tests/docs/usage.test.ts holds one help block per registered command.
+            io.stdout.write(COMMAND_USAGE[name] as string);
             return 0;
         }
-        assertKnownFlags(args.flags, knownFlags(spec), name);
+        const known = knownFlags(spec, sub);
+        assertKnownFlags(args.flags, known, commandLabel);
         if (!hasFlag(args.flags, 'no-config')) {
-            const defaults = loadConfig(name, commandNames(), getStringFlag(args.flags, 'config'), io.cwd);
-            args = applyConfigDefaults(args, defaults);
-            assertKnownFlags(args.flags, knownFlags(spec), name);
+            args = applyConfigDefaults(args, loadConfig(name, commandNames(), getStringFlag(args.flags, 'config'), io.cwd));
+            assertKnownFlags(args.flags, known, commandLabel);
         }
         const opts = parseGlobalOptions(args, io.env);
         json = opts.json;
