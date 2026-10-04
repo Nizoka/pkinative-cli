@@ -104,7 +104,7 @@ openssl req -new -key leaf.key.pem -subj "/C=FR/O=pkinative-cli test/CN=csr.exam
 # DER forms.
 for f in root inter leaf rsa ed25519; do openssl x509 -in $f.crt.pem -outform DER -out $f.crt.der; done
 openssl req -in leaf.csr.pem -outform DER -out leaf.csr.der
-openssl pkey -in leaf.key.pem -outform DER -out leaf.key.der
+openssl pkcs8 -topk8 -nocrypt -in leaf.key.pem -outform DER -out leaf.key.der
 openssl pkey -in leaf.key.pem -pubout -out leaf.pub.pem
 
 # Encrypted PKCS#8 (PBES2, PBKDF2-HMAC-SHA256, AES-256-CBC).
@@ -114,6 +114,14 @@ openssl pkcs8 -topk8 -in rsa.key.pem -v2 aes-256-cbc -v2prf hmacWithSHA256 -pass
 # PKCS#12: PBES2 for keys and certificates, PBMAC1 (RFC 9579) integrity.
 openssl pkcs12 -export -inkey leaf.key.pem -in leaf.crt.pem -certfile inter.crt.pem -name "test leaf" \
     -keypbe AES-256-CBC -certpbe AES-256-CBC -pbmac1_pbkdf2 -passout pass:$PASS -out leaf.p12
+
+# The RSA key as PKCS#12 (PBES2, PBMAC1), and the leaf in the legacy RC2/3DES +
+# SHA-1 HMAC form pkinative refuses by doctrine (its ADR 0002).
+openssl pkcs12 -export -inkey rsa.key.pem -in rsa.crt.pem -name "test rsa" -keypbe AES-256-CBC -certpbe AES-256-CBC -pbmac1_pbkdf2 -passout pass:$PASS -out rsa.p12
+openssl pkcs12 -export -legacy -inkey leaf.key.pem -in leaf.crt.pem -passout pass:$PASS -out legacy.p12
+
+# A PKCS#12 file with certificates only (no key bag).
+openssl pkcs12 -export -nokeys -in inter.crt.pem -certpbe AES-256-CBC -pbmac1_pbkdf2 -passout pass:$PASS -out certs-only.p12
 
 # CA database for the CRL and the OCSP responder: 0x1002 revoked.
 cat > "$W/ca.cnf" <<EOF

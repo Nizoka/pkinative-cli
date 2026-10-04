@@ -197,7 +197,117 @@ encode options:
 See: pkinative schema asn1-spec
 `;
 
+const SIGNING_USAGE = `\
+Signing key (cert create, cert encode signature-algorithm, csr create):
+  --key <file>              PKCS#8 private key, plain or PBES2-encrypted
+  --p12 <file>              PKCS#12 file holding one key (PBES2 / PBMAC1)
+  --key-type <type>         Type of an encrypted key when no certificate or
+                            public key tells it: ec-p256, ec-p384, ec-p521,
+                            ed25519, ed448, rsa, rsa-pss
+  --hash <SHA-256|SHA-384|SHA-512>  Digest (default: the curve's, or SHA-256;
+                            SHA-1 only with --allow-sha1)
+  --rsa-scheme <pkcs1|pss>  REQUIRED for an RSA key: there is no default
+  --salt-length <n>         RSA-PSS salt length (default: the hash length)
+  --password-file <file>    Key or PKCS#12 password: first line of the file
+  --password-stdin          ... or the first line of stdin
+                            (or PKINATIVE_PASSWORD; never on the command line)
+`;
+
+const CERT_USAGE = `\
+pkinative cert — X.509 certificates (RFC 5280)
+
+Usage:
+  pkinative cert inspect [<file>] [--extension <kind>] [--raw-extensions]
+  pkinative cert create --spec <spec.json> --key <key> [--issuer <ca.pem>]
+                        [--public-key <file>] [-o <file>]
+  pkinative cert encode <structure> --spec <spec.json>
+  pkinative cert decode-extension --oid <oid> --value <hex> [--critical]
+  pkinative cert verify-signature [<file>] [--issuer <file>]
+  pkinative cert check-name [<file>] --host <name> | --ip <address>
+  pkinative cert match-name <presented> <reference> [--no-wildcards]
+  pkinative cert check-purpose [<file>] --purpose <name|oid|any>
+                               [--chain <file>]...
+
+inspect:
+  --input, -i <file>        The certificate, PEM or DER (default: positional)
+  --extension <kind>        Print one decoded extension (E_NOT_FOUND if absent)
+  --raw-extensions          Keep every extension undecoded
+  --format, -f <text|json>  Report format (json under --json)
+
+create (the spec: subject, issuer, serialNumber, notBefore, notAfter or
+validityDays, extensions; see: pkinative schema cert-spec):
+  --spec <file>             JSON spec ("-" = stdin)
+  --issuer <file>           Issuer certificate; omitted = self-signed
+  --public-key <file>       Subject key: a certificate, request or PUBLIC KEY
+                            (default: derived from an unencrypted --key when
+                            self-signed)
+  --output, -o <file>       Output file (default: stdout)
+  --encoding <pem|der|hex>  Output encoding (default pem)
+  The new certificate is verified against --issuer (or itself) before it is
+  written: a key that does not belong to the issuer is refused (E_INPUT).
+
+encode <structure>: name, name-attribute, validity, spki,
+  algorithm-identifier, attribute, extension, extensions, basic-constraints,
+  key-usage, extended-key-usage, subject-alt-name, subject-key-identifier,
+  authority-key-identifier, signature-algorithm (from the signing key)
+  --spec <file>             JSON value of the structure ("-" = stdin)
+  --output, -o <file>       Output file      --encoding <pem|der|hex> (hex)
+
+decode-extension:
+  --oid <oid>               The extension OID
+  --value <hex>             The extnValue content (or --input <file>, DER)
+  --input, -i <file>        Read the value from a file
+  --critical                Decode as a critical extension
+
+verify-signature:           exit 1 (E_VERIFY_FAILED) when it does not verify
+  --issuer <file>           The issuer certificate (default: self-signature)
+  --allow-algorithm-mismatch  Accept tbs and outer algorithms that differ
+
+check-name / match-name:    exit 1 (E_CHECK_FAILED) on a mismatch
+  --host <name>             DNS reference identity
+  --ip <address>            IPv4 or IPv6 reference identity
+  --chain <file>            Issuers for name constraints (repeatable)
+  --allow-cn-fallback       Accept a commonName when there is no SAN
+  --no-wildcards            Refuse wildcard names
+
+check-purpose:              exit 1 (E_CHECK_FAILED) when the purpose fails
+  --purpose <name|oid|any>  serverAuth, clientAuth, codeSigning,
+                            emailProtection, timeStamping, ocspSigning, any
+  --chain <file>            The issuers, leaf first order (repeatable)
+  --no-restrict-issuers     Do not require the purpose in issuer EKUs
+  --require-explicit-purpose  Refuse a certificate without an EKU
+
+  --input, -i <file>        The certificate (default: the positional)
+  --format, -f <text|json>  Report format (json under --json)
+
+${SIGNING_USAGE}`;
+
+const CSR_USAGE = `\
+pkinative csr — PKCS#10 certification requests (RFC 2986)
+
+Usage:
+  pkinative csr inspect [<file>] [--raw-extensions]
+  pkinative csr create --spec <spec.json> --key <key> [--public-key <file>]
+  pkinative csr verify [<file>]
+
+inspect / verify:
+  --input, -i <file>        The request, PEM or DER (default: the positional)
+  --raw-extensions          inspect: keep requested extensions undecoded
+  --format, -f <text|json>  Report format (json under --json)
+  verify exits 1 (E_VERIFY_FAILED) when the self-signature does not verify.
+
+create (the spec: { "subject": {...}, "extensions": {...} }):
+  --spec <file>             JSON spec ("-" = stdin)
+  --public-key <file>       The key to certify (default: derived from an
+                            unencrypted --key)
+  --output, -o <file>       Output file (default: stdout)
+  --encoding <pem|der|hex>  Output encoding (default pem)
+
+${SIGNING_USAGE}`;
+
 export const COMMAND_USAGE: Readonly<Record<string, string>> = {
+    cert: CERT_USAGE,
+    csr: CSR_USAGE,
     pem: PEM_USAGE,
     oid: OID_USAGE,
     fingerprint: FINGERPRINT_USAGE,

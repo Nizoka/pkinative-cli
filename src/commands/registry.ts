@@ -62,6 +62,17 @@ const encoding: FlagSpec = { name: 'encoding', value: 'pem|der|hex' };
 const format: FlagSpec = { name: 'format', alias: 'f', value: 'text|json' };
 const label: FlagSpec = { name: 'label', value: 'LABEL' };
 const artefact: readonly FlagSpec[] = [output, encoding];
+const signing: readonly FlagSpec[] = [
+    { name: 'key', value: 'file' },
+    { name: 'p12', value: 'file' },
+    { name: 'key-type', value: 'type' },
+    { name: 'hash', value: 'SHA-256|SHA-384|SHA-512' },
+    { name: 'rsa-scheme', value: 'pkcs1|pss' },
+    { name: 'salt-length', value: 'n' },
+    { name: 'password-file', value: 'file' },
+    { name: 'password-stdin' },
+];
+const chainFlag: FlagSpec = { name: 'chain', value: 'file', repeatable: true };
 
 export const COMMANDS: readonly CommandSpec[] = [
     {
@@ -100,6 +111,25 @@ export const COMMANDS: readonly CommandSpec[] = [
                 ],
             },
             { name: 'encode', summary: 'Encode a JSON node spec to DER', flags: [{ name: 'spec', value: 'file' }, ...artefact, label] },
+        ],
+    },
+    {
+        name: 'cert', group: 'Certificates', summary: 'Inspect, create, encode, verify and check X.509 certificates', flags: [], subcommands: [
+            { name: 'inspect', summary: 'Decode a certificate (one extension with --extension)', flags: [input, format, { name: 'raw-extensions' }, { name: 'extension', value: 'kind' }] },
+            { name: 'create', summary: 'Issue a certificate from a JSON spec', flags: [{ name: 'spec', value: 'file' }, { name: 'issuer', value: 'file' }, { name: 'public-key', value: 'file' }, ...signing, ...artefact] },
+            { name: 'encode', summary: 'Encode one X.509 building block to DER', flags: [{ name: 'spec', value: 'file' }, ...signing, ...artefact] },
+            { name: 'decode-extension', summary: 'Decode an extension value by OID', flags: [{ name: 'oid', value: 'oid' }, { name: 'value', value: 'hex' }, input, { name: 'critical' }, format] },
+            { name: 'verify-signature', summary: 'Verify a signature against its issuer (or itself)', flags: [input, { name: 'issuer', value: 'file' }, { name: 'allow-algorithm-mismatch' }, format] },
+            { name: 'check-name', summary: 'Check a certificate against a host name or IP (RFC 6125)', flags: [input, { name: 'host', value: 'name' }, { name: 'ip', value: 'address' }, chainFlag, { name: 'allow-cn-fallback' }, { name: 'no-wildcards' }, format] },
+            { name: 'match-name', summary: 'Match a presented DNS name against a reference', flags: [{ name: 'no-wildcards' }, format] },
+            { name: 'check-purpose', summary: 'Check extended key usage along a path', flags: [input, chainFlag, { name: 'purpose', value: 'name|oid' }, { name: 'no-restrict-issuers' }, { name: 'require-explicit-purpose' }, format] },
+        ],
+    },
+    {
+        name: 'csr', group: 'Certificates', summary: 'Inspect, create and verify PKCS#10 requests', flags: [], subcommands: [
+            { name: 'inspect', summary: 'Decode a request', flags: [input, format, { name: 'raw-extensions' }] },
+            { name: 'create', summary: 'Create a request from a JSON spec', flags: [{ name: 'spec', value: 'file' }, { name: 'public-key', value: 'file' }, ...signing, ...artefact] },
+            { name: 'verify', summary: 'Verify the request self-signature', flags: [input, format] },
         ],
     },
     { name: 'limits', group: 'Meta', summary: 'The 22 pkinative security bounds: flags, defaults, effective', subcommands: [], flags: [format] },
