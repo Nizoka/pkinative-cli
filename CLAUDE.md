@@ -1,31 +1,29 @@
-# CLAUDE.md
+@AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+# Claude Code addendum
 
-## Project Overview
+Everything in AGENTS.md applies. This file adds only what is specific to Claude Code sessions in this repository.
 
-pkinative-cli is a command-line tool for [project purpose - to be filled in].
+## Token discipline
 
-## Repository Structure
+- Run tests through `npm run gate:fast` or `npx vitest run <file>` (dot reporter); never paste a test run or a gate log into context — open `test-output/.gate/<step>.log` only for the failing step.
+- Never Read `coverage/`, `dist/`, `test-output/`, `node_modules/`, `package-lock.json`, `docs/data/pkinative/api.frozen.json` — generated or vendored: query them with `node -e`.
+- Read README.md, SECURITY.md and docs/KNOWLEDGE_BASE.md by section (`grep -n "^## "`, then a line range); CHANGELOG.md: only the top entry.
+- Open the ONE `.github/instructions/*.md` for the area you touch (AGENTS.md §Where is what); the matching `.claude/rules/*.md` loads itself when you read a file in scope.
 
-[Document the main directories and their purposes once the project structure is established]
+## Windows
 
-## Development Commands
+- vitest needs the repository path with an upper-case drive letter (`D:\Github\pkinative-cli`); from a lower-case `d:` it reports "no tests".
+- PowerShell swallows a bare `--` after `npm run`: call `npx tsx scripts/gate.ts --fast` rather than `npm run gate -- --fast`.
+- OpenSSL from Git for Windows writes CRLF; the fixtures are stored LF (`scripts/fixtures/make-test-pki.sh` normalises them).
 
-Once the project is initialized, document:
-- **Build**: How to build the project
-- **Tests**: How to run all tests and single tests
-- **Lint**: How to run linters and formatters
-- **Dev**: How to start local development
+## Hooks and permissions in force
 
-## Architecture & Key Concepts
+- `.claude/hooks/guard.mjs` (PreToolUse on **Bash and PowerShell**) denies `npm publish`/`unpublish`/`deprecate`/`dist-tag`/`version <bump>`, `gh pr|issue create|edit|close|comment`,
+  `gh release`, writing `gh api`, any `git push` and `git tag <name>` — the maintainer's acts (.github/AGENT_RULES.md): prepare, then stop.
+- No `Co-Authored-By` trailers (`attribution.commit` is `""`).
 
-[Document the high-level architecture, design patterns, and critical workflows once code is written]
+## Rules
 
-## Technology Stack
-
-[List the primary technologies, frameworks, and languages used]
-
-## Important Notes
-
-- No specific conventions established yet
+- `.claude/rules/*.md` are generated from `.github/instructions/*.instructions.md` by `npm run agents:rules`. Never edit a rule: edit the instruction file, then regenerate.
+- Plans name the files, the commands and the expected gate outcome, and summarise gate output.

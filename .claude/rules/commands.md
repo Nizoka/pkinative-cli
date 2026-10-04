@@ -1,0 +1,35 @@
+---
+paths:
+  - "src/commands/**"
+  - "src/core-bridge/**"
+  - "src/utils/pki-input.ts"
+  - "src/utils/render.ts"
+  - "src/utils/spki.ts"
+  - "src/utils/x509-spec.ts"
+  - "src/utils/names.ts"
+  - "scripts/lib/surface.ts"
+---
+<!-- GENERATED from .github/instructions/commands.instructions.md by scripts/build-claude-rules.ts — do not edit -->
+
+# Commands
+
+## Shape of a command
+
+- `src/commands/<name>.ts` exports one `async (ctx: Ctx) => Promise<void>` that switches on `ctx.command` (`"cert inspect"`).
+- Inputs: `readPkiObject` / `readPkiObjects` / `readPkiBundle` (PEM sniffed, DER otherwise, capped by `--max-input-bytes`); content and specs through `readContentBytes` (`--max-content-size`).
+- Every engine call goes through `guard('Cannot …', () => …)` with `parseOptions(ctx)` spread into its options: encoding rules, limits, `--strict` and the diagnostic sink. An engine call without `onDiagnostic` would print through pkinative's `console.warn` default.
+- Outputs: `emitReport(ctx, engineResult, textRenderer, summary?)` — the JSON is the engine result itself; `emitArtifact(ctx, der, { label, defaultEncoding })`.
+
+## Adding a subcommand
+
+1. The handler, its flags in `registry.ts`, its help in `usage.ts`, its `loadCommand` case in `src/cli.ts`.
+2. `RUNTIME_VIA` in `scripts/lib/surface.ts` for each engine export it reaches; `npm run surface:build`.
+3. Tests at 100 %; a sample in `scripts/lib/sample-plan.ts`; `npm run samples:generate`; re-pin with a reason.
+4. README, `docs/KNOWLEDGE_BASE.md`, `llms.txt`; `npm run verify:docs`.
+
+## Doctrine inherited from pkinative
+
+- No key generation, no key export, no PKCS#8/#12 writer, no network, no legacy PKCS#12 cipher or MAC, no SHA-1 signature without `--allow-sha1`.
+- RSA signing requires `--rsa-scheme`: pkinative has no default RSA scheme (its ADR 0015), and the CLI does not invent one.
+- An encrypted key's type comes from the certificate or public key the command has, or `--key-type`; never from guessing by repeated decryption.
+- A created certificate, request or signature is verified before it is written: a key that does not match is `E_INPUT`.
