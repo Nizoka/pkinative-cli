@@ -26,6 +26,8 @@ export async function loadCommand(name: string): Promise<CommandHandler> {
         case 'cert': return (await import('./commands/cert.js')).cert;
         case 'csr': return (await import('./commands/csr.js')).csr;
         case 'chain': return (await import('./commands/chain.js')).chain;
+        case 'crl': return (await import('./commands/crl.js')).crl;
+        case 'ocsp': return (await import('./commands/ocsp.js')).ocsp;
         case 'limits': return (await import('./commands/limits.js')).limits;
         default:
             throw new CliError(`Unknown command: ${name}. Run pkinative --help.`, 2);

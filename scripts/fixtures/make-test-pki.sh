@@ -143,6 +143,31 @@ echo "R	460101000000Z	260601000000Z,keyCompromise	1002	unknown	/C=FR/O=pkinative
 openssl ca -gencrl -config "$W/ca.cnf" -cert inter.crt.pem -keyfile inter.key.pem -out inter.crl.pem -batch
 openssl crl -in inter.crl.pem -outform DER -out inter.crl.der
 
+# A base CRL (number 1, revokes 0x77) and a delta CRL (deltaCRLIndicator 1,
+# number 2, adds 0x99) from the Ed25519 CA, whose key the tests keep.
+cat > "$W/ed.cnf" <<EOF
+[ca]
+default_ca = test
+[test]
+database = $W/ed-index.txt
+crlnumber = $W/ed-crlnumber
+default_md = default
+default_crl_days = 7300
+[base_ext]
+authorityKeyIdentifier = keyid
+[delta_ext]
+authorityKeyIdentifier = keyid
+2.5.29.27 = critical,DER:020101
+EOF
+: > "$W/ed-index.txt"
+echo 01 > "$W/ed-crlnumber"
+printf 'R\t460101000000Z\t260601000000Z,keyCompromise\t77\tunknown\t/CN=base-revoked\n' >> "$W/ed-index.txt"
+openssl ca -gencrl -config "$W/ed.cnf" -crlexts base_ext -cert ed25519.crt.pem -keyfile ed25519.key.pem -out "$W/ed-base.pem" -batch
+printf 'R\t460101000000Z\t260701000000Z,superseded\t99\tunknown\t/CN=delta-revoked\n' >> "$W/ed-index.txt"
+openssl ca -gencrl -config "$W/ed.cnf" -crlexts delta_ext -cert ed25519.crt.pem -keyfile ed25519.key.pem -out "$W/ed-delta.pem" -batch
+openssl crl -in "$W/ed-base.pem" -outform DER -out ed25519.crl.der
+openssl crl -in "$W/ed-delta.pem" -outform DER -out ed25519-delta.crl.der
+
 # OCSP: request (with nonce) and the responder's answer for the good and the revoked leaf.
 openssl ocsp -issuer inter.crt.pem -sha256 -cert leaf.crt.pem -reqout leaf.ocsp-req.der
 openssl ocsp -index "$W/index.txt" -rsigner ocsp.crt.pem -rkey ocsp.key.pem -CA inter.crt.pem \

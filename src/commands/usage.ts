@@ -352,7 +352,76 @@ Revocation (verify):
 Offline: CRLs and OCSP responses are files you fetched; nothing is fetched.
 `;
 
+const CRL_USAGE = `\
+pkinative crl — Certificate revocation lists (RFC 5280 §5)
+
+Usage:
+  pkinative crl inspect [<crl>]
+  pkinative crl find [<crl>] --serial <hex> | --cert <file>
+  pkinative crl verify-signature [<crl>] --issuer <ca>
+  pkinative crl check [<crl>] --cert <file> [--issuer <ca>] [--delta <crl>]
+                      [--at <instant>] [--stale-tolerance <ms>]
+
+find reports whether a serial is listed (exit 0 either way). check is the
+verdict: listed, stale, wrong scope or unverified is exit 1 (E_CHECK_FAILED).
+With --issuer the CRL signature is verified; without it, it counts as unchecked.
+
+Options:
+  --input, -i <file>        The CRL, PEM or DER (default: the positional)
+  --serial <hex>            find: the serial number, hexadecimal
+  --cert <file>             The certificate to look up or check
+  --issuer <file>           The CRL issuer (verifies the CRL signature)
+  --delta <file>            check: a delta CRL to apply on top
+  --at <instant>            check: decision time (default now)
+  --stale-tolerance <ms>    check: accept a CRL this long past nextUpdate
+  --format, -f <text|json>  Report format (json under --json)
+`;
+
+const OCSP_USAGE = `\
+pkinative ocsp — Online Certificate Status Protocol (RFC 6960), offline
+
+Usage:
+  pkinative ocsp request --cert <file> --issuer <ca> [--hash SHA-1|SHA-256]
+                         [--nonce <hex>|random] [-o req.der]
+  pkinative ocsp cert-id --cert <file> --issuer <ca> [--hash SHA-1|SHA-256]
+  pkinative ocsp inspect [<response>]
+  pkinative ocsp verify-signature [<response>] [--responder <cert>]
+  pkinative ocsp check [<response>] --cert <file> --issuer <ca>
+                       [--responder <cert>] [--nonce <hex>] [--at <instant>]
+
+The CLI writes the request and judges the response; sending the request is
+yours (curl --data-binary @req.der -H 'Content-Type: application/ocsp-request').
+
+request / cert-id:
+  --cert <file>             The certificate (or the positional)
+  --issuer <file>           Its issuer
+  --hash <SHA-1|SHA-256>    CertID hash (default SHA-1, as responders expect)
+  --nonce <hex|random>      request: a nonce extension (printed in the status)
+  --output, -o <file>       Output file (default: stdout)
+  --encoding <pem|der|hex>  Output encoding (request: der, cert-id: hex)
+
+inspect / verify-signature / check:
+  --input, -i <file>        The response, DER (default: the positional)
+  --responder <file>        The responder certificate (default: the
+                            certificates the response embeds, then --issuer)
+  --responder-trusted       check: trust the responder out of band; otherwise
+                            it must be the CA or a delegate the CA issued with
+                            the OCSPSigning purpose (RFC 6960 §4.2.2.2)
+  --hash <SHA-1|SHA-256>    check: CertID hash (default: the response's own)
+  --nonce <hex>             check: the nonce the request carried
+  --require-nonce           check: refuse a response without that nonce
+  --at <instant>            check: decision time (default now)
+  --stale-tolerance <ms>    check: accept an answer this long past nextUpdate
+  --future-tolerance <ms>   check: accept a thisUpdate this far ahead (60000)
+  --format, -f <text|json>  Report format (json under --json)
+
+check exits 1 (E_CHECK_FAILED) unless the answer is a clean, signed,
+authorised "good" for this certificate.
+`;
+
 export const COMMAND_USAGE: Readonly<Record<string, string>> = {
+    crl: CRL_USAGE,
+    ocsp: OCSP_USAGE,
     chain: CHAIN_USAGE,
     cert: CERT_USAGE,
     csr: CSR_USAGE,

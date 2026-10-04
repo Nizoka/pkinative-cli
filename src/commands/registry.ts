@@ -148,6 +148,23 @@ export const COMMANDS: readonly CommandSpec[] = [
             { name: 'validate', summary: 'Validate a given path, leaf first, signatures included', flags: [{ name: 'path', value: 'file', repeatable: true }, ...pathInputs, { name: 'no-signatures' }, format] },
         ],
     },
+    {
+        name: 'crl', group: 'Paths & revocation', summary: 'Inspect, search, verify and apply certificate revocation lists', flags: [], subcommands: [
+            { name: 'inspect', summary: 'Decode a CRL', flags: [input, format] },
+            { name: 'find', summary: 'Look a serial number up in a CRL', flags: [input, { name: 'serial', value: 'hex' }, { name: 'cert', value: 'file' }, format] },
+            { name: 'verify-signature', summary: 'Verify the CRL signature against its issuer', flags: [input, { name: 'issuer', value: 'file' }, format] },
+            { name: 'check', summary: 'Decide a certificate status from a CRL (and a delta)', flags: [input, { name: 'cert', value: 'file' }, { name: 'issuer', value: 'file' }, { name: 'delta', value: 'file' }, { name: 'at', value: 'instant' }, { name: 'stale-tolerance', value: 'ms' }, format] },
+        ],
+    },
+    {
+        name: 'ocsp', group: 'Paths & revocation', summary: 'Build OCSP requests and judge OCSP responses (RFC 6960)', flags: [], subcommands: [
+            { name: 'request', summary: 'Build an OCSP request for a certificate', flags: [{ name: 'cert', value: 'file' }, { name: 'issuer', value: 'file' }, { name: 'hash', value: 'SHA-1|SHA-256' }, { name: 'nonce', value: 'hex|random' }, ...artefact] },
+            { name: 'cert-id', summary: 'Encode the CertID of a certificate', flags: [{ name: 'cert', value: 'file' }, { name: 'issuer', value: 'file' }, { name: 'hash', value: 'SHA-1|SHA-256' }, ...artefact] },
+            { name: 'inspect', summary: 'Decode an OCSP response', flags: [input, format] },
+            { name: 'verify-signature', summary: 'Verify the responder signature', flags: [input, { name: 'responder', value: 'file' }, format] },
+            { name: 'check', summary: 'Decide a certificate status from an OCSP response', flags: [input, { name: 'cert', value: 'file' }, { name: 'issuer', value: 'file' }, { name: 'responder', value: 'file' }, { name: 'responder-trusted' }, { name: 'hash', value: 'SHA-1|SHA-256' }, { name: 'nonce', value: 'hex' }, { name: 'require-nonce' }, { name: 'at', value: 'instant' }, { name: 'stale-tolerance', value: 'ms' }, { name: 'future-tolerance', value: 'ms' }, format] },
+        ],
+    },
     { name: 'limits', group: 'Meta', summary: 'The 22 pkinative security bounds: flags, defaults, effective', subcommands: [], flags: [format] },
 ];
 

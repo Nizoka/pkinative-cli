@@ -32,6 +32,7 @@ CA, OCSP-responder and TSA keys were deleted after signing.
 | `ocsp.crt.pem` | Delegated OCSP responder (EKU OCSPSigning), serial 0x1004 |
 | `tsa.crt.pem` | Time-stamping authority (critical EKU timeStamping), serial 0x1005 |
 | `inter.crl.{pem,der}` | CRL of the intermediate, revoking 0x1002 |
+| `ed25519.crl.der`, `ed25519-delta.crl.der` | Base CRL of the Ed25519 CA (number 1, revokes 0x77) and its delta (deltaCRLIndicator 1, number 2, adds 0x99) |
 | `leaf.ocsp-req.der` | OCSP request for the leaf (SHA-256 CertID, with a nonce) |
 | `leaf.ocsp.der`, `revoked.ocsp.der` | Delegated-responder answers: good for 0x1001, revoked for 0x1002 |
 | `content.txt` | The content every signature and time-stamp covers |
