@@ -1,0 +1,12 @@
+{
+  "subject": {
+    "CN": "request.example.test"
+  },
+  "extensions": {
+    "subjectAltName": {
+      "dns": [
+        "request.example.test"
+      ]
+    }
+  }
+}

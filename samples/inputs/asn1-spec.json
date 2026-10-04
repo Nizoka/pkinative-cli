@@ -1,0 +1,14 @@
+{
+  "type": "sequence",
+  "children": [
+    {
+      "type": "oid",
+      "value": "2.5.4.3"
+    },
+    {
+      "type": "string",
+      "stringType": "utf8",
+      "value": "pkinative"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "serialNumber": "0x5a",
+  "subject": {
+    "C": "FR",
+    "O": "pkinative samples",
+    "CN": "Sample CA"
+  },
+  "notBefore": "2026-01-01T00:00:00Z",
+  "validityDays": 3650,
+  "extensions": {
+    "basicConstraints": {
+      "ca": true
+    },
+    "keyUsage": [
+      "keyCertSign",
+      "cRLSign",
+      "digitalSignature"
+    ]
+  }
+}

@@ -31,7 +31,10 @@
     "typecheck:all": "npm run typecheck && npm run typecheck:tests && npm run typecheck:scripts",
     "hooks:install": "node scripts/install-git-hooks.mjs",
     "hooks:uninstall": "node scripts/install-git-hooks.mjs --uninstall",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "samples:generate": "npx tsx scripts/generate-samples.ts",
+    "verify:samples": "npx tsx scripts/verify-samples.ts",
+    "surface:build": "npx tsx scripts/build-surface.ts && npx tsx scripts/build-engine-surface.ts"
   },
   "keywords": [
     "pki",
