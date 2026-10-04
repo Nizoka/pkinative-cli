@@ -24,6 +24,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:interop": "vitest run tests/interop",
+    "gate": "npx tsx scripts/gate.ts",
+    "gate:fast": "npx tsx scripts/gate.ts --fast",
     "lint": "eslint src/ tests/",
     "typecheck": "tsc --noEmit",
     "typecheck:tests": "tsc --project tsconfig.test.json --noEmit",
@@ -34,7 +37,14 @@
     "prepublishOnly": "npm run build",
     "samples:generate": "npx tsx scripts/generate-samples.ts",
     "verify:samples": "npx tsx scripts/verify-samples.ts",
-    "surface:build": "npx tsx scripts/build-surface.ts && npx tsx scripts/build-engine-surface.ts"
+    "surface:build": "npx tsx scripts/build-surface.ts && npx tsx scripts/build-engine-surface.ts",
+    "docs:build": "npx tsx scripts/build-docs.ts",
+    "agents:rules": "npx tsx scripts/build-claude-rules.ts",
+    "verify:docs": "npx tsx scripts/verify-docs.ts",
+    "check:package": "npx tsx scripts/package-files.ts",
+    "smoke:install": "npx tsx scripts/smoke-install.ts",
+    "check:npm-drift": "npx tsx scripts/check-npm-drift.ts",
+    "release:prepare": "npx tsx scripts/release-prepare.ts"
   },
   "keywords": [
     "pki",

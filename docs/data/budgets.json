@@ -1,0 +1,4 @@
+{
+  "$comment": "Byte budget of every file under dist/ (scripts/gate.ts bundle-size, scripts/package-files.ts). Raise one deliberately, in the commit that needs it, and say why in the CHANGELOG. dist/cli.cjs was 343030 bytes at 1.0.0.",
+  "dist/cli.cjs": 409600
+}
