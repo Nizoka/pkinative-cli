@@ -172,6 +172,9 @@ openssl ts -reply -config "$W/tsa.cnf" -queryfile content.tsq -signer tsa.crt.pe
 openssl ts -reply -in content.tsr -token_out -out content.tst
 
 rm -rf "$W"
+# A Windows OpenSSL writes CRLF; the repository stores text as LF, so the
+# pinned checksums are taken over LF bytes on every host.
+for f in *.pem content.txt; do sed -i 's/\r$//' "$f"; done
 # The private keys of the CAs and responders are not needed by any test.
 rm -f root.key.pem inter.key.pem revoked.key.pem ocsp.key.pem tsa.key.pem
 ls -la
