@@ -1,0 +1,357 @@
+{
+  "schemaVersion": 1,
+  "pkinative": "1.0.0",
+  "cliCodes": [
+    {
+      "code": "E_USAGE",
+      "meaning": "A flag, argument or option value is missing or invalid (exit 2)."
+    },
+    {
+      "code": "E_INPUT",
+      "meaning": "A value you supplied is not acceptable: a spec document, a label, a range, a key that does not match."
+    },
+    {
+      "code": "E_PARSE",
+      "meaning": "The bytes are not the DER, PEM or JSON structure they claim to be."
+    },
+    {
+      "code": "E_IO",
+      "meaning": "A filesystem or stream failure, including a refused overwrite."
+    },
+    {
+      "code": "E_SECURITY",
+      "meaning": "A security policy refused the input: SHA-1 without --allow-sha1, PBES1, a legacy PKCS#12 MAC."
+    },
+    {
+      "code": "E_LIMIT",
+      "meaning": "A named bound was exceeded: one of the 22 pkinative limits, or --max-content-size."
+    },
+    {
+      "code": "E_UNSUPPORTED",
+      "meaning": "The runtime or pkinative does not support the algorithm, key or structure."
+    },
+    {
+      "code": "E_CRYPTO",
+      "meaning": "Web Crypto could not run the operation the input requires."
+    },
+    {
+      "code": "E_PASSWORD",
+      "meaning": "A password is wrong, or a MAC does not match it."
+    },
+    {
+      "code": "E_NOT_FOUND",
+      "meaning": "A named item does not exist: an extension, a PEM block, a signer, a code."
+    },
+    {
+      "code": "E_VERIFY_FAILED",
+      "meaning": "A signature, chain, request, time-stamp or MAC verdict is negative; the report says why."
+    },
+    {
+      "code": "E_CHECK_FAILED",
+      "meaning": "A check returned reasons (revocation, OCSP, name, purpose) or --strict escalated a warning."
+    },
+    {
+      "code": "E_RUNTIME",
+      "meaning": "Anything else (exit 1); PKINATIVE_DEBUG=1 prints the stack."
+    }
+  ],
+  "pkiToCli": [
+    {
+      "pkiCode": "PKI_INVALID_INPUT",
+      "cliCode": "E_INPUT",
+      "exitCode": 1
+    },
+    {
+      "pkiCode": "PKI_INVALID_OPTION",
+      "cliCode": "E_USAGE",
+      "exitCode": 2
+    },
+    {
+      "pkiCode": "PKI_API_MISUSE",
+      "cliCode": "E_USAGE",
+      "exitCode": 2,
+      "remedy": "pkinative <command> --help (a required option is missing, e.g. --rsa-scheme)"
+    },
+    {
+      "pkiCode": "PKI_STRICT_DIAGNOSTIC",
+      "cliCode": "E_CHECK_FAILED",
+      "exitCode": 1,
+      "remedy": "drop --strict, or fix the producer the diagnostic names"
+    },
+    {
+      "pkiCode": "PKI_INTERNAL",
+      "cliCode": "E_RUNTIME",
+      "exitCode": 1
+    },
+    {
+      "pkiCode": "PKI_ASN1_TRUNCATED",
+      "cliCode": "E_PARSE",
+      "exitCode": 1
+    },
+    {
+      "pkiCode": "PKI_ASN1_TAG_INVALID",
+      "cliCode": "E_PARSE",
+      "exitCode": 1
+    },
+    {
+      "pkiCode": "PKI_ASN1_LENGTH_INVALID",
+      "cliCode": "E_PARSE",
+      "exitCode": 1
+    },
+    {
+      "pkiCode": "PKI_ASN1_LENGTH_NON_MINIMAL",
+      "cliCode": "E_PARSE",
+      "exitCode": 1,
+      "remedy": "--ber (the producer wrote BER, not DER)"
+    },
+    {
+      "pkiCode": "PKI_ASN1_LENGTH_OVERFLOW",
+      "cliCode": "E_PARSE",
+      "exitCode": 1
+    },
+    {
+      "pkiCode": "PKI_ASN1_INDEFINITE_LENGTH_FORBIDDEN",
+      "cliCode": "E_PARSE",
+      "exitCode": 1,
+      "remedy": "--ber (indefinite lengths are BER; common in CMS)"
+    },
+    {
+      "pkiCode": "PKI_ASN1_CONSTRUCTED_STRING_FORBIDDEN",
+      "cliCode": "E_PARSE",
+      "exitCode": 1,
+      "remedy": "--ber (constructed strings are BER)"
+    },
+    {
+      "pkiCode": "PKI_ASN1_CONSTRUCTED_FORM_INVALID",
+      "cliCode": "E_PARSE",
+      "exitCode": 1
+    },
+    {
+      "pkiCode": "PKI_ASN1_EOC_UNEXPECTED",
+      "cliCode": "E_PARSE",
+      "exitCode": 1
+    },
+    {
+      "pkiCode": "PKI_ASN1_TRAILING_DATA",
+      "cliCode": "E_PARSE",
+      "exitCode": 1,
+      "remedy": "pass exactly one object, or asn1 decode --sequence for concatenated objects"
+    },
+    {
+      "pkiCode": "PKI_ASN1_UNEXPECTED_TAG",
+      "cliCode": "E_PARSE",
+      "exitCode": 1
+    },
+    {
+      "pkiCode": "PKI_ASN1_BOOLEAN_INVALID",
+      "cliCode": "E_PARSE",
+      "exitCode": 1,
+      "remedy": "--ber (a non-0xFF TRUE is BER)"
+    },
+    {
+      "pkiCode": "PKI_ASN1_INTEGER_INVALID",
+      "cliCode": "E_PARSE",
+      "exitCode": 1
+    },
+    {
+      "pkiCode": "PKI_ASN1_INTEGER_UNREPRESENTABLE",
+      "cliCode": "E_PARSE",
+      "exitCode": 1
+    },
+    {
+      "pkiCode": "PKI_ASN1_BIT_STRING_INVALID",
+      "cliCode": "E_PARSE",
+      "exitCode": 1
+    },
+    {
+      "pkiCode": "PKI_ASN1_NULL_INVALID",
+      "cliCode": "E_PARSE",
+      "exitCode": 1
+    },
+    {
+      "pkiCode": "PKI_ASN1_STRING_INVALID",
+      "cliCode": "E_PARSE",
+      "exitCode": 1
+    },
+    {
+      "pkiCode": "PKI_ASN1_TIME_INVALID",
+      "cliCode": "E_PARSE",
+      "exitCode": 1
+    },
+    {
+      "pkiCode": "PKI_ASN1_VALUE_OUT_OF_RANGE",
+      "cliCode": "E_INPUT",
+      "exitCode": 1
+    },
+    {
+      "pkiCode": "PKI_OID_INVALID",
+      "cliCode": "E_PARSE",
+      "exitCode": 1
+    },
+    {
+      "pkiCode": "PKI_PEM_NO_BLOCK",
+      "cliCode": "E_PARSE",
+      "exitCode": 1
+    },
+    {
+      "pkiCode": "PKI_PEM_LABEL_INVALID",
+      "cliCode": "E_INPUT",
+      "exitCode": 1
+    },
+    {
+      "pkiCode": "PKI_PEM_LABEL_MISMATCH",
+      "cliCode": "E_PARSE",
+      "exitCode": 1
+    },
+    {
+      "pkiCode": "PKI_PEM_UNEXPECTED_LABEL",
+      "cliCode": "E_INPUT",
+      "exitCode": 1,
+      "remedy": "pkinative pem decode <file> (lists the labels present)"
+    },
+    {
+      "pkiCode": "PKI_PEM_UNTERMINATED",
+      "cliCode": "E_PARSE",
+      "exitCode": 1
+    },
+    {
+      "pkiCode": "PKI_PEM_BASE64_INVALID",
+      "cliCode": "E_PARSE",
+      "exitCode": 1,
+      "remedy": "--pem-mode lax (tolerates whitespace and missing padding)"
+    },
+    {
+      "pkiCode": "PKI_PEM_HEADERS_FORBIDDEN",
+      "cliCode": "E_UNSUPPORTED",
+      "exitCode": 1
+    },
+    {
+      "pkiCode": "PKI_X509_STRUCTURE_INVALID",
+      "cliCode": "E_PARSE",
+      "exitCode": 1
+    },
+    {
+      "pkiCode": "PKI_X509_VERSION_INVALID",
+      "cliCode": "E_PARSE",
+      "exitCode": 1
+    },
+    {
+      "pkiCode": "PKI_X509_NAME_INVALID",
+      "cliCode": "E_PARSE",
+      "exitCode": 1
+    },
+    {
+      "pkiCode": "PKI_X509_VALIDITY_INVALID",
+      "cliCode": "E_PARSE",
+      "exitCode": 1
+    },
+    {
+      "pkiCode": "PKI_X509_SPKI_INVALID",
+      "cliCode": "E_PARSE",
+      "exitCode": 1
+    },
+    {
+      "pkiCode": "PKI_X509_UNIQUE_ID_INVALID",
+      "cliCode": "E_PARSE",
+      "exitCode": 1
+    },
+    {
+      "pkiCode": "PKI_X509_EXTENSIONS_EMPTY",
+      "cliCode": "E_PARSE",
+      "exitCode": 1
+    },
+    {
+      "pkiCode": "PKI_X509_EXTENSION_DUPLICATE",
+      "cliCode": "E_PARSE",
+      "exitCode": 1
+    },
+    {
+      "pkiCode": "PKI_X509_EXTENSION_MALFORMED",
+      "cliCode": "E_PARSE",
+      "exitCode": 1,
+      "remedy": "cert inspect --raw-extensions (keeps every extension undecoded)"
+    },
+    {
+      "pkiCode": "PKI_X509_GENERAL_NAME_INVALID",
+      "cliCode": "E_PARSE",
+      "exitCode": 1
+    },
+    {
+      "pkiCode": "PKI_LIMIT_EXCEEDED",
+      "cliCode": "E_LIMIT",
+      "exitCode": 1
+    },
+    {
+      "pkiCode": "PKI_LIMIT_INVALID",
+      "cliCode": "E_USAGE",
+      "exitCode": 2
+    },
+    {
+      "pkiCode": "PKI_CRYPTO_UNAVAILABLE",
+      "cliCode": "E_CRYPTO",
+      "exitCode": 1
+    },
+    {
+      "pkiCode": "PKI_CRYPTO_ALGORITHM_UNSUPPORTED",
+      "cliCode": "E_UNSUPPORTED",
+      "exitCode": 1
+    },
+    {
+      "pkiCode": "PKI_CRYPTO_KEY_UNSUPPORTED",
+      "cliCode": "E_UNSUPPORTED",
+      "exitCode": 1
+    },
+    {
+      "pkiCode": "PKI_CRYPTO_ALGORITHM_REFUSED",
+      "cliCode": "E_SECURITY",
+      "exitCode": 1,
+      "remedy": "--allow-sha1 (only for legacy material you already trust)"
+    },
+    {
+      "pkiCode": "PKI_CRYPTO_DECRYPTION_FAILED",
+      "cliCode": "E_PASSWORD",
+      "exitCode": 1,
+      "remedy": "--password-file <file> | --password-stdin | PKINATIVE_PASSWORD (check the password)"
+    },
+    {
+      "pkiCode": "PKI_CMS_STRUCTURE_INVALID",
+      "cliCode": "E_PARSE",
+      "exitCode": 1
+    },
+    {
+      "pkiCode": "PKI_CMS_CONTENT_TYPE_UNEXPECTED",
+      "cliCode": "E_INPUT",
+      "exitCode": 1
+    },
+    {
+      "pkiCode": "PKI_CMS_VERSION_UNSUPPORTED",
+      "cliCode": "E_UNSUPPORTED",
+      "exitCode": 1
+    },
+    {
+      "pkiCode": "PKI_CMS_CONTENT_NOT_OCTET_STRING",
+      "cliCode": "E_UNSUPPORTED",
+      "exitCode": 1
+    },
+    {
+      "pkiCode": "PKI_KEY_STRUCTURE_INVALID",
+      "cliCode": "E_PARSE",
+      "exitCode": 1
+    },
+    {
+      "pkiCode": "PKI_KEY_VERSION_UNSUPPORTED",
+      "cliCode": "E_UNSUPPORTED",
+      "exitCode": 1
+    },
+    {
+      "pkiCode": "PKI_KEY_ENCRYPTION_UNSUPPORTED",
+      "cliCode": "E_SECURITY",
+      "exitCode": 1
+    },
+    {
+      "pkiCode": "PKI_KEY_MAC_UNSUPPORTED",
+      "cliCode": "E_SECURITY",
+      "exitCode": 1
+    }
+  ]
+}

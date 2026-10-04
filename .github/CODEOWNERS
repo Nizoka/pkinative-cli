@@ -1,0 +1,28 @@
+# CODEOWNERS — GitHub auto-assigns reviewers for pull requests
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owner for everything
+* @Nizoka
+
+# Secret intake, file I/O and key material
+src/utils/secrets.ts @Nizoka
+src/utils/io.ts @Nizoka
+src/utils/signer.ts @Nizoka
+src/utils/key-views.ts @Nizoka
+
+# Configuration file (must never relax a check) and the error mapping
+src/utils/config.ts @Nizoka
+src/utils/pkierr.ts @Nizoka
+
+# The only module that imports the engine
+src/core-bridge/ @Nizoka
+
+# Policy, governance and agent configuration
+SECURITY.md @Nizoka
+.claude/ @Nizoka
+
+# CI/CD and release
+.github/workflows/ @Nizoka
+.github/rulesets/ @Nizoka
+package.json @Nizoka
+package-lock.json @Nizoka

@@ -1,0 +1,23 @@
+# pkinative-cli
+
+> The official command line for pkinative, the zero-dependency TypeScript PKI toolkit: inspect and verify X.509 certificates, PKCS#10 requests, CRLs, OCSP responses, CMS SignedData and RFC 3161 time-stamps; build and validate certification paths with revocation; create certificates, requests, CMS signatures, OCSP and time-stamp requests; open PKCS#8 and PKCS#12 (PBES2, PBMAC1); decode and encode ASN.1, PEM and OIDs. Version 1.0.0, on pkinative ^1.0.0, its only runtime dependency. Install with `npm install --global pkinative-cli`; the binary is `pkinative`. Node.js ^22.22.2 || ^24.14.1 || >=25.8.2.
+
+The CLI is offline: it never fetches a CRL, an OCSP answer, a time-stamp or an intermediate. stdout carries the artefact or the report; with `--json`, stderr carries one envelope `{"ok":…,"command":…,"error":{"code":"E_*","pkiCode":"PKI_*",…}}`. Exit 0 success, 1 failure or negative verdict, 2 usage. Passwords come from `--password-file`, `--password-stdin` or `PKINATIVE_PASSWORD`, never argv. RSA signing needs `--rsa-scheme pkcs1|pss`; SHA-1 needs `--allow-sha1`. Time is `--at` (ISO 8601).
+
+## Start here
+
+- [README](https://github.com/Nizoka/pkinative-cli/blob/main/README.md): commands, global options, what the CLI will not do
+- [Agent contract](https://github.com/Nizoka/pkinative-cli/blob/main/docs/AGENT_CONTRACT.md): envelopes, error classes, token-economy flags
+- [AGENTS.md](https://github.com/Nizoka/pkinative-cli/blob/main/AGENTS.md): rules for agents working on the repository
+
+## Reference
+
+- [Knowledge base](https://github.com/Nizoka/pkinative-cli/blob/main/docs/KNOWLEDGE_BASE.md): architecture, every command, the engine mapping
+- [Error catalogue](https://github.com/Nizoka/pkinative-cli/blob/main/docs/data/errors.json): every PKI_* code with its CLI class and remedy (also `pkinative schema errors`, `pkinative explain <code>`)
+- [Surface matrix](https://github.com/Nizoka/pkinative-cli/blob/main/docs/data/core-exports.json): each pkinative export and the command that reaches it
+- [Samples](https://github.com/Nizoka/pkinative-cli/tree/main/samples): one runnable example per subcommand, .sh and .ps1
+- [Threat model](https://github.com/Nizoka/pkinative-cli/blob/main/docs/THREAT_MODEL.md) and [SECURITY.md](https://github.com/Nizoka/pkinative-cli/blob/main/SECURITY.md)
+
+## Engine
+
+- [pkinative](https://github.com/Nizoka/pkinative): the library; its `llms.txt` and agent brief describe the API the CLI wraps

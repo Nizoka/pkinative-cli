@@ -1,0 +1,70 @@
+version: 2
+
+# Every ecosystem waits seven days before it proposes a new version: a
+# freshly published release is the window in which a compromised maintainer
+# account or a hijacked package is still undetected (zizmor
+# dependabot-cooldown; Dependabot's own default is three days). The cooldown
+# applies to version updates only — security updates are never delayed.
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    cooldown:
+      default-days: 7
+    labels:
+      - dependencies
+    commit-message:
+      prefix: "chore(deps):"
+    ignore:
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@eslint/js"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "vitest"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@vitest/coverage-v8"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "typescript-eslint"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "tsup"
+        update-types: ["version-update:semver-major"]
+      # engines.node starts at the 22 line and .nvmrc pins 22: the type
+      # definitions follow the Node line, not the newest major.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+    groups:
+      # The engine is the one runtime dependency: its bumps come alone, so
+      # each one is reviewed against the surface matrices and the samples.
+      dev-dependencies:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "pkinative"
+        update-types:
+          - minor
+          - patch
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    cooldown:
+      default-days: 7
+    labels:
+      - dependencies
+      - ci
+    commit-message:
+      prefix: "chore(ci):"
+    # One pull request for every action bump of a week, so the workflows move
+    # together and every action stays pinned at one SHA across the tree.
+    groups:
+      actions:
+        patterns:
+          - "*"

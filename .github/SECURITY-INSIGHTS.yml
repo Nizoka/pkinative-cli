@@ -1,0 +1,94 @@
+# pkinative-cli — OpenSSF Security Insights (specification 2.0.0).
+# https://github.com/ossf/security-insights
+# Every statement here must stay true of SECURITY.md,
+# docs/.well-known/security.txt, package.json and .github/workflows/; update
+# this file in the same change as any of them.
+header:
+  schema-version: 2.0.0
+  last-updated: '2026-10-04'
+  last-reviewed: '2026-10-04'
+  url: https://raw.githubusercontent.com/Nizoka/pkinative-cli/main/.github/SECURITY-INSIGHTS.yml
+  comment: >-
+    Every statement here can be read in the repository: SECURITY.md,
+    docs/.well-known/security.txt, package.json and the workflows under
+    .github/workflows/.
+
+project:
+  name: pkinative-cli
+  homepage: https://github.com/Nizoka/pkinative-cli
+  administrators:
+    - name: Nizoka
+      primary: true
+      social: https://github.com/Nizoka
+  repositories:
+    - name: pkinative-cli
+      url: https://github.com/Nizoka/pkinative-cli
+      comment: The command-line interface, its tests and its samples.
+    - name: pkinative
+      url: https://github.com/Nizoka/pkinative
+      comment: The library the CLI wraps, its single runtime dependency, where every PKI decision is made.
+  vulnerability-reporting:
+    reports-accepted: true
+    bug-bounty-available: false
+    contact:
+      name: Nizoka
+      primary: true
+      social: https://github.com/Nizoka
+    security-policy: https://github.com/Nizoka/pkinative-cli/blob/main/SECURITY.md
+    comment: >-
+      Report privately, never in a public issue, through GitHub private
+      vulnerability reporting:
+      https://github.com/Nizoka/pkinative-cli/security/advisories/new. A
+      vulnerability in the pkinative library itself is reported to
+      https://github.com/Nizoka/pkinative/security/advisories/new. The
+      handling timeline and the credit are in SECURITY.md.
+  documentation:
+    detailed-guide: https://github.com/Nizoka/pkinative-cli/blob/main/README.md
+    code-of-conduct: https://github.com/Nizoka/pkinative-cli/blob/main/CODE_OF_CONDUCT.md
+    release-process: https://github.com/Nizoka/pkinative-cli/blob/main/CONTRIBUTING.md#release
+    signature-verification: https://github.com/Nizoka/pkinative-cli/blob/main/SECURITY.md
+
+repository:
+  url: https://github.com/Nizoka/pkinative-cli
+  status: active
+  accepts-change-request: true
+  # Dependabot opens the automated ones (.github/dependabot.yml).
+  accepts-automated-change-request: true
+  core-team:
+    - name: Nizoka
+      primary: true
+      social: https://github.com/Nizoka
+  license:
+    url: https://github.com/Nizoka/pkinative-cli/blob/main/LICENSE
+    expression: MIT
+  documentation:
+    contributing-guide: https://github.com/Nizoka/pkinative-cli/blob/main/CONTRIBUTING.md
+    security-policy: https://github.com/Nizoka/pkinative-cli/blob/main/SECURITY.md
+  release:
+    automated-pipeline: true
+    distribution-points:
+      - uri: https://www.npmjs.com/package/pkinative-cli
+        comment: >-
+          npm, published by .github/workflows/publish.yml on a published GitHub
+          Release, through Trusted Publishing (OIDC) with provenance; the same
+          workflow produces the SBOM.
+      - uri: https://github.com/Nizoka/pkinative-cli/releases
+        comment: GitHub Releases, published by the maintainer; each one triggers the publish workflow.
+    changelog: https://github.com/Nizoka/pkinative-cli/blob/main/CHANGELOG.md
+  security:
+    assessments:
+      self:
+        comment: >-
+          The adversarial release audit run before every release
+          (.claude/skills/release-audit/), with 100 % test coverage, library
+          parity tests, tests of the built binary, OpenSSL interoperability
+          tests and seeded fuzz tests (tests/fuzz/, run with the rest of the
+          suite). There is no coverage-guided fuzzing and no third-party audit.
+        evidence: https://github.com/Nizoka/pkinative-cli/blob/main/SECURITY.md
+    tools:
+      - name: Dependabot
+        type: SCA
+        rulesets: [default]
+        integration: { adhoc: false, ci: true, release: false }
+        results: {}
+        comment: Weekly update pull requests for npm and GitHub Actions, after a seven-day cooldown (.github/dependabot.yml).
