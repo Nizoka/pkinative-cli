@@ -46,7 +46,7 @@ async function encode(ctx: Ctx): Promise<void> {
 }
 
 async function decode(ctx: Ctx): Promise<void> {
-    const path = getStringFlag(ctx.args.flags, 'input', 'i');
+    const path = getStringFlag(ctx.args.flags, 'input');
     const [hex] = ctx.args.positionals;
     if ((path === undefined) === (hex === undefined)) throw usageError('oid decode takes a hex argument or --input <file>, not both.');
     let bytes: Uint8Array;

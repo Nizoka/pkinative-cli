@@ -32,7 +32,7 @@ export async function readCrl(ctx: Ctx, path: string | undefined, what = 'CRL'):
 }
 
 function crlPath(ctx: Ctx): string | undefined {
-    return getStringFlag(ctx.args.flags, 'input', 'i') ?? ctx.args.positionals[0];
+    return getStringFlag(ctx.args.flags, 'input') ?? ctx.args.positionals[0];
 }
 
 function at(ctx: Ctx): number {

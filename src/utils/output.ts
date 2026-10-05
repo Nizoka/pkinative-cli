@@ -58,7 +58,7 @@ export function renderArtifact(der: Uint8Array, encoding: ArtifactEncoding, labe
  */
 export async function emitArtifact(ctx: Ctx, der: Uint8Array, options: ArtifactOptions): Promise<void> {
     const encoding = getChoiceFlag(ctx.args.flags, 'encoding', ['pem', 'der', 'hex'] as const, options.defaultEncoding);
-    const path = getStringFlag(ctx.args.flags, 'output', 'o');
+    const path = getStringFlag(ctx.args.flags, 'output');
     const label = getStringFlag(ctx.args.flags, 'label') ?? options.label;
     const data = renderArtifact(der, encoding, label);
     if (encoding === 'der' && (path === undefined || path === '-') && ctx.io.stdout.isTTY === true) {

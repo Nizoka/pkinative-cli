@@ -77,7 +77,7 @@ async function certId(ctx: Ctx): Promise<void> {
 }
 
 async function readResponse(ctx: Ctx): Promise<OcspResponse> {
-    const obj = await readPkiObject(ctx, getStringFlag(ctx.args.flags, 'input', 'i') ?? ctx.args.positionals[0], 'OCSP response', LABELS.any);
+    const obj = await readPkiObject(ctx, getStringFlag(ctx.args.flags, 'input') ?? ctx.args.positionals[0], 'OCSP response', LABELS.any);
     return guard('Cannot read the OCSP response', () => parseOcspResponse(obj.der, parseOptions(ctx)));
 }
 

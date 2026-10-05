@@ -3,6 +3,7 @@ import {
     assertKnownFlags,
     assertOperands,
     assertSingleValues,
+    canonicaliseAliases,
     firstPositionalIndex,
     getBoolFlag,
     getChoiceFlag,
@@ -32,10 +33,10 @@ describe('parseArgs', () => {
         expect(parseArgs(['--out'], bools).flags).toEqual({ out: true });
     });
 
-    it('collects repeated values and ignores a later bare repeat', () => {
-        const a = parseArgs(['--trust', 'a', '--trust', 'b', '--trust=c', '--trust'], bools);
+    it('collects repeated values, and refuses a bare repeat', () => {
+        const a = parseArgs(['--trust', 'a', '--trust', 'b', '--trust=c'], bools);
         expect(a.flags['trust']).toEqual(['a', 'b', 'c']);
-        expect(parseArgs(['--x', '--x', 'v'], new Set()).flags['x']).toBe('v');
+        expect(() => parseArgs(['--trust', 'a', '--trust'], bools)).toThrow(/--trust is given more than once/);
     });
 
     it('stops at --', () => {
@@ -124,13 +125,28 @@ describe('flag accessors', () => {
 });
 
 describe('declarations the parser enforces (audit A-11)', () => {
-    it('refuses a non-repeatable value flag given twice, and a flag under both its names', () => {
+    it('refuses a non-repeatable value flag given twice', () => {
         const parsed = parseArgs(['--host', 'a', '--host', 'b', '--trust', 'x', '--trust', 'y'], new Set());
-        expect(() => assertSingleValues(parsed.flags, new Set(['trust']), [], 'chain verify')).toThrow(/--host is given 2 times for "chain verify"/);
-        expect(() => assertSingleValues(parseArgs(['--trust', 'x', '--trust', 'y'], new Set()).flags, new Set(['trust']), [], 'x')).not.toThrow();
-        const both = parseArgs(['-i', 'a', '--input', 'b'], new Set()).flags;
-        expect(() => assertSingleValues(both, new Set(), [{ name: 'input', alias: 'i' }], 'x')).toThrow(/--input and -i are the same flag/);
-        expect(() => assertSingleValues({ input: 'a' }, new Set(), [{ name: 'input', alias: 'i' }], 'x')).not.toThrow();
+        expect(() => assertSingleValues(parsed.flags, new Set(['trust']), 'chain verify')).toThrow(/--host is given 2 times for "chain verify"/);
+        expect(() => assertSingleValues(parseArgs(['--trust', 'x', '--trust', 'y'], new Set()).flags, new Set(['trust']), 'x')).not.toThrow();
+    });
+
+    it('renames an alias to its flag, keeping the order, and refuses a flag under both its names (audit A2-01)', () => {
+        const aliased = [{ name: 'input', alias: 'i' }, { name: 'quiet', alias: 'q' }];
+        const renamed = canonicaliseAliases(parseArgs(['-q', '-i', 'a', '--json'], new Set(['q', 'json'])).flags, aliased);
+        expect(Object.entries(renamed)).toEqual([['quiet', true], ['input', 'a'], ['json', true]]);
+        expect(Object.getPrototypeOf(renamed)).toBeNull();
+        expect(() => canonicaliseAliases(parseArgs(['-i', 'a', '--input', 'b'], new Set()).flags, aliased)).toThrow('--input and -i are the same flag; give it once.');
+        expect(() => canonicaliseAliases(parseArgs(['--input', 'b', '-i', 'a'], new Set()).flags, aliased)).toThrow(/same flag/);
+    });
+
+    it('refuses a switch, or a bare value flag, given twice, without echoing a value (audit A2-11)', () => {
+        const booleans = new Set(['json', 'q']);
+        expect(() => parseArgs(['--json', '--json'], booleans)).toThrow('--json is given more than once; give it once.');
+        expect(() => parseArgs(['--json', '--json=false'], booleans)).toThrow(/--json is given more than once/);
+        expect(() => parseArgs(['-q', '-q'], booleans)).toThrow('-q is given more than once; give it once.');
+        expect(() => parseArgs(['--output', '--output', 'secret'], booleans)).toThrow('--output is given more than once; give it once.');
+        expect(() => parseArgs(['--output', 'a', '--output'], booleans)).toThrow(/--output is given more than once/);
     });
 
     it('refuses surplus operands without echoing them, and an operand beside the flag it stands for', () => {

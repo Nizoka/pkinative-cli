@@ -33,7 +33,9 @@ export function parseNameAttribute(raw: unknown, path: string): NameAttribute {
     if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
         throw new CliError(`${path}: expected { "type", "value", "stringType"? }.`, 1, ErrorCode.INPUT);
     }
-    const { type, value, stringType } = raw as Record<string, unknown>;
+    const { type, value, stringType, ...rest } = raw as Record<string, unknown>;
+    const unknown = Object.keys(rest)[0];
+    if (unknown !== undefined) throw new CliError(`${path}.${unknown}: unknown member (type, value, stringType).`, 1, ErrorCode.INPUT);
     if (typeof type !== 'string' || typeof value !== 'string') {
         throw new CliError(`${path}: "type" and "value" must be strings.`, 1, ErrorCode.INPUT);
     }

@@ -24,7 +24,7 @@ import { dn, renderVerdict } from '../utils/render.js';
 import { readPassword } from '../utils/secrets.js';
 
 function p12Path(ctx: Ctx): string | undefined {
-    return getStringFlag(ctx.args.flags, 'input', 'i') ?? ctx.args.positionals[0];
+    return getStringFlag(ctx.args.flags, 'input') ?? ctx.args.positionals[0];
 }
 
 async function read(ctx: Ctx): Promise<{ der: Uint8Array; pkcs12: Pkcs12 }> {

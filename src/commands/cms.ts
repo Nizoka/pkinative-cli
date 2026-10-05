@@ -32,7 +32,7 @@ import { readCertificate, readCertificates } from './cert.js';
 
 
 function cmsPath(ctx: Ctx): string | undefined {
-    return getStringFlag(ctx.args.flags, 'input', 'i') ?? ctx.args.positionals[0];
+    return getStringFlag(ctx.args.flags, 'input') ?? ctx.args.positionals[0];
 }
 
 async function readSignedDataDer(ctx: Ctx): Promise<Uint8Array> {

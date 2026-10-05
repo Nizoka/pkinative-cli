@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { decodePem, parseCertificate, parseCertificationRequest, verifyCertificateSignature, verifySelfSignature } from 'pkinative';
 import { cli, emptyDir, envelope, fixture, fixtureBytes } from '../helpers/io.js';
+import { validate } from '../helpers/json-schema.js';
 
 const PASSWORD = 'test-only-password';
 
@@ -369,6 +370,65 @@ describe('cert encode', () => {
         }
         expect((await enc('key-usage', { usages: [] })).stderr).toMatch(/array of strings/);
         expect((await enc('spki', { algorithm: '1.2', publicKey: 'zz' })).stderr).toMatch(/hexadecimal/);
+    });
+
+    it('accepts exactly what schema cert-encode-spec declares (audit B2-03, B2-04)', async () => {
+        const doc = JSON.parse((await cli(['schema', 'cert-encode-spec'])).stdout) as { $defs: Record<string, Record<string, unknown>> };
+        const accepted: [string, unknown][] = [
+            ['name-attribute', { type: 'CN', value: 'x', stringType: 'utf8' }],
+            ['validity', { notBefore: '2027-01-01T00:00:00Z', validityDays: 30 }],
+            ['extension', { oid: '1.2.3', critical: false, value: '0500' }],
+            ['extensions', { subjectAltName: { dns: ['a.test'], critical: true }, keyUsage: { usages: ['digitalSignature'], critical: true }, raw: [{ oid: '1.2.3', critical: false, value: '0500' }] }],
+            ['extensions', { subjectKeyIdentifier: 'a1b2', authorityKeyIdentifier: false }],
+        ];
+        for (const [structure, spec] of accepted) {
+            expect(validate(spec, doc.$defs[structure] as Record<string, unknown>, doc.$defs), `${structure} ${JSON.stringify(spec)}`).toEqual([]);
+            expect((await enc(structure, spec)).code, `${structure} ${JSON.stringify(spec)}`).toBe(0);
+        }
+        // Each refusal is E_INPUT naming the member, and the schema refuses the same spec.
+        const refused: [string, unknown, string][] = [
+            ['extension', { oid: '1.2.3', critical: 'true', value: '0500' }, 'critical: expected a boolean'],
+            ['extension', { oid: '1.2.3', value: '0500', critcal: true }, 'critcal: unknown member'],
+            ['validity', { notBefore: '2027-01-01T00:00:00Z', notafter: '2028-01-01T00:00:00Z' }, 'notafter: unknown member'],
+            ['spki', { algorithm: '1.3.101.112', publicKey: '00', curve: 'x' }, 'curve: unknown member'],
+            ['algorithm-identifier', { oid: '1.3.101.112', params: '0500' }, 'params: unknown member'],
+            ['attribute', { oid: '1.2.3', values: [], critical: true }, 'critical: unknown member'],
+            ['basic-constraints', { ca: true, critical: true }, 'critical: unknown member'],
+            ['subject-key-identifier', { keyIdentifier: 'a1b2', critical: false }, 'critical: unknown member'],
+            ['authority-key-identifier', { keyIdentifier: 'a1b2', issuer: 'x' }, 'issuer: unknown member'],
+            ['subject-alt-name', { dns: ['a.test'], critical: true }, 'critical: unknown member'],
+            ['name-attribute', { type: 'CN', value: 'x', critical: true }, 'critical: unknown member'],
+            ['extensions', { basicConstraints: { ca: true, pathlen: 1 } }, 'extensions.basicConstraints.pathlen: unknown member'],
+            ['extensions', { keyUsage: { usages: ['digitalSignature'], critcal: true } }, 'extensions.keyUsage.critcal: unknown member'],
+            ['extensions', { subjectAltName: { dns: ['a.test'], DNS: ['b.test'] } }, 'extensions.subjectAltName.DNS: unknown member'],
+            ['extensions', { raw: [{ oid: '1.2.3', value: '0500', critical: false, x: 1 }] }, 'extensions.raw[0].x: unknown member'],
+            // No subject key here: the identifier cannot be computed, never SHA-1 of nothing.
+            ['extensions', { subjectKeyIdentifier: true }, 'extensions.subjectKeyIdentifier: cannot be computed here'],
+        ];
+        for (const [structure, spec, message] of refused) {
+            const r = await enc(structure, spec, ['--json']);
+            expect(r.code, `${structure} ${JSON.stringify(spec)}`).toBe(1);
+            expect(envelope(r.stderr), `${structure} ${JSON.stringify(spec)}`).toMatchObject({ error: { code: 'E_INPUT', message: expect.stringContaining(message) } });
+            if (!message.includes('cannot be computed')) {
+                expect(validate(spec, doc.$defs[structure] as Record<string, unknown>, doc.$defs), `${structure} ${JSON.stringify(spec)}`).not.toEqual([]);
+            }
+        }
+        // An extension's criticality is what the spec says.
+        expect((await enc('extension', { oid: '2.5.29.19', critical: false, value: '3000' })).stdout).toBe('30090603551d1304023000\n');
+    });
+
+    it('refuses a misspelt cert create member, and a malformed instant as a defect of the spec (audit B2-04, A2-06)', async () => {
+        const create = (spec: object) => cli(['cert', 'create', '--spec', file(dir, `c${Math.random()}.json`, spec), '--key', fixture('ed25519.key.pem'), '--json']);
+        expect(envelope((await create({ subject: { CN: 'x' }, notAfer: '2028-01-01T00:00:00Z' })).stderr)).toMatchObject({ error: { code: 'E_INPUT', message: expect.stringContaining('spec notAfer: unknown member') } });
+        const instant = await create({ subject: { CN: 'x' }, notBefore: '2027-02-31T00:00:00Z' });
+        expect(instant.code).toBe(1);
+        expect(envelope(instant.stderr)).toMatchObject({ error: { code: 'E_INPUT', message: expect.stringContaining('spec notBefore: expected an instant') } });
+    });
+
+    it('refuses a spec for the signature algorithm, which the signer flags decide (audit B2-04)', async () => {
+        const r = await cli(['cert', 'encode', 'signature-algorithm', '--key', fixture('ed25519.key.pem'), '--spec', file(dir, 'sig.json', {})]);
+        expect(r.code).toBe(2);
+        expect(r.stderr).toMatch(/takes no --spec/);
     });
 });
 

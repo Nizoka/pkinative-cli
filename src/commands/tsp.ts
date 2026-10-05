@@ -105,7 +105,7 @@ function parseAs(ctx: Ctx, der: Uint8Array, as: 'response' | 'token' | 'tstinfo'
 }
 
 async function inspect(ctx: Ctx): Promise<void> {
-    const der = await readPkiBytes(ctx, getStringFlag(ctx.args.flags, 'input', 'i') ?? ctx.args.positionals[0], 'time-stamp object');
+    const der = await readPkiBytes(ctx, getStringFlag(ctx.args.flags, 'input') ?? ctx.args.positionals[0], 'time-stamp object');
     const forced = getChoiceFlag(ctx.args.flags, 'as', ['response', 'token', 'tstinfo'] as const);
     let result: Inspected | undefined;
     if (forced !== undefined) {

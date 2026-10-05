@@ -45,11 +45,13 @@ import { readPublicKey, readSpki, type PublicKey } from '../utils/spki.js';
 import { fromHex } from '../utils/wire.js';
 import {
     buildExtensions,
+    critical,
     generalNames,
     hexValue,
     isSpec,
     keyUsages,
     nameOf,
+    onlyMembers,
     purposeOid,
     readJsonSpec,
     readJsonValue,
@@ -66,7 +68,7 @@ export const EXTENSION_KINDS: readonly DecodedExtensionKind[] = [
 ];
 
 function inputPath(ctx: Ctx): string | undefined {
-    return getStringFlag(ctx.args.flags, 'input', 'i') ?? ctx.args.positionals[0];
+    return getStringFlag(ctx.args.flags, 'input') ?? ctx.args.positionals[0];
 }
 
 /** Read and parse one certificate. */
@@ -108,7 +110,7 @@ async function decodeExtension(ctx: Ctx): Promise<void> {
     const oid = getStringFlag(ctx.args.flags, 'oid');
     if (oid === undefined) throw usageError('cert decode-extension needs --oid <oid>.');
     const hex = getStringFlag(ctx.args.flags, 'value');
-    const path = getStringFlag(ctx.args.flags, 'input', 'i');
+    const path = getStringFlag(ctx.args.flags, 'input');
     if ((hex === undefined) === (path === undefined)) throw usageError('Give the extnValue content as --value <hex> or --input <file>, not both.');
     let value: Uint8Array;
     if (hex !== undefined) {
@@ -180,6 +182,7 @@ async function create(ctx: Ctx): Promise<void> {
     const specPath = getStringFlag(ctx.args.flags, 'spec');
     if (specPath === undefined) throw usageError('cert create needs --spec <file.json>.');
     const spec = await readJsonSpec(ctx, specPath);
+    onlyMembers(spec, ['serialNumber', 'subject', 'issuer', 'notBefore', 'notAfter', 'validityDays', 'extensions'], '');
     const subject = nameOf(spec, 'subject');
     if (subject === undefined) throw specError('subject', 'is required');
     const issuerPath = getStringFlag(ctx.args.flags, 'issuer');
@@ -235,6 +238,8 @@ async function encodeStructure(ctx: Ctx): Promise<void> {
         throw usageError(`cert encode takes one structure: ${CERT_ENCODE_STRUCTURES.join(', ')}.`);
     }
     if (structure === 'signature-algorithm') {
+        // The signer flags decide it: a spec would be ignored, so it is refused (audit B2-04).
+        if (getStringFlag(ctx.args.flags, 'spec') !== undefined) throw usageError('cert encode signature-algorithm takes no --spec: the signer flags (--key or --p12, --rsa-scheme, --hash) decide it.');
         const loaded = await loadSigner(ctx, { stdinTaken: false });
         await emitArtifact(ctx, guard('Cannot encode', () => encodeSignatureAlgorithm(loaded.signer)), { label: undefined, defaultEncoding: 'hex' });
         return;
@@ -242,9 +247,9 @@ async function encodeStructure(ctx: Ctx): Promise<void> {
     const specPath = getStringFlag(ctx.args.flags, 'spec');
     if (specPath === undefined) throw usageError(`cert encode ${structure} needs --spec <file.json> (or "-").`);
     const spec = await readJsonValue(ctx, specPath);
-    const obj = (): Readonly<Record<string, unknown>> => {
+    const obj = (members: readonly string[]): Readonly<Record<string, unknown>> => {
         if (!isSpec(spec)) throw specError('$', 'expected a JSON object');
-        return spec;
+        return onlyMembers(spec, members, '');
     };
     // Required members are checked here, with the spec path in the message, so a
     // missing "algorithm" is E_INPUT and never the engine's "undefined is not an
@@ -260,32 +265,33 @@ async function encodeStructure(ctx: Ctx): Promise<void> {
             case 'name-attribute': return encodeNameAttribute(parseNameAttribute(spec, 'spec $'));
             case 'validity': {
                 // An encoded Validity names its own start: no implicit 'now'.
-                if (obj()['notBefore'] === undefined) throw specError('notBefore', 'required: the start of the validity period');
-                const v = validity(obj());
+                const s = obj(['notBefore', 'notAfter', 'validityDays']);
+                if (s['notBefore'] === undefined) throw specError('notBefore', 'required: the start of the validity period');
+                const v = validity(s);
                 return encodeValidity(v.notBefore, v.notAfter);
             }
             case 'spki': {
-                const s = obj();
+                const s = obj(['algorithm', 'publicKey', 'parameters']);
                 const params = s['parameters'] === undefined ? undefined : hexValue(s['parameters'], 'parameters');
                 return encodeSubjectPublicKeyInfo(oidMember(s, 'algorithm'), hexValue(s['publicKey'], 'publicKey'), params);
             }
             case 'algorithm-identifier': {
-                const s = obj();
+                const s = obj(['oid', 'parameters']);
                 return s['parameters'] === undefined ? encodeAlgorithmIdentifier(oidMember(s, 'oid')) : encodeAlgorithmIdentifier(oidMember(s, 'oid'), hexValue(s['parameters'], 'parameters'));
             }
             case 'attribute': {
-                const s = obj();
+                const s = obj(['oid', 'values']);
                 const values = s['values'];
                 if (!Array.isArray(values)) throw specError('values', 'expected an array of hex strings');
                 return encodeAttribute(oidMember(s, 'oid'), values.map((v: unknown, i) => hexValue(v, `values[${i}]`)));
             }
             case 'extension': {
-                const s = obj();
-                return encodeExtension({ oid: oidMember(s, 'oid'), critical: s['critical'] === true, value: hexValue(s['value'], 'value') });
+                const s = obj(['oid', 'critical', 'value']);
+                return encodeExtension({ oid: oidMember(s, 'oid'), critical: critical(s, '', false), value: hexValue(s['value'], 'value') });
             }
-            case 'extensions': return encodeExtensions(buildExtensions(spec, { subjectKeyBits: new Uint8Array(), issuerKeyId: undefined, defaults: { ski: false, aki: false } }), { limits: ctx.opts.limits });
+            case 'extensions': return encodeExtensions(buildExtensions(spec, { subjectKeyBits: undefined, issuerKeyId: undefined, defaults: { ski: false, aki: false } }), { limits: ctx.opts.limits });
             case 'basic-constraints': {
-                const s = obj();
+                const s = obj(['ca', 'pathLen']);
                 const pathLen = s['pathLen'];
                 if (typeof s['ca'] !== 'boolean') throw specError('ca', 'expected a boolean');
                 if (pathLen !== undefined && (typeof pathLen !== 'number' || !Number.isSafeInteger(pathLen) || pathLen < 0)) throw specError('pathLen', 'expected a non-negative integer');
@@ -294,8 +300,8 @@ async function encodeStructure(ctx: Ctx): Promise<void> {
             case 'key-usage': return encodeKeyUsage(keyUsages(stringList(spec), '$'));
             case 'extended-key-usage': return encodeExtendedKeyUsage(stringList(spec).map((p) => purposeOid(p, '$')));
             case 'subject-alt-name': return encodeSubjectAltName(generalNames(spec, '$'));
-            case 'subject-key-identifier': return encodeSubjectKeyIdentifier(hexValue(obj()['keyIdentifier'], 'keyIdentifier'));
-            default: return encodeAuthorityKeyIdentifier(hexValue(obj()['keyIdentifier'], 'keyIdentifier'));
+            case 'subject-key-identifier': return encodeSubjectKeyIdentifier(hexValue(obj(['keyIdentifier'])['keyIdentifier'], 'keyIdentifier'));
+            default: return encodeAuthorityKeyIdentifier(hexValue(obj(['keyIdentifier'])['keyIdentifier'], 'keyIdentifier'));
         }
     });
     await emitArtifact(ctx, der, { label: undefined, defaultEncoding: 'hex' });

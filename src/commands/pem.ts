@@ -9,7 +9,7 @@ import { guard } from '../utils/pkierr.js';
 import { looksLikePem, readPkiBytes } from '../utils/pki-input.js';
 
 function inputPath(ctx: Ctx): string | undefined {
-    return getStringFlag(ctx.args.flags, 'input', 'i') ?? ctx.args.positionals[0];
+    return getStringFlag(ctx.args.flags, 'input') ?? ctx.args.positionals[0];
 }
 
 async function decode(ctx: Ctx): Promise<void> {

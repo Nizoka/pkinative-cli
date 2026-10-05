@@ -87,7 +87,7 @@ function finish(ctx: Ctx, report: ValidateCertificatePathReport, what: string, f
 }
 
 async function verify(ctx: Ctx): Promise<void> {
-    const leaf = await readCertificate(ctx, getStringFlag(ctx.args.flags, 'input', 'i') ?? ctx.args.positionals[0], 'leaf certificate');
+    const leaf = await readCertificate(ctx, getStringFlag(ctx.args.flags, 'input') ?? ctx.args.positionals[0], 'leaf certificate');
     const candidates = await readCertificates(ctx, getStringFlagAll(ctx.args.flags, 'untrusted'), 'untrusted certificate');
     const anchors = await trustAnchors(ctx);
     const crls = (await readPkiBundle(ctx, getStringFlagAll(ctx.args.flags, 'crl'), 'CRL', LABELS.crl)).map((o) => o.der);
@@ -118,7 +118,7 @@ async function verify(ctx: Ctx): Promise<void> {
 }
 
 async function build(ctx: Ctx): Promise<void> {
-    const leaf = await readCertificate(ctx, getStringFlag(ctx.args.flags, 'input', 'i') ?? ctx.args.positionals[0], 'leaf certificate');
+    const leaf = await readCertificate(ctx, getStringFlag(ctx.args.flags, 'input') ?? ctx.args.positionals[0], 'leaf certificate');
     const candidates = await readCertificates(ctx, getStringFlagAll(ctx.args.flags, 'untrusted'), 'untrusted certificate');
     const anchors = await trustAnchors(ctx);
     const purposeOids = purposes(ctx);

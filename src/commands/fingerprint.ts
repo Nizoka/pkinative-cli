@@ -15,7 +15,7 @@ const ALGORITHMS: readonly FingerprintAlgorithm[] = ['SHA-1', 'SHA-256', 'SHA-38
 const MAX_SHAKE_OUTPUT = 1024 * 1024;
 
 export async function fingerprint(ctx: Ctx): Promise<void> {
-    const path = getStringFlag(ctx.args.flags, 'input', 'i') ?? ctx.args.positionals[0];
+    const path = getStringFlag(ctx.args.flags, 'input') ?? ctx.args.positionals[0];
     const separator = getStringFlag(ctx.args.flags, 'separator') ?? ':';
     const letterCase = getChoiceFlag(ctx.args.flags, 'case', ['upper', 'lower'] as const, 'upper');
     const keyId = hasFlag(ctx.args.flags, 'key-id');

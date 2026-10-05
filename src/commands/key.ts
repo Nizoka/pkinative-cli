@@ -12,7 +12,7 @@ import { readPassword } from '../utils/secrets.js';
 import { importKeyFile, isEncryptedPkcs8 } from '../utils/signer.js';
 
 function keyPath(ctx: Ctx): string | undefined {
-    return getStringFlag(ctx.args.flags, 'input', 'i') ?? ctx.args.positionals[0];
+    return getStringFlag(ctx.args.flags, 'input') ?? ctx.args.positionals[0];
 }
 
 async function inspect(ctx: Ctx): Promise<void> {

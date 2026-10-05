@@ -5,7 +5,7 @@
 import { aliasedFlags, booleanFlags, commandNames, findCommand, knownFlags, operandRule, repeatableFlags } from './commands/registry.js';
 import { COMMAND_USAGE, USAGE } from './commands/usage.js';
 import { createContext, parseGlobalOptions, type Ctx } from './context.js';
-import { assertKnownFlags, assertOperands, assertSingleValues, firstPositionalIndex, getStringFlag, hasFlag, parseArgs } from './utils/args.js';
+import { assertKnownFlags, assertOperands, assertSingleValues, canonicaliseAliases, firstPositionalIndex, getStringFlag, hasFlag, parseArgs } from './utils/args.js';
 import { buildErrorEnvelope, buildStatusEnvelope, formatDiagnostic } from './utils/agent.js';
 import { applyConfigDefaults, loadConfig } from './utils/config.js';
 import { CliError, ErrorCode, usageError } from './utils/error.js';
@@ -102,7 +102,8 @@ export async function run(argv: readonly string[], io: Io = processIo()): Promis
         }
         const known = knownFlags(spec, sub);
         assertKnownFlags(args.flags, known, commandLabel);
-        assertSingleValues(args.flags, repeatableFlags(spec, sub), aliasedFlags(spec, sub), commandLabel);
+        args = { flags: canonicaliseAliases(args.flags, aliasedFlags(spec, sub)), positionals: args.positionals };
+        assertSingleValues(args.flags, repeatableFlags(spec, sub), commandLabel);
         assertOperands(args, operandRule(spec, sub), commandLabel);
         if (!hasFlag(args.flags, 'no-config')) {
             const config = loadConfig(name, sub, commandNames(), getStringFlag(args.flags, 'config'), io.cwd);

@@ -1,6 +1,7 @@
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { COMMANDS, GLOBAL_FLAGS, commandFlags } from '../src/commands/registry.js';
 import { CONFIG_FILENAME } from '../src/utils/config.js';
 import { CLI_VERSION } from '../src/utils/version.js';
 import { AT, cli, emptyDir, envelope, fixture } from './helpers/io.js';
@@ -206,6 +207,59 @@ describe('run: the parser enforces the registry (audit A-08, A-10, A-11, A-19)',
         const r = await cli(['fingerprint', '--input', fixture('leaf.crt.pem'), '-i', fixture('root.crt.pem')]);
         expect(r.code).toBe(2);
         expect(r.stderr).toMatch(/--input and -i are the same flag/);
+    });
+
+    it('holds an alias to every rule its flag obeys (audit A2-01, A2-02)', async () => {
+        // An operand beside -i is the same conflict as beside --input: the verdict never silently changes.
+        const both = await cli(['chain', 'verify', fixture('revoked.crt.pem'), '-i', fixture('leaf.crt.pem'), '--trust', fixture('root.crt.pem'), '--at', AT]);
+        expect(both.code).toBe(2);
+        expect(both.stderr).toMatch(/given --input and an argument/);
+        // -f is --format: honoured, and checked.
+        expect(JSON.parse((await cli(['cert', 'inspect', fixture('leaf.crt.pem'), '-f', 'json'])).stdout)).toHaveProperty('serialNumber');
+        const bogus = await cli(['cert', 'inspect', fixture('leaf.crt.pem'), '-f', 'bogus']);
+        expect(bogus.code).toBe(2);
+        expect(bogus.stderr).toMatch(/--format expects one of text\|json/);
+        // A bare -i is reported under the flag's name.
+        expect((await cli(['cert', 'inspect', '-i'])).stderr).toMatch(/Flag --input requires a value/);
+        // A flag given on the command line, under either name, beats the config file.
+        const dir = emptyDir();
+        writeFileSync(join(dir, CONFIG_FILENAME), JSON.stringify({ quiet: false, format: 'json' }));
+        const quiet = await cli(['limits', '-q'], { cwd: dir });
+        expect(quiet.stderr).toBe('');
+        const text = await cli(['limits', '-f', 'text', '--quiet'], { cwd: dir });
+        expect(text.stdout).toMatch(/^--max-input-bytes/);
+        for (const [alias, name] of [['-q', '--quiet'], ['-f', '--format']] as const) {
+            const value = alias === '-f' ? ['text'] : [];
+            const short = await cli(['limits', alias, ...value, '--json'], { cwd: dir });
+            const long = await cli(['limits', name, ...value, '--json'], { cwd: dir });
+            expect(short).toEqual(long);
+        }
+    });
+
+    it('gives every alias of the registry the outcome of its long form, in every invocation', async () => {
+        const dir = emptyDir();
+        let compared = 0;
+        for (const c of COMMANDS) {
+            for (const sub of c.subcommands.length > 0 ? c.subcommands.map((s) => s.name) : [undefined]) {
+                const head = sub === undefined ? [c.name] : [c.name, sub];
+                for (const f of [...GLOBAL_FLAGS, ...commandFlags(c, sub)].filter((x) => x.alias !== undefined && x.name !== 'help' && x.name !== 'version')) {
+                    const value = f.value === undefined ? [] : [f.name === 'format' ? 'json' : join(dir, `missing-${f.name}`)];
+                    const long = await cli([...head, `--${f.name}`, ...value, '--json'], { cwd: dir });
+                    const short = await cli([...head, `-${f.alias as string}`, ...value, '--json'], { cwd: dir });
+                    expect(short, `${head.join(' ')} -${f.alias as string}`).toEqual(long);
+                    compared++;
+                }
+            }
+        }
+        expect(compared).toBeGreaterThan(100);
+    });
+
+    it('refuses a switch given twice instead of letting the last one win (audit A2-11)', async () => {
+        const r = await cli(['chain', 'verify', fixture('leaf.crt.pem'), '--require-revocation', '--require-revocation=false']);
+        expect(r.code).toBe(2);
+        expect(r.stderr).toMatch(/--require-revocation is given more than once/);
+        expect((await cli(['chain', 'verify', fixture('leaf.crt.pem'), '--require-revocation=false', '--require-revocation'])).code).toBe(2);
+        expect((await cli(['chain', 'verify', fixture('leaf.crt.pem'), '--at', '--at', AT])).stderr).toMatch(/--at is given more than once/);
     });
 
     it('refuses surplus operands and an operand beside --input', async () => {

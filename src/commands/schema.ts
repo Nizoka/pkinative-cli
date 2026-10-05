@@ -42,18 +42,17 @@ const listOrObject = (key: string, items: object) => ({
     ],
 });
 
-const generalNames = {
-    type: 'object', additionalProperties: false,
-    properties: {
-        dns: { type: 'array', items: { type: 'string' } },
-        email: { type: 'array', items: { type: 'string' } },
-        uri: { type: 'array', items: { type: 'string' } },
-        ip: { type: 'array', items: { type: 'string' } },
-        registeredId: { type: 'array', items: oid },
-        directoryName: { type: 'array', items: { $ref: '#/$defs/name' } },
-        critical: { type: 'boolean' },
-    },
+const generalNameKinds = {
+    dns: { type: 'array', items: { type: 'string' } },
+    email: { type: 'array', items: { type: 'string' } },
+    uri: { type: 'array', items: { type: 'string' } },
+    ip: { type: 'array', items: { type: 'string' } },
+    registeredId: { type: 'array', items: oid },
+    directoryName: { type: 'array', items: { $ref: '#/$defs/name' } },
 };
+/** GeneralNames alone (cert encode subject-alt-name), and as an extension, which also carries its criticality. */
+const generalNames = { type: 'object', additionalProperties: false, properties: generalNameKinds };
+const altNameExtension = { type: 'object', additionalProperties: false, properties: { ...generalNameKinds, critical: { type: 'boolean' } } };
 
 const extensions = {
     type: 'object', additionalProperties: false,
@@ -61,8 +60,8 @@ const extensions = {
         basicConstraints: { type: 'object', required: ['ca'], additionalProperties: false, properties: { ca: { type: 'boolean' }, pathLen: { type: 'integer', minimum: 0 }, critical: { type: 'boolean' } } },
         keyUsage: listOrObject('usages', { type: 'string' }),
         extendedKeyUsage: listOrObject('purposes', { type: 'string' }),
-        subjectAltName: generalNames,
-        issuerAltName: generalNames,
+        subjectAltName: altNameExtension,
+        issuerAltName: altNameExtension,
         subjectKeyIdentifier: { oneOf: [{ type: 'boolean' }, hex] },
         authorityKeyIdentifier: { oneOf: [{ type: 'boolean' }, hex] },
         raw: { type: 'array', items: { type: 'object', required: ['oid', 'value'], additionalProperties: false, properties: { oid, critical: { type: 'boolean' }, value: hex } } },

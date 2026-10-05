@@ -66,15 +66,28 @@ export function isSpec(value: unknown): value is Spec {
     return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
+/**
+ * Refuse a member the structure does not define: a misspelt key would
+ * otherwise be dropped silently, and the artefact would differ from the
+ * spec's intent (audit B2-04). `schema cert-spec` and `cert-encode-spec`
+ * declare the same closed objects.
+ */
+export function onlyMembers(spec: Spec, allowed: readonly string[], path: string): Spec {
+    for (const key of Object.keys(spec)) {
+        if (!allowed.includes(key)) throw specError(path === '' ? key : `${path}.${key}`, `unknown member (${allowed.join(', ')})`);
+    }
+    return spec;
+}
+
 function stringArray(value: unknown, path: string): string[] {
     if (!Array.isArray(value) || !value.every((v) => typeof v === 'string')) throw specError(path, 'expected an array of strings');
     return value;
 }
 
-function critical(spec: Spec, path: string, fallback: boolean): boolean {
+export function critical(spec: Spec, path: string, fallback: boolean): boolean {
     const c = spec['critical'];
     if (c === undefined) return fallback;
-    if (typeof c !== 'boolean') throw specError(`${path}.critical`, 'expected a boolean');
+    if (typeof c !== 'boolean') throw specError(path === '' ? 'critical' : `${path}.critical`, 'expected a boolean');
     return c;
 }
 
@@ -82,6 +95,7 @@ function critical(spec: Spec, path: string, fallback: boolean): boolean {
 function listForm(value: unknown, path: string, key: string, criticalDefault: boolean): { items: string[]; critical: boolean } {
     if (Array.isArray(value)) return { items: stringArray(value, path), critical: criticalDefault };
     if (!isSpec(value)) throw specError(path, `expected an array, or { "${key}": [...], "critical": ... }`);
+    onlyMembers(value, [key, 'critical'], path);
     return { items: stringArray(value[key], `${path}.${key}`), critical: critical(value, path, criticalDefault) };
 }
 
@@ -100,8 +114,12 @@ export function keyUsages(names: readonly string[], path: string): string[] {
     return [...names];
 }
 
-export function generalNames(spec: unknown, path: string): GeneralNameDescription[] {
+const GENERAL_NAME_KINDS = ['dns', 'email', 'uri', 'ip', 'registeredId', 'directoryName'];
+
+/** GeneralNames; `critical` is a member only where the names are an extension. */
+export function generalNames(spec: unknown, path: string, extension = false): GeneralNameDescription[] {
     if (!isSpec(spec)) throw specError(path, 'expected { "dns": [...], "ip": [...], ... }');
+    onlyMembers(spec, extension ? [...GENERAL_NAME_KINDS, 'critical'] : GENERAL_NAME_KINDS, path === '$' ? '' : path);
     const out: GeneralNameDescription[] = [];
     const list = (key: string): string[] => (spec[key] === undefined ? [] : stringArray(spec[key], `${path}.${key}`));
     for (const v of list('dns')) out.push({ kind: 'dNSName', value: v });
@@ -127,8 +145,8 @@ export function hexValue(value: unknown, path: string): Uint8Array {
 }
 
 export interface KeyIdentifiers {
-    /** The subject's public key bits (for an automatic subjectKeyIdentifier). */
-    readonly subjectKeyBits: Uint8Array;
+    /** The subject's public key bits (for an automatic subjectKeyIdentifier); none when no key is at hand. */
+    readonly subjectKeyBits: Uint8Array | undefined;
     /** The issuer's key identifier (for an automatic authorityKeyIdentifier). */
     readonly issuerKeyId: Uint8Array | undefined;
     /** Whether SKI / AKI are added when the spec does not mention them. */
@@ -159,6 +177,7 @@ export function buildExtensions(spec: unknown, ids: KeyIdentifiers): ExtensionDe
     const bc = ext['basicConstraints'];
     if (bc !== undefined) {
         if (!isSpec(bc) || typeof bc['ca'] !== 'boolean') throw specError('extensions.basicConstraints', 'expected { "ca": boolean, "pathLen"?: n }');
+        onlyMembers(bc, ['ca', 'pathLen', 'critical'], 'extensions.basicConstraints');
         const pathLen = bc['pathLen'];
         if (pathLen !== undefined && typeof pathLen !== 'number') throw specError('extensions.basicConstraints.pathLen', 'expected a number');
         push(EXTENSION_OIDS.basicConstraints, critical(bc, 'extensions.basicConstraints', true),
@@ -176,10 +195,10 @@ export function buildExtensions(spec: unknown, ids: KeyIdentifiers): ExtensionDe
     for (const key of ['subjectAltName', 'issuerAltName'] as const) {
         const san = ext[key];
         if (san === undefined) continue;
-        const names = generalNames(san, `extensions.${key}`);
+        const names = generalNames(san, `extensions.${key}`, true);
         push(EXTENSION_OIDS[key], critical(san as Spec, `extensions.${key}`, false), guard(`spec extensions.${key}`, () => encodeSubjectAltName(names)));
     }
-    const ski = keyIdentifier(ext['subjectKeyIdentifier'] ?? ids.defaults.ski, 'extensions.subjectKeyIdentifier', () => computeKeyIdentifier(ids.subjectKeyBits));
+    const ski = keyIdentifier(ext['subjectKeyIdentifier'] ?? ids.defaults.ski, 'extensions.subjectKeyIdentifier', () => (ids.subjectKeyBits === undefined ? undefined : computeKeyIdentifier(ids.subjectKeyBits)));
     if (ski !== undefined) push(EXTENSION_OIDS.subjectKeyIdentifier, false, encodeSubjectKeyIdentifier(ski));
     const aki = keyIdentifier(ext['authorityKeyIdentifier'] ?? ids.defaults.aki, 'extensions.authorityKeyIdentifier', () => ids.issuerKeyId);
     if (aki !== undefined) push(EXTENSION_OIDS.authorityKeyIdentifier, false, encodeAuthorityKeyIdentifier(aki));
@@ -189,6 +208,7 @@ export function buildExtensions(spec: unknown, ids: KeyIdentifiers): ExtensionDe
         raw.forEach((r: unknown, i) => {
             const path = `extensions.raw[${i}]`;
             if (!isSpec(r) || typeof r['oid'] !== 'string') throw specError(path, 'expected { "oid", "critical"?, "value": hex }');
+            onlyMembers(r, ['oid', 'critical', 'value'], path);
             push(r['oid'], critical(r, path, false), hexValue(r['value'], `${path}.value`));
         });
     }
@@ -213,7 +233,14 @@ export function validity(spec: Spec, now: () => number = Date.now): { notBefore:
         const v = spec[key];
         if (v === undefined) return fallback;
         if (typeof v === 'number' && Number.isSafeInteger(v)) return v;
-        if (typeof v === 'string') return parseInstant(v, key);
+        if (typeof v === 'string') {
+            // A malformed instant is a defect of the spec (E_INPUT), not of the command line (audit A2-06).
+            try {
+                return parseInstant(v, key);
+            } catch {
+                throw specError(key, `expected an instant (ISO 8601 or epoch milliseconds), got "${v}"`);
+            }
+        }
         throw specError(key, 'expected an instant (ISO 8601 or epoch milliseconds)');
     };
     const notBefore = instant('notBefore', Math.floor(now() / 1000) * 1000);

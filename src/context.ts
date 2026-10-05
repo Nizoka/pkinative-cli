@@ -47,7 +47,7 @@ export function parseGlobalOptions(args: ParsedArgs, env: Io['env']): GlobalOpti
     return {
         json: hasFlag(args.flags, 'json') || env['PKINATIVE_JSON'] === '1',
         pretty: hasFlag(args.flags, 'pretty'),
-        quiet: hasFlag(args.flags, 'quiet', 'q') || env['PKINATIVE_QUIET'] === '1',
+        quiet: hasFlag(args.flags, 'quiet') || env['PKINATIVE_QUIET'] === '1',
         dryRun: hasFlag(args.flags, 'dry-run'),
         strict: hasFlag(args.flags, 'strict'),
         ber: hasFlag(args.flags, 'ber'),

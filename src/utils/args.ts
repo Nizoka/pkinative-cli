@@ -20,7 +20,8 @@ const FORBIDDEN_FLAG_NAMES: ReadonlySet<string> = new Set(['__proto__', 'constru
  *
  * A flag named in `booleans` never consumes the next token, so
  * `--json cert inspect a.pem` keeps its positionals. Repeating a value flag
- * collects its values in order. Combined short flags (`-qj`) are refused.
+ * collects its values in order; a switch, or a value flag written bare, given
+ * twice is refused. Combined short flags (`-qj`) are refused.
  */
 export function parseArgs(argv: readonly string[], booleans: ReadonlySet<string>): ParsedArgs {
     const flags: Record<string, FlagValue> = Object.create(null) as Record<string, FlagValue>;
@@ -31,9 +32,13 @@ export function parseArgs(argv: readonly string[], booleans: ReadonlySet<string>
             throw usageError(`Invalid flag name "--${key}".`);
         }
         const existing = flags[key];
-        if (existing === undefined || typeof existing === 'boolean') {
+        if (existing === undefined) {
             flags[key] = value;
-        } else if (typeof value === 'string') {
+        } else if (typeof existing === 'boolean' || typeof value === 'boolean') {
+            // A switch given twice, or a value flag once bare: the last one
+            // would silently win (audit A2-11). The values are never echoed.
+            throw usageError(`${key.length === 1 ? '-' : '--'}${key} is given more than once; give it once.`);
+        } else {
             flags[key] = typeof existing === 'string' ? [existing, value] : [...existing, value];
         }
     };
@@ -181,25 +186,35 @@ export function getIntFlag(flags: ParsedArgs['flags'], name: string, min = 0, ma
 }
 
 /**
- * Refuse a value flag given twice when the registry does not declare it
- * repeatable, and a flag given under both its name and its alias: the second
- * value would otherwise be dropped silently, and a verdict would depend on
- * the order of the flags (audit A-11).
+ * Rename every alias to its flag's name, so that everything after the parser
+ * (the single-value and operand checks, the config merge, the handlers) sees
+ * one name per flag: `-i leaf.pem` is `--input leaf.pem` everywhere
+ * (audit A2-01, A2-02). A flag given under both its name and its alias is
+ * refused: one of the two values would otherwise be dropped silently.
  */
-export function assertSingleValues(
+export function canonicaliseAliases(
     flags: ParsedArgs['flags'],
-    repeatable: ReadonlySet<string>,
     aliased: ReadonlyArray<{ readonly name: string; readonly alias?: string }>,
-    command: string,
-): void {
+): ParsedArgs['flags'] {
+    const names = new Map(aliased.map((f) => [f.alias as string, f.name]));
+    const out: Record<string, FlagValue> = Object.create(null) as Record<string, FlagValue>;
+    for (const [key, value] of Object.entries(flags)) {
+        const name = names.get(key) ?? key;
+        if (name !== key && flags[name] !== undefined) throw usageError(`--${name} and -${key} are the same flag; give it once.`);
+        out[name] = value;
+    }
+    return out;
+}
+
+/**
+ * Refuse a value flag given twice when the registry does not declare it
+ * repeatable: the second value would otherwise be dropped silently, and a
+ * verdict would depend on the order of the flags (audit A-11).
+ */
+export function assertSingleValues(flags: ParsedArgs['flags'], repeatable: ReadonlySet<string>, command: string): void {
     for (const [name, value] of Object.entries(flags)) {
         if (Array.isArray(value) && !repeatable.has(name)) {
             throw usageError(`--${name} is given ${value.length} times for "${command}"; it takes one value.`);
-        }
-    }
-    for (const f of aliased) {
-        if (flags[f.name] !== undefined && flags[f.alias as string] !== undefined) {
-            throw usageError(`--${f.name} and -${f.alias as string} are the same flag; give it once.`);
         }
     }
 }

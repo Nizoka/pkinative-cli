@@ -13,7 +13,7 @@ import { readPublicKey, readSpki } from '../utils/spki.js';
 import { buildExtensions, nameOf, readJsonSpec, specError } from '../utils/x509-spec.js';
 
 function inputPath(ctx: Ctx): string | undefined {
-    return getStringFlag(ctx.args.flags, 'input', 'i') ?? ctx.args.positionals[0];
+    return getStringFlag(ctx.args.flags, 'input') ?? ctx.args.positionals[0];
 }
 
 async function readRequestDer(ctx: Ctx): Promise<Uint8Array> {

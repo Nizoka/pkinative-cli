@@ -145,7 +145,7 @@ function readValue(ctx: Ctx, node: Asn1Node, type: ReadType): unknown {
 }
 
 async function decode(ctx: Ctx): Promise<void> {
-    const path = getStringFlag(ctx.args.flags, 'input', 'i') ?? ctx.args.positionals[0];
+    const path = getStringFlag(ctx.args.flags, 'input') ?? ctx.args.positionals[0];
     const obj = await readPkiObject(ctx, path, 'DER input', LABELS.any);
     const opts = { ...parseOptions(ctx), allowTrailingData: hasFlag(ctx.args.flags, 'allow-trailing') };
     const nodePath = getStringFlag(ctx.args.flags, 'path');
