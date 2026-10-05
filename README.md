@@ -40,7 +40,7 @@ pkinative cms sign --content report.pdf --cert signer.pem --key signer.key --det
 pkinative cms verify report.p7s --content report.pdf --trust root.pem
 
 # Machine-readable everything
-pkinative chain verify server.pem --trust root.pem --json --summary
+pkinative chain verify server.pem --trust root.pem --untrusted ca.pem --json --summary
 ```
 
 Every subcommand has a runnable example in [`samples/`](samples/) (`.sh` and `.ps1`), and those examples are the ones CI runs.

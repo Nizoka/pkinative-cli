@@ -189,6 +189,14 @@ describe('x509 spec: serial number and default validity', () => {
         expect(serialNumber('random')).toBe(expected);
     });
 
+    it('takes a positive serial number only, as a defect of the spec (audit N-6)', () => {
+        expect(serialNumber(1)).toBe(1n);
+        expect(serialNumber('0x10')).toBe(16n);
+        for (const bad of [0, -1, '0', '0x00', 1.5, 'x']) {
+            expect(() => serialNumber(bad), String(bad)).toThrow(expect.objectContaining({ code: 'E_INPUT', message: expect.stringContaining('spec serialNumber: expected') }));
+        }
+    });
+
     it('starts the validity at the current second when notBefore is absent', () => {
         const v = validity({}, () => 1_700_000_000_999);
         expect(v.notBefore).toBe(1_700_000_000_000);

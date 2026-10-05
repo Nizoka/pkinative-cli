@@ -7,6 +7,11 @@ export interface ParsedArgs {
     readonly positionals: readonly string[];
 }
 
+/** `-o` for a one-letter flag, `--output` otherwise. */
+function dashed(key: string): string {
+    return `${key.length === 1 ? '-' : '--'}${key}`;
+}
+
 /** Names that would reach Object.prototype through a plain record. */
 const FORBIDDEN_FLAG_NAMES: ReadonlySet<string> = new Set(['__proto__', 'constructor', 'prototype']);
 
@@ -37,7 +42,9 @@ export function parseArgs(argv: readonly string[], booleans: ReadonlySet<string>
         } else if (typeof existing === 'boolean' || typeof value === 'boolean') {
             // A switch given twice, or a value flag once bare: the last one
             // would silently win (audit A2-11). The values are never echoed.
-            throw usageError(`${key.length === 1 ? '-' : '--'}${key} is given more than once; give it once.`);
+            throw usageError(typeof existing !== 'boolean'
+                ? `Flag ${dashed(key)} requires a value.`
+                : `${dashed(key)} is given more than once; give it once.`);
         } else {
             flags[key] = typeof existing === 'string' ? [existing, value] : [...existing, value];
         }
@@ -61,7 +68,10 @@ export function parseArgs(argv: readonly string[], booleans: ReadonlySet<string>
             key = token.slice(2);
         } else if (token.startsWith('-') && token.length > 1 && !/^-\d/.test(token)) {
             if (token.length > 2) {
-                throw usageError(`Combined short flags are not supported ("${token}"): write ${Array.from(token.slice(1), (c) => `-${c}`).join(' ')}.`);
+                // The token is never echoed: it may be a password typed in the wrong place.
+                throw usageError(token[2] === '='
+                    ? `A short flag takes no "=": write -${token[1] as string} <value>, or the long form --<flag>=<value>.`
+                    : 'Combined short flags are not supported: write each flag separately (-q -f json, not -qf json).');
             }
             key = token.slice(1);
         } else {
@@ -240,7 +250,7 @@ export function assertOperands(args: ParsedArgs, rule: { readonly max: number; r
 export function assertKnownFlags(flags: ParsedArgs['flags'], known: ReadonlySet<string>, command: string): void {
     for (const name of Object.keys(flags)) {
         if (!known.has(name)) {
-            throw usageError(`Unknown flag --${name} for "${command}". Run pkinative ${command} --help.`);
+            throw usageError(`Unknown flag ${dashed(name)} for "${command}". Run pkinative ${command} --help.`);
         }
     }
 }

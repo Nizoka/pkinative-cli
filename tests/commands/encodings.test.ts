@@ -43,6 +43,14 @@ describe('pem decode', () => {
         const r = await cli(['pem', 'decode', '--json'], { stdin: readFileSync(fixture('root.crt.pem'), 'utf8') });
         expect(JSON.parse(r.stdout).blocks[0].label).toBe('CERTIFICATE');
     });
+
+    it('refuses --output without --index rather than drop it (audit N-3)', async () => {
+        for (const output of [['--output', 'out.der'], ['-o']]) {
+            const r = await cli(['pem', 'decode', fixture('leaf.crt.pem'), ...output]);
+            expect(r.code, output.join(' ')).toBe(2);
+            expect(r.stderr, output.join(' ')).toMatch(/--output needs --index <n>/);
+        }
+    });
 });
 
 describe('pem encode', () => {

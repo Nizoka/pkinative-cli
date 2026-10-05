@@ -2,7 +2,9 @@
 // calls process.exit; `run()` returns the code, so every path is testable
 // in-process and stdout is flushed before the process ends.
 
-import { aliasedFlags, booleanFlags, commandNames, configSections, findCommand, knownFlags, operandRule, repeatableFlags } from './commands/registry.js';
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { aliasedFlags, allFlagSpecs, booleanFlags, commandNames, configSections, findCommand, knownFlags, operandRule, repeatableFlags } from './commands/registry.js';
 import { COMMAND_USAGE, USAGE } from './commands/usage.js';
 import { createContext, parseGlobalOptions, type Ctx } from './context.js';
 import { assertKnownFlags, assertOperands, assertSingleValues, canonicaliseAliases, firstPositionalIndex, getStringFlag, hasFlag, parseArgs } from './utils/args.js';
@@ -129,23 +131,32 @@ export async function run(argv: readonly string[], io: Io = processIo()): Promis
         }
         return 0;
     } catch (e) {
-        return reportFailure(io, commandLabel, redactMistypedPassword(argv, e), ctx, json, configPath);
+        return reportFailure(io, commandLabel, redactMistypedPassword(argv, e, io.cwd), ctx, json, configPath);
     }
 }
 
+/** The placeholder that stands for the argument after --password-stdin in an error. */
+export const REDACTED = '<the argument after --password-stdin>';
+
 /**
  * `--password-stdin hunter2` is a password typed on argv by mistake: the
- * switch takes no value, so hunter2 becomes an operand, and a failure that
- * names the operand would print it. That token is never echoed (audit A2-03).
+ * switch takes no value, so hunter2 becomes an operand (or, as `-hunter2`,
+ * a flag), and a failure that names it would print it. That argument is never
+ * echoed — unless it is a flag the CLI declares, or a path that exists (the
+ * input written after the switch). Only the argument as a whole word is
+ * replaced, never a substring of another (audit A2-03, N-1, N-2).
  */
-export function redactMistypedPassword(argv: readonly string[], e: unknown): unknown {
+export function redactMistypedPassword(argv: readonly string[], e: unknown, cwd: string): unknown {
     const i = argv.indexOf('--password-stdin');
     const next = i === -1 ? undefined : argv[i + 1];
-    if (e instanceof Error && next !== undefined && !next.startsWith('-') && e.message.includes(next)) {
-        e.message = e.message.replaceAll(next, '<operand>');
-    }
+    if (!(e instanceof Error) || next === undefined || next === '-' || next === '--' || KNOWN_SPELLINGS.has(next.replace(/=.*$/s, '')) || existsSync(resolve(cwd, next))) return e;
+    const word = new RegExp(`(?<![\\w.-])${next.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\w.-])`, 'g');
+    e.message = e.message.replace(word, REDACTED);
     return e;
 }
+
+/** Every flag spelling the registry declares: `--input`, `-i`. */
+const KNOWN_SPELLINGS: ReadonlySet<string> = new Set(allFlagSpecs().flatMap((f) => [`--${f.name}`, ...(f.alias !== undefined ? [`-${f.alias}`] : [])]));
 
 export function reportFailure(io: Io, command: string | null, e: unknown, ctx: Ctx | undefined, json: boolean, configPath?: string): number {
     const diagnostics = ctx?.diagnostics ?? [];

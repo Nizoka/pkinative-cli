@@ -3,13 +3,13 @@
   "schema": 1,
   "equivalents": [
     {
-      "id": "src/cli.ts:48:9:if-false",
+      "id": "src/cli.ts:50:9:if-false",
       "original": "index === -1",
       "replacement": "false",
       "reason": "Semantic: with index -1 the fall-through returns command argv[-1], which is undefined, the same command as the early return; the only other difference is `rest`, which run() never reads when the command is undefined (every branch of that case returns or throws first)."
     },
     {
-      "id": "src/cli.ts:86:39:number+1",
+      "id": "src/cli.ts:88:39:number+1",
       "original": "0",
       "replacement": "1",
       "reason": "Semantic: `> 1` differs from `> 0` only for a command with exactly one subcommand, and no registered command has exactly one subcommand: each has 0 or at least 2 (COMMANDS is a constant, and tests/docs/usage.test.ts holds the registry)."

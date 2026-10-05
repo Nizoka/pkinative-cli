@@ -222,9 +222,10 @@ export function serialNumber(value: unknown): bigint {
         bytes[0] = ((bytes[0] as number) & 0x7f) | 0x01;
         return BigInt(`0x${Buffer.from(bytes).toString('hex')}`);
     }
-    if (typeof value === 'number' && Number.isSafeInteger(value)) return BigInt(value);
-    if (typeof value === 'string' && /^(\d+|0x[0-9a-f]+)$/i.test(value)) return BigInt(value);
-    throw specError('serialNumber', 'expected "random", a decimal or 0x-hex string, or an integer');
+    const serial = typeof value === 'number' && Number.isSafeInteger(value) ? BigInt(value)
+        : typeof value === 'string' && /^(\d+|0x[0-9a-f]+)$/i.test(value) ? BigInt(value) : undefined;
+    if (serial === undefined || serial < 1n) throw specError('serialNumber', 'expected "random", or a positive decimal or 0x-hex string or integer');
+    return serial;
 }
 
 /** notBefore / notAfter from the spec, in whole seconds. */

@@ -108,7 +108,7 @@ function certSpec(): object {
     return {
         $schema: DIALECT, $id: ID('cert-spec'), title: 'cert create spec', type: 'object', required: ['subject'], additionalProperties: false,
         properties: {
-            serialNumber: { oneOf: [{ const: 'random' }, { type: 'integer', minimum: 1 }, { type: 'string', pattern: '^(\\d+|0x[0-9a-fA-F]+)$' }] },
+            serialNumber: { oneOf: [{ const: 'random' }, { type: 'integer', minimum: 1 }, { type: 'string', pattern: '^([1-9]\\d*|0x0*[1-9a-fA-F][0-9a-fA-F]*)$' }] },
             subject: { $ref: '#/$defs/name' },
             issuer: { $ref: '#/$defs/name' },
             notBefore: instant,

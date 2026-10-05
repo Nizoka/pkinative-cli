@@ -22,6 +22,9 @@ async function decode(ctx: Ctx): Promise<void> {
         ...(label !== undefined ? { label } : {}),
     }));
     const index = getIntFlag(ctx.args.flags, 'index');
+    if (index === undefined && ctx.args.flags['output'] !== undefined) {
+        throw usageError('pem decode --output needs --index <n>: without it, the command lists the blocks on stdout.');
+    }
     if (index !== undefined) {
         const block = blocks[index];
         if (block === undefined) {

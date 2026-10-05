@@ -2,6 +2,7 @@ import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { COMMANDS, GLOBAL_FLAGS, commandFlags } from '../src/commands/registry.js';
+import { REDACTED } from '../src/cli.js';
 import { CONFIG_FILENAME } from '../src/utils/config.js';
 import { CLI_VERSION } from '../src/utils/version.js';
 import { AT, cli, emptyDir, envelope, fixture } from './helpers/io.js';
@@ -69,13 +70,25 @@ describe('run: usage errors', () => {
         }
     });
 
-    it('never echoes a token typed after --password-stdin (audit A2-03)', async () => {
+    it('never echoes a token typed after --password-stdin, whatever it starts with (audit A2-03, N-1, N-2)', async () => {
         for (const json of [[], ['--json']]) {
             const r = await cli(['p12', 'open', '--password-stdin', 'Zq9fresh', ...json], { stdin: 'pw\n' });
             expect(r.code).toBe(1);
-            expect(r.stderr).toMatch(/<operand>/);
+            expect(r.stderr).toContain(REDACTED);
             expect(r.stderr).not.toContain('Zq9fresh');
         }
+        for (const token of ['-Zq9fresh', '--Zq9fresh', '-Z=q9fresh']) {
+            const r = await cli(['p12', 'open', fixture('leaf.p12'), '--password-stdin', token], { stdin: 'pw\n' });
+            expect(r.code, token).toBe(2);
+            expect(r.stderr, token).not.toMatch(/q9fresh/);
+        }
+        // Only the whole word is replaced: the rest of the message stays readable.
+        const short = await cli(['p12', 'open', '--password-stdin', 'e'], { stdin: 'pw\n' });
+        expect(short.stderr).toContain(`Cannot read PKCS#12 file "${REDACTED}"`);
+        // An existing path after the switch is the input, and is named; so is a known flag.
+        const named = await cli(['p12', 'verify-mac', '--password-stdin', fixture('nomac.p12'), '--max-input-bytes', '8'], { stdin: 'pw\n' });
+        expect(named.stderr).toContain('nomac.p12');
+        expect((await cli(['p12', 'open', fixture('leaf.p12'), '--password-stdin', '--format', 'bogus'], { stdin: 'pw\n' })).stderr).toMatch(/--format expects/);
         // A path given elsewhere is still named.
         expect((await cli(['p12', 'inspect', 'Zq9missing.p12'])).stderr).toContain('Zq9missing.p12');
     });
