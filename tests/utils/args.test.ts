@@ -104,7 +104,7 @@ describe('flag accessors', () => {
     it('getIntFlag validates digits and range', () => {
         expect(getIntFlag(flags, 'n')).toBe(42);
         expect(getIntFlag(flags, 'missing')).toBeUndefined();
-        expect(() => getIntFlag(flags, 'm')).toThrow(/expects an integer/);
+        expect(() => getIntFlag(flags, 'm')).toThrow(/expects a non-negative integer/);
         expect(() => getIntFlag(flags, 'n', 0, 10)).toThrow(/between 0 and 10/);
         expect(() => getIntFlag(flags, 'n', 50)).toThrow(/between 50/);
     });

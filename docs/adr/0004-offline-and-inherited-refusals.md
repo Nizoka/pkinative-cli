@@ -20,4 +20,4 @@ Sibling CLIs fetch OCSP answers and time-stamps behind opt-in flags. pkinative d
 ### Consequences
 
 - Good: verdicts are reproducible offline; the security surface is the file system only.
-- Bad: users fetch revocation evidence themselves; a future opt-in network layer would need its own ADR and guard.
+- Bad: users fetch revocation evidence themselves. This is permanent (ROADMAP.md §Never): a verdict the CLI prints is always a function of the files it was given.

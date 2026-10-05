@@ -108,7 +108,7 @@ jobs:
           if-no-files-found: ignore
 
   # The package declares Node.js; this runs the BUILT binary under Deno and
-  # Bun as well, so a user who tries one learns from the README what works.
+  # Bun as well: information for a user who tries one (README, "Node.js only").
   # Advisory: `runtimes` is not a required check.
   runtimes:
     name: runtimes

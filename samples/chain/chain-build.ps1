@@ -1,5 +1,7 @@
 # Find a path to a trust anchor
 # Run from the repository root after `npm run build`. Expected exit: 0.
+# $env:PKINATIVE names another pkinative (e.g. 'pkinative' when installed).
 $F = 'tests/fixtures/pki'; $S = 'samples/inputs'; $O = 'test-output/samples'
+$Cli = if ($env:PKINATIVE) { $env:PKINATIVE -split ' ' } else { @('node', 'dist/cli.cjs') }
 New-Item -ItemType Directory -Force $O | Out-Null
-node dist/cli.cjs chain build "$F/leaf.crt.pem" --untrusted "$F/inter.crt.pem" --trust "$F/root.crt.pem" --at 2027-01-01T00:00:00Z --json --summary
+& $Cli[0] @($Cli | Select-Object -Skip 1) chain build "$F/leaf.crt.pem" --untrusted "$F/inter.crt.pem" --trust "$F/root.crt.pem" --at 2027-01-01T00:00:00Z --json --summary

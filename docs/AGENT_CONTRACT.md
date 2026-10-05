@@ -78,6 +78,8 @@ The CLI adds nothing to an engine result except where it is a CLI view: `key` an
 - Time: `--at <ISO 8601 | epoch ms | now>`, UTC unless zoned. Pin it for reproducible verdicts.
 - Secrets: `PKINATIVE_PASSWORD`, `--password-file` or `--password-stdin` — never a flag value (refused, exit 2).
 - `--dry-run` validates every input and writes nothing.
+- `--help` is text for people, whatever `--json` says; the machine form of every command, flag and operand is `pkinative schema manifest`.
+- Each flag is given once unless the manifest marks it `repeatable`; a subcommand takes at most `operands.max` positional arguments. Anything else is exit 2, so a verdict never depends on argument order.
 - Specs (`cert create`, `csr create`, `asn1 encode`, `cert encode`) are JSON files or stdin (`-`); their schemas: `pkinative schema cert-spec | csr-spec | asn1-spec | cert-encode-spec` (one `$defs` entry per `cert encode` structure).
 
 ## 7. Recommended loop

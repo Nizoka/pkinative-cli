@@ -26,11 +26,15 @@
     {
       "path": "THIRD-PARTY-NOTICES.md",
       "role": "legal",
-      "sha256": "723a7a76217c0096a695d4cd6bedfb5566fd5981d74187d45d97fae630006abe"
+      "sha256": "e838abb55dd5d2d61c2d78e6e473e1b5f9995468c50d3993bfa82949be14151e"
     },
     {
       "path": "dist/cli.cjs",
       "role": "build"
+    },
+    {
+      "path": "docs/AGENT_CONTRACT.md",
+      "role": "doc"
     },
     {
       "path": "docs/data/errors.json",

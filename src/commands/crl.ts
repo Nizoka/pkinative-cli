@@ -101,7 +101,7 @@ async function issuerCertificate(ctx: Ctx): Promise<Certificate | undefined> {
 async function verifySignature(ctx: Ctx): Promise<void> {
     const { crl: list } = await readCrl(ctx, crlPath(ctx));
     const issuer = await issuerCertificate(ctx);
-    if (issuer === undefined) throw usageError('list verify-signature needs --issuer <cert>.');
+    if (issuer === undefined) throw usageError('crl verify-signature needs --issuer <cert>.');
     const valid = await guardAsync('Cannot verify the CRL', () => verifyCrlSignature(list, issuer, { allowSha1: ctx.opts.allowSha1 }));
     emitReport(ctx, { valid }, () => renderVerdict(ctx.color, valid, 'CRL signature', []));
     if (!valid) throw new CliError('The CRL signature does not verify against --issuer.', 1, ErrorCode.VERIFY_FAILED);

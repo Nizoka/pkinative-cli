@@ -39,7 +39,7 @@ export const ALWAYS_PACKED: readonly string[] = ['package.json', 'README.md', 'L
 /** Never in the tarball, whatever the manifest says, so regenerating it cannot bless a leak. */
 export const FORBIDDEN: ReadonlyArray<{ readonly pattern: RegExp; readonly why: string }> = [
     { pattern: /^(src|tests?|scripts|samples|examples|fuzz)\//, why: 'a source, test, sample or tooling directory' },
-    { pattern: /^docs\/(?!data\/errors\.json$)/, why: 'a document other than the shipped error catalogue' },
+    { pattern: /^docs\/(?!data\/errors\.json$|AGENT_CONTRACT\.md$)/, why: 'a document other than the shipped error catalogue and agent contract' },
     { pattern: /(^|\/)\./, why: 'a dotfile (.env, .npmrc, .github, .claude, an editor config)' },
     { pattern: /(^|\/)(node_modules|coverage|test-output|fixtures)\//, why: 'a dependency, report or fixture directory' },
     { pattern: /\.(der|pem|crt|cer|p7b|p7c|p7s|p12|pfx|key|p8|csr|crl|tsq|tsr|ocsp|tgz|zip|log)$/i, why: 'key material, a certificate, a PKI message, an archive or a log' },

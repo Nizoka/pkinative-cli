@@ -36,7 +36,7 @@ import { parseOptions, type Ctx } from '../context.js';
 import { getStringFlag, getStringFlagAll, hasFlag } from '../utils/args.js';
 import { CliError, ErrorCode, usageError } from '../utils/error.js';
 import { parseIp, parseNameAttribute, parseNameSpec } from '../utils/names.js';
-import { emitArtifact, emitReport } from '../utils/output.js';
+import { emitArtifact, emitReport, note } from '../utils/output.js';
 import { guard, guardAsync } from '../utils/pkierr.js';
 import { LABELS, readPkiBundle, readPkiBytes, readPkiObject } from '../utils/pki-input.js';
 import { dn, extensionLine, renderCertificate, renderVerdict } from '../utils/render.js';
@@ -222,6 +222,10 @@ async function create(ctx: Ctx): Promise<void> {
     }
     ctx.status['serialNumber'] = created.serialNumber.hex;
     ctx.status['selfSigned'] = issuer === undefined && specIssuer === undefined;
+    // An issuer named only in the spec has no key to verify against: say so,
+    // never imply the certificate was checked (audit A-07).
+    ctx.status['signatureVerified'] = verified === true;
+    if (verified === undefined) note(ctx, 'warning: the issuer comes from the spec, so the signature was not verified; pass --issuer <certificate> to verify it before it is written.');
     await emitArtifact(ctx, der, { label: 'CERTIFICATE', defaultEncoding: 'pem' });
 }
 

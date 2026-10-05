@@ -64,7 +64,8 @@ Options:
 
 ${GLOBAL_USAGE}
 Offline, always: no command opens a socket or fetches anything.
-For autonomous/agent usage see AGENTS.md.
+Scripts and AI agents: docs/AGENT_CONTRACT.md (shipped in the package) and
+\`pkinative schema manifest\`.
 Run \`pkinative <command> --help\` for a command's options.
 `;
 
@@ -75,8 +76,9 @@ Usage:
   pkinative limits [--max-<limit> <n>]... [--format text|json]
 
 Prints every bound of pkinative's DEFAULT_PKI_LIMITS with the flag that raises
-it, its default, the effective value under the --max-* flags given, its CWE
-and what it guards, plus the CLI's own --max-content-size.
+it, its default, the effective value under the --max-* flags given and its
+CWE (--format json adds what it guards), plus the CLI's own
+--max-content-size.
 
 Options:
   --format, -f <text|json>  Report format (json under --json)
@@ -121,17 +123,22 @@ Usage:
   pkinative oid validate <oid>...             Exit 1 (E_CHECK_FAILED) if invalid
   pkinative oid list [--filter <text>]        The registry pkinative knows
 
-encode / decode:
+encode:
   --tlv                     Whole TLV (tag 06, or 0D with --relative) rather
                             than the content octets
   --relative                RELATIVE-OID (X.690 §8.20); needs --tlv
-  --input,  -i <file>       decode: read the bytes from a file
-  --encoding <pem|der|hex>  encode: output encoding (default hex)
-  --output, -o <file>       encode: write to a file (default: stdout)
+  --encoding <pem|der|hex>  Output encoding (default hex)
+  --output, -o <file>       Write to a file (default: stdout)
+
+decode:
+  --tlv                     The bytes are a whole TLV, not the content octets
+  --relative                Decode a RELATIVE-OID (X.690 §8.20)
+  --input, -i <file>        Read the bytes from a file
 
 list:
   --filter <text>           Keep entries whose OID, name or standard contains it
 
+name / decode / validate / list:
   --format, -f <text|json>  Report format (json under --json)
 `;
 
@@ -200,7 +207,8 @@ See: pkinative schema asn1-spec
 `;
 
 const SIGNING_USAGE = `\
-Signing key (cert create, cert encode signature-algorithm, csr create):
+Signing key (cert create, cert encode signature-algorithm, csr create,
+cms sign):
   --key <file>              PKCS#8 private key, plain or PBES2-encrypted
   --p12 <file>              PKCS#12 file holding one key (PBES2 / PBMAC1)
   --key-type <type>         Type of an encrypted key when no certificate or
@@ -266,11 +274,14 @@ verify-signature:           exit 1 (E_VERIFY_FAILED) when it does not verify
   --issuer <file>           The issuer certificate (default: self-signature)
   --allow-algorithm-mismatch  Accept tbs and outer algorithms that differ
 
-check-name / match-name:    exit 1 (E_CHECK_FAILED) on a mismatch
+check-name:                 exit 1 (E_CHECK_FAILED) on a mismatch
   --host <name>             DNS reference identity
   --ip <address>            IPv4 or IPv6 reference identity
   --chain <file>            Issuers for name constraints (repeatable)
   --allow-cn-fallback       Accept a commonName when there is no SAN
+  --no-wildcards            Refuse wildcard names
+
+match-name:                 exit 1 (E_CHECK_FAILED) on a mismatch
   --no-wildcards            Refuse wildcard names
 
 check-purpose:              exit 1 (E_CHECK_FAILED) when the purpose fails
@@ -295,9 +306,11 @@ Usage:
 
 inspect / verify:
   --input, -i <file>        The request, PEM or DER (default: the positional)
-  --raw-extensions          inspect: keep requested extensions undecoded
   --format, -f <text|json>  Report format (json under --json)
   verify exits 1 (E_VERIFY_FAILED) when the self-signature does not verify.
+
+inspect:
+  --raw-extensions          Keep requested extensions undecoded
 
 create (the spec: { "subject": {...}, "extensions": {...} }):
   --spec <file>             JSON spec ("-" = stdin)
@@ -399,24 +412,34 @@ request / cert-id:
   --cert <file>             The certificate (or the positional)
   --issuer <file>           Its issuer
   --hash <SHA-1|SHA-256>    CertID hash (default SHA-1, as responders expect)
-  --nonce <hex|random>      request: a nonce extension (printed in the status)
   --output, -o <file>       Output file (default: stdout)
   --encoding <pem|der|hex>  Output encoding (request: der, cert-id: hex)
 
+request:
+  --nonce <hex|random>      A nonce extension of 1 to 32 octets (RFC 8954),
+                            printed in the status
+
 inspect / verify-signature / check:
   --input, -i <file>        The response, DER (default: the positional)
-  --responder <file>        The responder certificate (default: the
-                            certificates the response embeds, then --issuer)
-  --responder-trusted       check: trust the responder out of band; otherwise
-                            it must be the CA or a delegate the CA issued with
-                            the OCSPSigning purpose (RFC 6960 §4.2.2.2)
-  --hash <SHA-1|SHA-256>    check: CertID hash (default: the response's own)
-  --nonce <hex>             check: the nonce the request carried
-  --require-nonce           check: refuse a response without that nonce
-  --at <instant>            check: decision time (default now)
-  --stale-tolerance <ms>    check: accept an answer this long past nextUpdate
-  --future-tolerance <ms>   check: accept a thisUpdate this far ahead (60000)
   --format, -f <text|json>  Report format (json under --json)
+
+verify-signature / check:
+  --responder <file>        The responder certificate (default: the
+                            certificates the response embeds; check also
+                            tries the issuer)
+
+check:
+  --cert <file>             The certificate whose status is asked
+  --issuer <file>           Its issuer
+  --responder-trusted       Trust the responder out of band; otherwise it
+                            must be the CA or a delegate the CA issued with
+                            the OCSPSigning purpose (RFC 6960 §4.2.2.2)
+  --hash <SHA-1|SHA-256>    CertID hash (default: the response's own)
+  --nonce <hex>             The nonce the request carried
+  --require-nonce           Refuse a response without that nonce
+  --at <instant>            Decision time (default now)
+  --stale-tolerance <ms>    Accept an answer this long past nextUpdate
+  --future-tolerance <ms>   Accept a thisUpdate this far ahead (60000)
 
 check exits 1 (E_CHECK_FAILED) unless the answer is a clean, signed,
 authorised "good" for this certificate.
@@ -466,12 +489,20 @@ verify (exit 1, E_VERIFY_FAILED, unless every signer verifies):
 
 verify-signer / add-attribute / add-timestamp:
   --signer-index <n>        Which signer (default 0)
-  --cert <file>             verify-signer: the signer certificate
-  --content <file>          verify-signer: content of a detached signature
-  --attribute <file>        add-attribute: one Attribute, DER
-  --token <file>            add-timestamp: a TimeStampToken or TimeStampResp
-  --output, -o <file>       add-*: output file (default: stdout)
-  --encoding <pem|der|hex>  add-*: output encoding (default der)
+
+verify-signer:
+  --cert <file>             The signer certificate
+  --content <file>          The content of a detached signature
+
+add-attribute:
+  --attribute <file>        One Attribute, DER
+
+add-timestamp:
+  --token <file>            A TimeStampToken or TimeStampResp
+
+add-attribute / add-timestamp:
+  --output, -o <file>       Output file (default: stdout)
+  --encoding <pem|der|hex>  Output encoding (default der)
 
   --format, -f <text|json>  Report format (json under --json)
 
@@ -485,7 +516,7 @@ Usage:
                         [--nonce <n>|random] [--policy <oid>] [-o req.tsq]
   pkinative tsp inspect [<file>] [--as response|token|tstinfo]
   pkinative tsp verify --response <tsr> | --token <tst> --trust <roots>
-                       [--request <tsq>] [--data <file> | --digest <hex>]
+                       (--request <tsq> | --data <file> | --digest <hex>)
 
 The CLI writes the request and judges the answer; posting it to a TSA is yours
 (curl --data-binary @req.tsq -H 'Content-Type: application/timestamp-query').

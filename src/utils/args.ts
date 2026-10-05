@@ -174,7 +174,7 @@ export function getChoiceFlag<T extends string>(
 export function getIntFlag(flags: ParsedArgs['flags'], name: string, min = 0, max = Number.MAX_SAFE_INTEGER): number | undefined {
     const raw = getStringFlag(flags, name);
     if (raw === undefined) return undefined;
-    if (!/^\d+$/.test(raw)) throw usageError(`--${name} expects an integer, got "${raw}".`);
+    if (!/^\d+$/.test(raw)) throw usageError(`--${name} expects a non-negative integer, got "${raw}".`);
     const value = Number(raw);
     if (value < min || value > max) throw usageError(`--${name} must be between ${min} and ${max}, got ${raw}.`);
     return value;

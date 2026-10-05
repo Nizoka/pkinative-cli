@@ -255,8 +255,13 @@ describe('cert create', () => {
         const spec = file(dir, 's.json', { subject: { CN: 'x' }, issuer: { CN: 'Someone Else' }, notBefore: '2026-01-01T00:00:00Z', extensions: { authorityKeyIdentifier: 'aa' } });
         const r = await cli(['cert', 'create', '--spec', spec, '--key', fixture('leaf.key.pem'), '--public-key', fixture('ed25519.crt.pem'), '--json']);
         expect(r.code).toBe(0);
-        expect(envelope(r.stderr)).toMatchObject({ selfSigned: false });
+        // Said plainly, never implied (audit A-07): the status and a warning.
+        expect(envelope(r.stderr)).toMatchObject({ selfSigned: false, signatureVerified: false });
         expect(pemCert(r.stdout).issuer.rdns).toHaveLength(1);
+        const text = await cli(['cert', 'create', '--spec', spec, '--key', fixture('leaf.key.pem'), '--public-key', fixture('ed25519.crt.pem')]);
+        expect(text.stderr).toMatch(/^warning: the issuer comes from the spec, so the signature was not verified/);
+        const issued = await cli(['cert', 'create', '--spec', file(dir, 'self.json', { subject: { CN: 'x' }, notBefore: '2026-01-01T00:00:00Z' }), '--key', fixture('ed25519.key.pem'), '--json']);
+        expect(envelope(issued.stderr)).toMatchObject({ selfSigned: true, signatureVerified: true });
     });
 
     it('refuses incomplete or contradictory input', async () => {

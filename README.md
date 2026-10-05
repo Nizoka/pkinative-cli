@@ -10,6 +10,7 @@ decode and encode ASN.1, PEM and OIDs — offline, with a stable `--json` contra
 - **Agent-first.** stdout carries the artefact or the report, stderr one JSON envelope with a stable `E_*` class and pkinative's `PKI_*` code verbatim; exit 0/1/2.
 - **Secure by default.** Passwords never on the command line; no `key` or `p12` report prints key material; SHA-1 and lifted bounds only on an explicit command-line flag, legacy PKCS#12 never; a config file sets presentation only.
 - **Proven.** 100 % coverage on four axes, a seeded fuzz suite, CLI ⇔ library parity tests, pinned samples per subcommand, and OpenSSL verifying what the CLI writes.
+- **Node.js only.** The package declares Node.js; CI also smoke-runs the built CLI under Deno and Bun, as information, not a promise.
 
 ## Installation
 

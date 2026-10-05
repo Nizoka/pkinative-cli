@@ -24,7 +24,7 @@ The threat model is [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md).
 
 ### Offline, always
 
-No module of `src/` imports a network API. The CLI never fetches a CRL, an OCSP response, a time-stamp, an intermediate or an AIA URL: revocation evidence and time-stamps are files the caller supplies, and requests (`ocsp request`, `tsp request`) are files the caller sends.
+No module of `src/` opens a socket or makes a request (`node:net` is imported for `isIP` only, to classify a name). The CLI never fetches a CRL, an OCSP response, a time-stamp, an intermediate or an AIA URL: revocation evidence and time-stamps are files the caller supplies, and requests (`ocsp request`, `tsp request`) are files the caller sends.
 There is therefore no SSRF surface, no DNS dependency, and no verdict that changes with the network.
 
 ### Secrets
@@ -78,15 +78,18 @@ Releases are published only by `.github/workflows/publish.yml`, on a published G
 3. **publish** — in the `npm-publish` environment (a maintainer approves), the tarball's digests re-checked, an npm client pinned by its integrity, `npm publish --provenance` through npm Trusted Publishing (OIDC, no stored token).
 4. **attest** — the tarball re-downloaded from the registry and compared, `npm audit signatures`, CycloneDX and SPDX SBOMs, a Sigstore build-provenance attestation, all attached to the GitHub Release.
 
-Every action is pinned by commit SHA, every job starts with harden-runner, checkouts never persist credentials, and `npm ci --ignore-scripts` is the only install.
+Every action is pinned by commit SHA, every job starts with harden-runner, checkouts never persist credentials, and every install runs with `--ignore-scripts`; the npm client the publish job uses is fetched once and checked against a pinned SHA-512.
 
-To verify an installed release:
+To verify a release, fetch the exact tarball, compare it with the registry and the Release, then check its signatures and provenance:
 
 ```sh
-npm view pkinative-cli@1.0.0 dist.integrity
-npm audit signatures            # in a project that installed it
+npm pack pkinative-cli@1.0.0                       # writes pkinative-cli-1.0.0.tgz, checked against dist.integrity
+sha256sum pkinative-cli-1.0.0.tgz                  # equals the .tgz attached to the GitHub Release v1.0.0
 gh attestation verify pkinative-cli-1.0.0.tgz --repo Nizoka/pkinative-cli
+mkdir verify && cd verify && npm init -y && npm install pkinative-cli@1.0.0 --ignore-scripts && npm audit signatures
 ```
+
+`npm audit signatures` checks the packages of the project it runs in, so it runs in a project that installed the CLI, never after a global install. Offline, `gh attestation verify pkinative-cli-1.0.0.tgz --bundle pkinative-cli-1.0.0.sigstore.json --repo Nizoka/pkinative-cli` checks the bundle attached to the Release.
 
 ## Disclosure
 

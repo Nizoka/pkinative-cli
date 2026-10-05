@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { COMMANDS, GLOBAL_FLAGS, type FlagSpec } from '../../src/commands/registry.js';
+import { COMMANDS, GLOBAL_FLAGS, commandFlags, type FlagSpec } from '../../src/commands/registry.js';
 import { COMMAND_USAGE, GLOBAL_USAGE, USAGE } from '../../src/commands/usage.js';
 
 const allFlags = (c: (typeof COMMANDS)[number]): FlagSpec[] => [...c.flags, ...c.subcommands.flatMap((s) => s.flags)];
@@ -60,6 +60,29 @@ describe('help text', () => {
             expect(kinds.get(f.name) ?? valued, `--${f.name}`).toBe(valued);
             kinds.set(f.name, valued);
         }
+    });
+
+    it('describes a flag under a subcommand heading only when every subcommand named accepts it (audit B-07)', () => {
+        const problems: string[] = [];
+        for (const c of COMMANDS.filter((x) => x.subcommands.length > 0)) {
+            const subs = new Set(c.subcommands.map((s) => s.name));
+            let named: string[] = [];
+            for (const line of (COMMAND_USAGE[c.name] as string).split('\n')) {
+                if (line.trim() === '') {
+                    named = [];
+                    continue;
+                }
+                const heading = /^(\S[^:]*):/.exec(line);
+                if (heading !== null) named = [...new Set((heading[1] as string).split(/[\s,/()]+/).filter((w) => subs.has(w)))];
+                for (const flag of named.length === 0 ? [] : mentioned(line.replace(/^\S[^:]*:/, ''))) {
+                    if (GLOBAL_FLAGS.some((g) => g.name === flag) || FOREIGN.has(flag)) continue;
+                    for (const sub of named) {
+                        if (!commandFlags(c, sub).some((f) => f.name === flag)) problems.push(`${c.name} ${sub}: --${flag}`);
+                    }
+                }
+            }
+        }
+        expect(problems).toEqual([]);
     });
 
     it('gives no repeatable flag an alias (repeatableFlags counts names only)', () => {

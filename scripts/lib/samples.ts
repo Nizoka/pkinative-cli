@@ -86,13 +86,19 @@ ${env}\${PKINATIVE:-node dist/cli.cjs} ${s.argv.map(shQuote).join(' ')}
 }
 
 export function ps1Script(s: Sample): string {
-    const env = Object.entries(s.env ?? {}).map(([k, v]) => `$env:${k} = '${v}'\n`).join('');
+    const vars = Object.entries(s.env ?? {});
+    const set = vars.map(([k, v]) => `$env:${k} = '${v}'\n`).join('');
+    // A variable set for the sample is removed afterwards, so a test password
+    // never stays in the caller's session.
+    const unset = vars.map(([k]) => `Remove-Item Env:${k}\n`).join('');
     return `# ${s.summary}
 # Run from the repository root after \`npm run build\`. Expected exit: ${s.exit}.
+# $env:PKINATIVE names another pkinative (e.g. 'pkinative' when installed).
 $F = '${FIXTURES}'; $S = '${INPUTS}'; $O = '${OUT}'
+$Cli = if ($env:PKINATIVE) { $env:PKINATIVE -split ' ' } else { @('node', 'dist/cli.cjs') }
 New-Item -ItemType Directory -Force $O | Out-Null
-${env}node dist/cli.cjs ${s.argv.map(psQuote).join(' ')}
-`;
+${set}& $Cli[0] @($Cli | Select-Object -Skip 1) ${s.argv.map(psQuote).join(' ')}
+${unset}`;
 }
 
 export function samplePath(s: Sample, ext: 'sh' | 'ps1'): string {

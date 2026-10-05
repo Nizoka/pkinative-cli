@@ -21,7 +21,36 @@ const BRIDGE = 'src/core-bridge/index.ts';
 
 const INVOCATIONS = new Set(['*', ...COMMANDS.flatMap((c) => (c.subcommands.length === 0 ? [c.name] : c.subcommands.map((s) => `${c.name} ${s.name}`)))]);
 
+/** Every src/ file a command's module reaches through its relative imports, the bridge excluded. */
+function closure(file: string, seen = new Set<string>()): Set<string> {
+    if (seen.has(file) || file === BRIDGE) return seen;
+    seen.add(file);
+    const dir = file.slice(0, file.lastIndexOf('/'));
+    for (const m of (SRC[file] ?? '').matchAll(/from '(\.\.?\/[^']+)\.js'/g)) {
+        const parts = `${dir}/${m[1] as string}.ts`.split('/');
+        const out: string[] = [];
+        for (const p of parts) {
+            if (p === '..') out.pop();
+            else if (p !== '.') out.push(p);
+        }
+        closure(out.join('/'), seen);
+    }
+    return seen;
+}
+
 describe('surface matrix', () => {
+    it('names, for each runtime export, only invocations whose code references it (audit B-12)', () => {
+        const wrong: string[] = [];
+        for (const [name, via] of Object.entries(RUNTIME_VIA)) {
+            for (const invocation of via) {
+                if (invocation === '*') continue;
+                const files = closure(`src/commands/${invocation.split(' ')[0] as string}.ts`);
+                if (![...files].some((f) => new RegExp(`\\b${name}\\b`).test(SRC[f] ?? ''))) wrong.push(`${name} → ${invocation}`);
+            }
+        }
+        expect(wrong).toEqual([]);
+    });
+
     it('reaches every one of the 294 exports', () => {
         const doc = surfaceDocument() as { counts: Record<string, number>; exports: { name: string; via: string[] }[] };
         expect(doc.counts).toEqual({ exports: 294, capability: 117, typeOnly: 177 });

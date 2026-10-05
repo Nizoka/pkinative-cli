@@ -19,14 +19,14 @@ The first release: the whole of [pkinative 1.0.0](https://github.com/Nizoka/pkin
 - **feat(revocation):** `crl inspect`, `find`, `verify-signature` and `check` (with a delta CRL); `ocsp request`, `cert-id`, `inspect`, `verify-signature` and `check` (CA or authorised delegate).
 - **feat(signatures):** `cms sign` (attached, detached or from a digest; ESS signing-certificate-v2 and algorithm protection), `verify`, `inspect`, `verify-signer`, `add-attribute` and `add-timestamp`; `tsp request`, `inspect` and `verify`.
 - **feat(keys):** `key inspect` and `check` for PKCS#8, encrypted or not; `p12 inspect`, `verify-mac`, `bags` and `open` (PBES2 and PBMAC1). Signers come from `--key` or `--p12`; the algorithm follows the key, and RSA needs `--rsa-scheme pkcs1|pss`.
-- **feat(meta):** `doctor` (Node.js security floor, engine, Web Crypto capabilities), `limits` (the 22 bounds and their `--max-*` flags), `explain` (13 `E_*` classes, 57 `PKI_*` codes, 43 reasons, 97 diagnostics), `schema` (manifest, catalogues and JSON Schemas, draft 2020-12, including the `--json` report and `--summary` shape of every invocation, generated from the types and held to every sample) and `completion` (bash, zsh, fish, PowerShell).
+- **feat(meta):** `doctor` (Node.js security floor, engine, Web Crypto capabilities), `limits` (the 22 bounds and their `--max-*` flags), `explain` (13 `E_*` classes, 57 `PKI_*` codes, 43 reasons, 97 diagnostics), `schema` (manifest, catalogues and JSON Schemas, draft 2020-12, including the `--json` report and `--summary` shape of every invocation, generated from the types and held to every sample) and `completion` (bash, zsh, fish, PowerShell: commands and subcommands after global flags, flags, and the values of enumerated flags such as `--format text|json`; the `completion` sample re-pinned for it).
 - **feat(core):** the process contract — the artefact or report on stdout, one JSON envelope on stderr under `--json`, exit 0/1/2 and 130/143 on a signal; pkinative's `PKI_*` code carried verbatim beside the CLI class; reports in pkinative's ADR 0018 wire form; `--fields`, `--summary` and `--pretty`; `.pkinativerc.json` presentation defaults.
 
 ### Security
 
 - **feat(security):** passwords come from `--password-file`, `--password-stdin` or `PKINATIVE_PASSWORD` only; `--password` and its aliases are refused before any command runs (CWE-214).
 - **feat(security):** key and PKCS#12 reports are built from an allow-list; no report contains a private key byte, and signing keys are imported non-extractable (CWE-312).
-- **feat(security):** outputs are created exclusively and refuse a symbolic link; `--overwrite` replaces atomically; a file being written is removed on SIGINT or SIGTERM (CWE-59, CWE-367).
+- **feat(security):** outputs are created exclusively and refuse a symbolic link as the output path; `--overwrite` replaces atomically; a file being written is removed on SIGINT or SIGTERM (CWE-59, CWE-367).
 - **feat(security):** every pkinative bound is reachable through a `--max-*` flag and every input is capped before it is read (CWE-400, CWE-770).
 - **feat(security):** the parser enforces the registry: a single-value flag given twice, a flag under both its names, a surplus argument, an argument beside `--input`, a value after `--password-stdin` and a date that does not exist are `E_USAGE` (never echoed), so no verdict depends on the order of the flags; a password is never read from stdin when an input is.
 - **fix(p12):** `p12 open --certs-out` writes nothing from a file that did not open; `p12 verify-mac` on a file without a MAC is a verdict (exit 1), not a usage error; a wrong password is `E_PASSWORD` in every `p12` subcommand; legacy PKCS#12 is `E_SECURITY` everywhere with the two-step OpenSSL conversion as `remedy`; a `--p12` signer obeys the same `--rsa-scheme`, `--salt-length` and `--hash` rules as `--key`, and passes `--salt-length` through.
@@ -38,7 +38,7 @@ The first release: the whole of [pkinative 1.0.0](https://github.com/Nizoka/pkin
 
 - **test(surface):** each of pkinative's 294 exports is traced to the command that reaches it (`docs/data/core-exports.json`); each of the 55 bullets of the engine's 1.0.0 CHANGELOG is mapped to a test or a typed waiver (`tests/regression/engine-surface.json`).
 - **test(proofs):** library parity for the JSON reports, the built binary driven end to end, seeded fuzzing of argv and hostile inputs, and OpenSSL 3 reading and verifying what the CLI writes.
-- **test(regression):** one pinned sample per subcommand, run against the built CLI (`samples/`, `.sh` and `.ps1`).
+- **test(regression):** one pinned sample per subcommand (`doctor` excepted: it reports on the host), run against the built CLI (`samples/`, `.sh` and `.ps1`).
 - 100 % statement, branch, function and line coverage.
 
 ### Documentation

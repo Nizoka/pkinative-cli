@@ -114,7 +114,7 @@ The 177 type exports are reached through the inputs and reports of these calls; 
 |---|---|---|
 | `ANY_EXTENDED_KEY_USAGE` | constant | `cert check-purpose`, `cert create` |
 | `DEFAULT_PKI_LIMITS` | constant | *, `limits` |
-| `KEY_PURPOSES` | constant | `cert check-purpose`, `cert create`, `chain verify` |
+| `KEY_PURPOSES` | constant | `cert check-purpose`, `cert create`, `chain verify`, `ocsp check` |
 | `KEY_USAGE_BITS` | constant | `cert create`, `cert encode` |
 | `OCSP_NONCE_OID` | constant | `ocsp inspect` |
 | `OID_REGISTRY` | constant | `cert create`, `oid list` |
@@ -189,11 +189,11 @@ The 177 type exports are reached through the inputs and reports of these calls; 
 | `formatDistinguishedName` | function | *, `cert inspect` |
 | `formatFingerprint` | function | `cert inspect`, `fingerprint` |
 | `getExtension` | function | `cert create`, `cert inspect` |
-| `getOidName` | function | `asn1 decode`, `cert inspect`, `explain`, `oid name` |
+| `getOidName` | function | `asn1 decode`, `cert inspect`, `oid name` |
 | `importPrivateKey` | function | `cert create`, `cms sign`, `csr create`, `key check` |
 | `isValidOid` | function | `oid validate` |
 | `matchDnsName` | function | `cert match-name` |
-| `openPkcs12` | function | `cert create`, `cms sign`, `p12 open` |
+| `openPkcs12` | function | `cert create`, `cert encode`, `cms sign`, `csr create`, `p12 open` |
 | `openSafeContents` | function | `p12 bags` |
 | `parseCertificate` | function | *, `cert inspect` |
 | `parseCertificateList` | function | `crl check`, `crl inspect` |
@@ -202,7 +202,7 @@ The 177 type exports are reached through the inputs and reports of these calls; 
 | `parseOcspResponse` | function | `ocsp check`, `ocsp inspect` |
 | `parsePkcs12` | function | `p12 bags`, `p12 inspect`, `p12 verify-mac` |
 | `parsePrivateKeyInfo` | function | `cert create`, `key inspect` |
-| `parseSignedData` | function | `cms inspect`, `cms sign` |
+| `parseSignedData` | function | `cms add-attribute`, `cms add-timestamp`, `cms inspect`, `cms sign`, `cms verify-signer` |
 | `parseTimeStampResponse` | function | `cms add-timestamp`, `tsp inspect` |
 | `parseTimeStampToken` | function | `tsp inspect` |
 | `parseTstInfo` | function | `tsp inspect` |

@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { AT, cli, emptyDir, envelope, fixture } from '../helpers/io.js';
+import { AT, cli, emptyDir, envelope, fixture, fixtureBytes } from '../helpers/io.js';
 
 const TRUST = ['--trust', fixture('root.crt.pem')];
 const INTER = ['--untrusted', fixture('inter.crt.pem')];
@@ -87,7 +87,7 @@ describe('chain build', () => {
         expect(report).toMatchObject({ valid: false, signaturesChecked: false });
         expect(report.reasons.every((x: { code: string }) => x.code === 'PKI_REASON_SIGNATURE_NOT_CHECKED')).toBe(true);
         expect(report.path).toHaveLength(3);
-        expect((await cli(['chain', 'build', fixture('leaf.crt.pem'), ...TRUST, ...INTER, '--at', AT])).stdout).toMatch(/^path: valid\n/);
+        expect((await cli(['chain', 'build', fixture('leaf.crt.pem'), ...TRUST, ...INTER, '--at', AT])).stdout).toMatch(/^path \(signatures not checked\): valid\n/);
     });
 
     it('fails when no path reaches an anchor', async () => {
@@ -95,7 +95,7 @@ describe('chain build', () => {
         expect(r.code).toBe(1);
         expect(envelope(r.stderr)).toMatchObject({ error: { code: 'E_VERIFY_FAILED' } });
         const text = await cli(['chain', 'build', fixture('leaf.crt.pem'), '--trust', fixture('ed25519.crt.pem'), '--at', AT]);
-        expect(text.stdout).toMatch(/^path: INVALID\n/);
+        expect(text.stdout).toMatch(/^path \(signatures not checked\): INVALID\n/);
         expect(text.stdout).toContain('PKI_REASON_NO_TRUST_ANCHOR at path[0]');
         expect(text.stdout).toContain('Path:\n  0: CN=example.test');
     });
@@ -120,6 +120,11 @@ describe('chain validate', () => {
         expect(JSON.parse(r.stdout)).toMatchObject({ valid: false, signaturesChecked: false });
         const expired = await cli(['chain', 'validate', '--path', fixture('leaf.crt.pem'), ...TRUST, '--at', '2050-01-01', '--no-signatures']);
         expect(expired.code).toBe(1);
+        // A forged signature passes a structural check, so the headline never says just "valid" (audit A-15).
+        const tampered = fixtureBytes('leaf.crt.der').slice();
+        tampered[tampered.length - 1] = (tampered[tampered.length - 1] as number) ^ 1;
+        const forged = await cli(['chain', 'validate', '-', fixture('inter.crt.pem'), ...TRUST, '--at', AT, '--no-signatures'], { stdin: tampered });
+        expect(forged.stdout).toMatch(/^path structure \(signatures NOT checked\): valid\n/);
     });
 
     it('needs a path', async () => {

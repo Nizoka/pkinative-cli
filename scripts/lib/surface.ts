@@ -56,7 +56,7 @@ export const RUNTIME_VIA: Readonly<Record<string, readonly string[]>> = {
     encodeOid: ['oid encode'],
     decodeOid: ['oid decode'],
     isValidOid: ['oid validate'],
-    getOidName: ['oid name', 'asn1 decode', 'cert inspect', 'explain'],
+    getOidName: ['oid name', 'asn1 decode', 'cert inspect'],
     OID_REGISTRY: ['oid list', 'cert create'],
     // pem
     decodePem: ['pem decode', '*'],
@@ -107,7 +107,7 @@ export const RUNTIME_VIA: Readonly<Record<string, readonly string[]>> = {
     checkServerName: ['cert check-name'],
     matchDnsName: ['cert match-name'],
     checkExtendedKeyUsage: ['cert check-purpose', 'ocsp check'],
-    KEY_PURPOSES: ['cert check-purpose', 'chain verify', 'cert create'],
+    KEY_PURPOSES: ['cert check-purpose', 'chain verify', 'cert create', 'ocsp check'],
     ANY_EXTENDED_KEY_USAGE: ['cert check-purpose', 'cert create'],
     // crl
     parseCertificateList: ['crl inspect', 'crl check'],
@@ -122,7 +122,7 @@ export const RUNTIME_VIA: Readonly<Record<string, readonly string[]>> = {
     checkOcspStatus: ['ocsp check'],
     OCSP_NONCE_OID: ['ocsp inspect'],
     // cms
-    parseSignedData: ['cms inspect', 'cms sign'],
+    parseSignedData: ['cms inspect', 'cms sign', 'cms verify-signer', 'cms add-attribute', 'cms add-timestamp'],
     createSignedData: ['cms sign'],
     addUnsignedAttribute: ['cms add-attribute'],
     verifySignerInfoSignature: ['cms verify-signer', 'cms sign'],
@@ -140,7 +140,7 @@ export const RUNTIME_VIA: Readonly<Record<string, readonly string[]>> = {
     importPrivateKey: ['key check', 'cert create', 'csr create', 'cms sign'],
     decryptPrivateKey: ['key check', 'cert create', 'csr create', 'cms sign'],
     canDecrypt: ['doctor'],
-    openPkcs12: ['p12 open', 'cert create', 'cms sign'],
+    openPkcs12: ['p12 open', 'cert create', 'cert encode', 'csr create', 'cms sign'],
     parsePkcs12: ['p12 inspect', 'p12 bags', 'p12 verify-mac'],
     verifyPkcs12Mac: ['p12 verify-mac'],
     openSafeContents: ['p12 bags'],

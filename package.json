@@ -16,6 +16,7 @@
     "THIRD-PARTY-NOTICES.md",
     "AGENTS.md",
     "llms.txt",
+    "docs/AGENT_CONTRACT.md",
     "docs/data/errors.json"
   ],
   "scripts": {

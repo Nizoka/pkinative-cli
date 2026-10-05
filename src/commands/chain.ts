@@ -133,7 +133,7 @@ async function build(ctx: Ctx): Promise<void> {
     }));
     // Path discovery does not verify signatures; only the other reasons fail it.
     const structural = report.reasons.filter((r) => r.code !== SIGNATURE_NOT_CHECKED);
-    finish(ctx, report, 'path', structural, { explored: report.explored, signaturesChecked: false });
+    finish(ctx, report, 'path (signatures not checked)', structural, { explored: report.explored, signaturesChecked: false });
 }
 
 /** Verify each link: certificate i against i+1, the last against the anchor whose subject is its issuer. */
@@ -164,7 +164,8 @@ async function validate(ctx: Ctx): Promise<void> {
         limits: ctx.opts.limits,
     }));
     const failing = checkSignatures ? report.reasons : report.reasons.filter((r) => r.code !== SIGNATURE_NOT_CHECKED);
-    finish(ctx, report, 'path', report.valid ? [] : failing, { signaturesChecked: checkSignatures });
+    // Without signatures the verdict is structural: the headline says so (audit A-15).
+    finish(ctx, report, checkSignatures ? 'path' : 'path structure (signatures NOT checked)', report.valid ? [] : failing, { signaturesChecked: checkSignatures });
 }
 
 export async function chain(ctx: Ctx): Promise<void> {

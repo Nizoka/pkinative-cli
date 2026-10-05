@@ -51,7 +51,7 @@ One suite: `npx vitest run tests/<path>.test.ts` (dot reporter). Smoke-test the 
 | `scripts/` | gate, verify-docs, surface and engine-surface builders, sample plan and verifier, package-files, smoke-install, release-prepare, agents:rules | `testing.instructions.md` |
 | `tests/` | `commands/`, `utils/`, `docs/` (surface, usage, fixtures), `regression/` (samples, engine surface), `parity/`, `fuzz/`, `integration/` (built binary), `interop/` (OpenSSL) | `testing.instructions.md` |
 | `tests/fixtures/pki/` | A TEST-ONLY PKI produced by OpenSSL, pinned by `SHA256SUMS` | `tests/fixtures/PROVENANCE.md` |
-| `samples/` | One `.sh` + `.ps1` pair per subcommand, generated from `scripts/lib/sample-plan.ts` | — |
+| `samples/` | One `.sh` + `.ps1` pair per subcommand (`doctor` excepted), generated from `scripts/lib/sample-plan.ts` | — |
 
 ## Architecture
 
@@ -99,7 +99,7 @@ Engine: pkinative 1.0.0 (`^1.0.0`); Node.js `^22.22.2 || ^24.14.1 || >=25.8.2` (
 
 Follow CONTRIBUTING.md §Release and `scripts/release-prepare.ts`; Conventional Commits (`feat(scope):`, `fix(scope):`, `docs:`, `chore:`), never with a `Co-Authored-By` trailer.
 Every runtime change gets a CHANGELOG line and a line in the next `release-notes/vX.Y.Z.md`.
-`/release-audit` (Claude Code skill) runs the pre-release audit; the maintainer merges, tags and publishes.
+`/release-audit` (Claude Code skill) runs the pre-release audit; the maintainer merges and publishes the GitHub Release, which creates the tag and starts `publish.yml`.
 
 ## Governance
 

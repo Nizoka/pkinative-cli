@@ -12,7 +12,7 @@ pkinative itself has no runtime dependency. `npm ls --omit=dev --all` lists it a
 
 ## Development tools (never in the package)
 
-The build, type-check, lint and test toolchain (TypeScript, tsup and esbuild, ESLint and typescript-eslint, Vitest and its V8 coverage provider, tsx, publint, `@types/node`) is declared in `package.json` `devDependencies`, pinned by `package-lock.json`, and is not part of what a user installs. The tree is under permissive licences (MIT, ISC, BSD-2/3-Clause, Apache-2.0, 0BSD, BlueOak-1.0.0, Python-2.0), except `lightningcss` and its platform binaries, which Vitest's bundler pulls in under MPL-2.0 and which are used unmodified at test time only. `dependency-review.yml` holds every new dependency to that allow-list and names the `lightningcss` exception package by package.
+The build, type-check, lint and test toolchain (TypeScript, tsup and esbuild, ESLint and typescript-eslint, Vitest and its V8 coverage provider, tsx, publint, `@types/node`) is declared in `package.json` `devDependencies`, pinned by `package-lock.json`, and is not part of what a user installs. The tree is under permissive licences (MIT, ISC, BSD-2/3-Clause, Apache-2.0, BlueOak-1.0.0, Python-2.0), except `lightningcss` and its platform binaries, which Vitest's bundler pulls in under MPL-2.0 and which are used unmodified at test time only. `dependency-review.yml` holds every new dependency to that allow-list and names the `lightningcss` exception package by package.
 
 ## Test material (in the repository, never in the package)
 
