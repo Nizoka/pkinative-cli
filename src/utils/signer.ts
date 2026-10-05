@@ -30,7 +30,7 @@ import {
 import { parseOptions, type Ctx } from '../context.js';
 import { getChoiceFlag, getIntFlag, getStringFlag } from './args.js';
 import { CliError, ErrorCode, usageError } from './error.js';
-import { guard, guardAsync, mapPkiError, pkcs12Failure } from './pkierr.js';
+import { LEGACY_PKCS8_REMEDY, guard, guardAsync, mapPkiError, pkcs12Failure } from './pkierr.js';
 import { LABELS, readPkiBytes, readPkiObject } from './pki-input.js';
 import { readPassword } from './secrets.js';
 import type { KeyKind, KeyType } from './spki.js';
@@ -143,7 +143,9 @@ export async function importKeyFile(ctx: Ctx, path: string | undefined, password
         throw usageError('An encrypted key needs its type before it can be decrypted: pass --key-type, or the matching certificate or public key.', `--key-type ${KEY_TYPES.join('|')}`);
     }
     const algorithm = signatureAlgorithm(ctx, type.kind, type.curve);
-    const signer = await guardAsync('Cannot decrypt the private key', () => decryptPrivateKey(obj.der, { ...parseOptions(ctx), password, algorithm }));
+    // A legacy PKCS#8 key needs the PKCS#8 conversion, not the PKCS#12 one (audit B2-05).
+    const signer = await guardAsync('Cannot decrypt the private key', () => decryptPrivateKey(obj.der, { ...parseOptions(ctx), password, algorithm }),
+        { PKI_KEY_ENCRYPTION_UNSUPPORTED: LEGACY_PKCS8_REMEDY });
     return { signer, encrypted, publicKey: undefined };
 }
 

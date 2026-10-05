@@ -158,7 +158,7 @@ export function reportFailure(io: Io, command: string | null, e: unknown, ctx: C
         }
         const err = e instanceof CliError ? e : new CliError(e instanceof Error ? e.message : String(e), 1, ErrorCode.RUNTIME);
         io.stderr.write(`error ${err.code}${err.pkiCode !== undefined ? ` (${err.pkiCode})` : ''}: ${err.message}\n`);
-        const remedy = remedyFor(err);
+        const remedy = remedyFor(err, command);
         if (remedy !== undefined) io.stderr.write(`remedy: ${remedy}\n`);
     }
     if (debug && e instanceof Error && e.stack !== undefined) io.stderr.write(e.stack + '\n');

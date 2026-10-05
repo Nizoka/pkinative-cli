@@ -41,7 +41,7 @@ function tooLarge(what: string, observed: number, configured: number, flag: stri
         `${what} exceeds --${flag} (${configured} bytes; observed at least ${observed}). Raise the bound only for trusted input.`,
         1,
         ErrorCode.LIMIT,
-        { detail: { limit: flag, configured, observed }, remedy: `--${flag} <size> (trusted input only)` },
+        { detail: { limit: flag.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase()), flag: `--${flag}`, configured, observed }, remedy: `--${flag} <size> (trusted input only)` },
     );
 }
 

@@ -72,6 +72,8 @@ describe('explain', () => {
     it('explains every family of codes', async () => {
         expect((await cli(['explain', 'PKI_ASN1_TRUNCATED', '--json'])).stdout).toMatch(/"cliCode":"E_PARSE"/);
         expect((await cli(['explain', 'pki_crypto_algorithm_refused'])).stdout).toContain('cliRemedy: --allow-sha1');
+        // A limit's remedy names the CLI flags, never the library's options.limits (audit V-02).
+        expect(JSON.parse((await cli(['explain', 'PKI_LIMIT_EXCEEDED', '--json'])).stdout).cliRemedy).toMatch(/^--max-<limit>/);
         expect((await cli(['explain', 'PKI_REASON_REVOKED'])).stdout).toMatch(/kind: reason/);
         expect((await cli(['explain', 'PKI_DIAG_SERIAL_TOO_LONG'])).stdout).toMatch(/kind: diagnostic/);
         expect((await cli(['explain', 'E_USAGE'])).stdout).toMatch(/pkiCodes: PKI_INVALID_OPTION, PKI_API_MISUSE, PKI_LIMIT_INVALID/);

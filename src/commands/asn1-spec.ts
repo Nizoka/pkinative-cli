@@ -102,7 +102,7 @@ export function encodeSpec(ctx: Ctx, root: unknown): Uint8Array {
     const visit = (spec: unknown, path: string, depth: number): Uint8Array => {
         if (depth > maxDepth) {
             throw new CliError(`asn1 spec ${path}: nesting exceeds maxDepth (${maxDepth}).`, 1, ErrorCode.LIMIT, {
-                detail: { limit: 'maxDepth', configured: maxDepth, observed: depth },
+                detail: { limit: 'maxDepth', flag: '--max-depth', configured: maxDepth, observed: depth },
                 remedy: '--max-depth <n> (trusted input only)',
             });
         }

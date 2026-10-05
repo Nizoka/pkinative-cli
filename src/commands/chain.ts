@@ -26,9 +26,9 @@ import { guard, guardAsync } from '../utils/pkierr.js';
 import { LABELS, readPkiBundle } from '../utils/pki-input.js';
 import { dn, renderVerdict } from '../utils/render.js';
 import { parseInstant } from '../utils/time.js';
-import { fromHex } from '../utils/wire.js';
 import { purposeOid } from '../utils/x509-spec.js';
 import { readCertificate, readCertificates } from './cert.js';
+import { nonceOctets } from './ocsp.js';
 
 export const SIGNATURE_NOT_CHECKED = 'PKI_REASON_SIGNATURE_NOT_CHECKED';
 
@@ -80,6 +80,8 @@ function finish(ctx: Ctx, report: ValidateCertificatePathReport, what: string, f
     ].join('\n'), () => ({ valid: report.valid, reasons: report.reasons.map((r) => r.code), path: report.path.map((c) => dn(c.subject)), ...extra }));
     ctx.status['valid'] = report.valid;
     ctx.status['pathLength'] = report.path.length;
+    // A structural "valid" must not read as a verified chain in the envelope either (audit A2-09).
+    ctx.status['signaturesChecked'] = extra['signaturesChecked'] !== false;
     // A path that reaches no anchor always carries a reason (pkinative never returns an empty failure).
     if (failing.length > 0) {
         throw new CliError(`The ${what} failed: ${failing.map((r) => r.code).join(', ')}.`, 1, ErrorCode.VERIFY_FAILED, { reasons: report.reasons });
@@ -93,8 +95,8 @@ async function verify(ctx: Ctx): Promise<void> {
     const crls = (await readPkiBundle(ctx, getStringFlagAll(ctx.args.flags, 'crl'), 'CRL', LABELS.crl)).map((o) => o.der);
     const ocsp = (await readPkiBundle(ctx, getStringFlagAll(ctx.args.flags, 'ocsp'), 'OCSP response', LABELS.any)).map((o) => o.der);
     const nonceHex = getStringFlag(ctx.args.flags, 'ocsp-nonce');
-    const nonce = nonceHex === undefined ? undefined : fromHex(nonceHex);
-    if (nonceHex !== undefined && nonce === undefined) throw usageError(`--ocsp-nonce "${nonceHex}" is not hexadecimal.`);
+    // The bound of ocsp request and ocsp check, so an empty or oversized nonce never passes here (audit A2-10).
+    const nonce = nonceHex === undefined ? undefined : nonceOctets(nonceHex, 'ocsp-nonce');
     const name = serverName(ctx);
     const purposeOids = purposes(ctx);
     const report = await guardAsync('Cannot verify the chain', () => verifyCertificateChain({

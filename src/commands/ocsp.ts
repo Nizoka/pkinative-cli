@@ -49,14 +49,19 @@ function hashFlag(ctx: Ctx): OcspHashAlgorithm | undefined {
     return getChoiceFlag(ctx.args.flags, 'hash', ['SHA-1', 'SHA-256'] as const);
 }
 
+/** An OCSP nonce of 1 to 32 octets (RFC 8954 §2.1), in hexadecimal: `ocsp --nonce` and `chain verify --ocsp-nonce` alike. */
+export function nonceOctets(raw: string, flag: string, expects = 'hexadecimal'): Uint8Array {
+    const bytes = fromHex(raw);
+    if (bytes === undefined) throw usageError(`--${flag} expects ${expects}, got "${raw}".`);
+    if (bytes.length < 1 || bytes.length > 32) throw usageError(`--${flag} takes 1 to 32 octets (RFC 8954 §2.1), got ${bytes.length}.`);
+    return bytes;
+}
+
 function nonceFlag(ctx: Ctx): Uint8Array | undefined {
     const raw = getStringFlag(ctx.args.flags, 'nonce');
     if (raw === undefined) return undefined;
     if (raw === 'random') return webcrypto.getRandomValues(new Uint8Array(16));
-    const bytes = fromHex(raw);
-    if (bytes === undefined) throw usageError(`--nonce expects "random" or hexadecimal, got "${raw}".`);
-    if (bytes.length < 1 || bytes.length > 32) throw usageError(`--nonce takes 1 to 32 octets (RFC 8954 §2.1), got ${bytes.length}.`);
-    return bytes;
+    return nonceOctets(raw, 'nonce', '"random" or hexadecimal');
 }
 
 async function request(ctx: Ctx): Promise<void> {

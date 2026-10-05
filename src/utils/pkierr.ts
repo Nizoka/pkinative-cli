@@ -119,6 +119,9 @@ export const LEGACY_PKCS12_REMEDY = 'convert it once with OpenSSL 3.4 or later: 
 /** The two ways past an integrity check that cannot run. */
 export const UNVERIFIED_INTEGRITY_REMEDY = '--allow-unverified-integrity (p12 open; only for a file whose origin you trust), or re-export it with openssl pkcs12 -export -pbmac1_pbkdf2';
 
+/** A legacy-encrypted PKCS#8 key (PBES1, 3DES): re-encrypt it with PBES2, which pkinative reads. */
+export const LEGACY_PKCS8_REMEDY = 're-encrypt the key with PBES2 and AES: openssl pkcs8 -topk8 -v2 aes-256-cbc -v2prf hmacWithSHA256 -in legacy.key -out modern.key';
+
 /** The remedy for a password that decrypts or authenticates nothing. */
 export const WRONG_PASSWORD_REMEDY = '--password-file <file> | --password-stdin | PKINATIVE_PASSWORD (check the password)';
 
@@ -134,9 +137,11 @@ export const PKI_REMEDY = {
     PKI_CRYPTO_ALGORITHM_REFUSED: '--allow-sha1 (only for legacy material you already trust)',
     PKI_CRYPTO_DECRYPTION_FAILED: WRONG_PASSWORD_REMEDY,
     PKI_X509_EXTENSION_MALFORMED: 'cert inspect --raw-extensions (keeps every extension undecoded)',
+    // From a PKCS#12 file; a PKCS#8 key read by --key gets LEGACY_PKCS8_REMEDY at its call site.
     PKI_KEY_ENCRYPTION_UNSUPPORTED: LEGACY_PKCS12_REMEDY,
     PKI_KEY_MAC_UNSUPPORTED: UNVERIFIED_INTEGRITY_REMEDY,
     PKI_API_MISUSE: 'pkinative <command> --help (the options given are incomplete or inconsistent for this input)',
+    PKI_LIMIT_EXCEEDED: '--max-<limit> <value>, the flag detail.flag names (pkinative limits lists them); raise a bound for trusted input only',
 } as const satisfies Partial<Record<PkiErrorCode, string>>;
 
 /**
@@ -167,18 +172,20 @@ export function pkcs12Failure(report: { readonly integrity: string; readonly rea
     return new CliError(`The PKCS#12 file did not open: ${codes}.`, 1, ErrorCode.VERIFY_FAILED, options);
 }
 
-/** The remedy for a CliError: an explicit one wins, else the PKI_* table. */
-export function remedyFor(err: CliError): string | undefined {
+/** The remedy for a CliError: an explicit one wins, else the PKI_* table, naming the command that failed. */
+export function remedyFor(err: CliError, command?: string | null): string | undefined {
     if (err.remedy !== undefined) return err.remedy;
     if (err.pkiCode !== undefined && Object.hasOwn(PKI_REMEDY, err.pkiCode)) {
-        return PKI_REMEDY[err.pkiCode as keyof typeof PKI_REMEDY];
+        const remedy: string = PKI_REMEDY[err.pkiCode as keyof typeof PKI_REMEDY];
+        return command === undefined || command === null ? remedy : remedy.replace('<command>', command);
     }
     return undefined;
 }
 
 function detailOf(err: PkiError): ErrorDetail | undefined {
     if (err instanceof PkiLimitError) {
-        return { limit: err.limit, configured: err.configured, observed: err.observed };
+        const flag = flagForLimit(err.limit);
+        return { limit: err.limit, ...(flag !== undefined ? { flag: `--${flag}` } : {}), configured: err.configured, observed: err.observed };
     }
     const detail: Record<string, string | number> = {};
     if (err instanceof PkiCryptoError && err.algorithm !== undefined) detail['algorithm'] = err.algorithm;
@@ -206,17 +213,22 @@ export function isFsError(err: unknown): err is NodeJS.ErrnoException {
  * Convert any thrown value into a CliError carrying the right class, exit code
  * and pass-through cause. CliErrors are returned unchanged.
  */
-export function mapPkiError(err: unknown, context: string): CliError {
+/**
+ * Translate an engine failure. `remedies` overrides the PKI_REMEDY table for
+ * this call site, where the right advice depends on what was being read.
+ */
+export function mapPkiError(err: unknown, context: string, remedies: Readonly<Record<string, string>> = {}): CliError {
     if (err instanceof CliError) return err;
     if (err instanceof PkiError) {
         const code = err.code as string;
         const [cliCode, exitCode] = Object.hasOwn(PKI_TO_CLI, code) ? PKI_TO_CLI[code as PkiErrorCode] : RUNTIME;
         const detail = detailOf(err as PkiError);
         const limitFlag = err instanceof PkiLimitError ? flagForLimit(err.limit) : undefined;
+        const remedy = Object.hasOwn(remedies, code) ? remedies[code] : limitFlag !== undefined ? `--${limitFlag} <value> (raise the bound for trusted input only)` : undefined;
         return new CliError(`${context}: ${err.message}`, exitCode, cliCode, {
             pkiCode: code,
             ...(detail !== undefined ? { detail } : {}),
-            ...(limitFlag !== undefined ? { remedy: `--${limitFlag} <value> (raise the bound for trusted input only)` } : {}),
+            ...(remedy !== undefined ? { remedy } : {}),
         });
     }
     if (isFsError(err)) {
@@ -228,19 +240,19 @@ export function mapPkiError(err: unknown, context: string): CliError {
 }
 
 /** Run a synchronous engine call, translating any failure. */
-export function guard<T>(context: string, fn: () => T): T {
+export function guard<T>(context: string, fn: () => T, remedies?: Readonly<Record<string, string>>): T {
     try {
         return fn();
     } catch (e) {
-        throw mapPkiError(e, context);
+        throw mapPkiError(e, context, remedies);
     }
 }
 
 /** Run an asynchronous engine call, translating any failure. */
-export async function guardAsync<T>(context: string, fn: () => Promise<T>): Promise<T> {
+export async function guardAsync<T>(context: string, fn: () => Promise<T>, remedies?: Readonly<Record<string, string>>): Promise<T> {
     try {
         return await fn();
     } catch (e) {
-        throw mapPkiError(e, context);
+        throw mapPkiError(e, context, remedies);
     }
 }

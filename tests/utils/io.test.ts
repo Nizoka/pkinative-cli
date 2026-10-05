@@ -18,7 +18,7 @@ describe('readInput', () => {
         const dir = emptyDir();
         writeFileSync(join(dir, 'big'), '0123456789');
         await expect(readInput(memoryIo().io, join(dir, 'big'), limits)).rejects.toMatchObject({
-            code: 'E_LIMIT', detail: { limit: 'max-input-bytes', configured: 8, observed: 10 }, remedy: '--max-input-bytes <size> (trusted input only)',
+            code: 'E_LIMIT', detail: { limit: 'maxInputBytes', flag: '--max-input-bytes', configured: 8, observed: 10 }, remedy: '--max-input-bytes <size> (trusted input only)',
         });
     });
 

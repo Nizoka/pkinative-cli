@@ -134,7 +134,7 @@ describe('asn1 encode spec edges', () => {
             expect(at.code).toBe(0);
             const over = await encode(nest(type, 4), ['--max-depth', '3', '--json']);
             expect(over.code).toBe(1);
-            expect(envelope(over.stderr)).toMatchObject({ error: { code: 'E_LIMIT', detail: { limit: 'maxDepth', configured: 3, observed: 4 } } });
+            expect(envelope(over.stderr)).toMatchObject({ error: { code: 'E_LIMIT', detail: { limit: 'maxDepth', flag: '--max-depth', configured: 3, observed: 4 } } });
         });
     }
 });

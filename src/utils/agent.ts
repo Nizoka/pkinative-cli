@@ -31,7 +31,7 @@ export function buildErrorEnvelope(command: string | null, err: unknown, diagnos
     const diags = toWire(diagnostics);
     const config = configPath !== undefined ? { config: configPath } : {};
     if (err instanceof CliError) {
-        const remedy = remedyFor(err);
+        const remedy = remedyFor(err, command);
         return {
             ok: false,
             command,

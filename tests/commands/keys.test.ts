@@ -1,4 +1,4 @@
-import { createPrivateKey } from 'node:crypto';
+import { createPrivateKey, generateKeyPairSync } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -47,6 +47,12 @@ describe('key', () => {
         expect(JSON.parse(rsa.stdout).algorithm).toEqual({ name: 'RSA-PSS', hash: 'SHA-512', saltLength: 64 });
         expect((await cli(['key', 'check', fixture('leaf.key.enc.pem'), '--key-type', 'ec-p256'], { env: { PKINATIVE_PASSWORD: 'wrong' } })).stderr).toMatch(/E_PASSWORD/);
         expect((await cli(['key', 'check', fixture('rsa.key.pem')])).code).toBe(2);
+        // A 3DES-encrypted PKCS#8 key: the PKCS#8 re-encryption, not the PKCS#12 conversion (audit B2-05).
+        const dir = emptyDir();
+        const legacy = join(dir, 'legacy.key.pem');
+        writeFileSync(legacy, generateKeyPairSync('ec', { namedCurve: 'P-256' }).privateKey.export({ type: 'pkcs8', format: 'pem', cipher: 'des-ede3-cbc', passphrase: ENV.PKINATIVE_PASSWORD }));
+        const refused = await cli(['key', 'check', legacy, '--key-type', 'ec-p256', '--json'], { env: ENV });
+        expect(envelope(refused.stderr)).toMatchObject({ error: { code: 'E_SECURITY', pkiCode: 'PKI_KEY_ENCRYPTION_UNSUPPORTED', remedy: expect.stringContaining('openssl pkcs8 -topk8 -v2 aes-256-cbc') } });
         expectNoSecret(plain.stdout, enc.stdout);
     });
 

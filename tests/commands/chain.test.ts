@@ -26,7 +26,7 @@ describe('chain verify', () => {
         const report = JSON.parse(r.stdout);
         expect(report).toMatchObject({ valid: true, reasons: [], explored: expect.any(Number), signatureVerifications: 2 });
         expect(report.path).toHaveLength(3);
-        expect(envelope(r.stderr)).toMatchObject({ ok: true, command: 'chain verify', valid: true, pathLength: 3 });
+        expect(envelope(r.stderr)).toMatchObject({ ok: true, command: 'chain verify', valid: true, pathLength: 3, signaturesChecked: true });
         const summary = JSON.parse((await cli(['chain', 'verify', fixture('leaf.crt.der'), ...TRUST, ...INTER, '--at', AT, '--json', '--summary'])).stdout);
         expect(summary).toMatchObject({ valid: true, reasons: [], path: ['CN=example.test,O=pkinative-cli test,C=FR', expect.any(String), expect.any(String)] });
     });
@@ -58,6 +58,13 @@ describe('chain verify', () => {
         const nonce = await cli(['chain', 'verify', fixture('leaf.crt.pem'), ...TRUST, ...INTER, '--at', AT, '--ocsp', fixture('leaf.ocsp.der'), '--ocsp-nonce', '00', '--require-ocsp-nonce', '--json']);
         expect(nonce.code).toBe(1);
         expect((await cli(['chain', 'verify', fixture('leaf.crt.pem'), ...TRUST, '--ocsp-nonce', 'zz'])).code).toBe(2);
+        // The bound of ocsp request and ocsp check: 1 to 32 octets (audit A2-10).
+        for (const value of ['', 'ab'.repeat(33)]) {
+            const r = await cli(['chain', 'verify', fixture('leaf.crt.pem'), ...TRUST, '--ocsp-nonce', value]);
+            expect(r.code, value).toBe(2);
+            expect(r.stderr, value).toMatch(/--ocsp-nonce takes 1 to 32 octets/);
+        }
+        expect((await cli(['chain', 'verify', fixture('leaf.crt.pem'), ...TRUST, '--ocsp-nonce', 'zz'])).stderr).toMatch(/--ocsp-nonce expects hexadecimal/);
     });
 
     it('applies the policy inputs', async () => {
@@ -118,6 +125,8 @@ describe('chain validate', () => {
         const r = await cli(['chain', 'validate', '--path', fixture('leaf.crt.pem'), '--path', fixture('inter.crt.pem'), ...TRUST, '--at', AT, '--no-signatures', '--json']);
         expect(r.code).toBe(0);
         expect(JSON.parse(r.stdout)).toMatchObject({ valid: false, signaturesChecked: false });
+        // The envelope says so too: an ok:true envelope never reads as a verified chain (audit A2-09).
+        expect(envelope(r.stderr)).toMatchObject({ ok: true, signaturesChecked: false });
         const expired = await cli(['chain', 'validate', '--path', fixture('leaf.crt.pem'), ...TRUST, '--at', '2050-01-01', '--no-signatures']);
         expect(expired.code).toBe(1);
         // A forged signature passes a structural check, so the headline never says just "valid" (audit A-15).

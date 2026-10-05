@@ -72,7 +72,7 @@ describe('mapPkiError', () => {
 
     it('carries limit details and names the --max flag', () => {
         const e = mapPkiError(new PkiLimitError('PKI_LIMIT_EXCEEDED', 'too deep', 'maxDepth', 2, 3), 'x');
-        expect(e).toMatchObject({ code: 'E_LIMIT', detail: { limit: 'maxDepth', configured: 2, observed: 3 } });
+        expect(e).toMatchObject({ code: 'E_LIMIT', detail: { limit: 'maxDepth', flag: '--max-depth', configured: 2, observed: 3 } });
         expect(e.remedy).toMatch(/^--max-depth/);
         const unknown = mapPkiError(new PkiLimitError('PKI_LIMIT_EXCEEDED', 'x', 'other', 1, 2), 'x');
         expect(unknown.remedy).toBeUndefined();
@@ -112,6 +112,11 @@ describe('mapPkiError', () => {
         expect(remedyFor(new CliError('x', 1, undefined, { remedy: 'mine', pkiCode: 'PKI_ASN1_BOOLEAN_INVALID' }))).toBe('mine');
         expect(remedyFor(new CliError('x', 1, undefined, { pkiCode: 'PKI_ASN1_BOOLEAN_INVALID' }))).toMatch(/--ber/);
         expect(remedyFor(new CliError('x', 1, undefined, { pkiCode: 'PKI_INTERNAL' }))).toBeUndefined();
+        // The remedy names the command that failed, never the placeholder (audit A2-06).
+        const misuse = new CliError('x', 1, undefined, { pkiCode: 'PKI_API_MISUSE' });
+        expect(remedyFor(misuse, 'cert create')).toMatch(/^pkinative cert create --help/);
+        expect(remedyFor(misuse, null)).toMatch(/^pkinative <command> --help/);
+        expect(remedyFor(misuse)).toMatch(/^pkinative <command> --help/);
         expect(remedyFor(new CliError('x'))).toBeUndefined();
         // An inherited name is not a registered code.
         expect(remedyFor(new CliError('x', 1, undefined, { pkiCode: 'constructor' }))).toBeUndefined();

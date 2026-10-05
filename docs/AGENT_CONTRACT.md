@@ -31,7 +31,7 @@ Failure:
 |---|---|---|
 | `error.code` | always | One of the 13 classes below — branch on this |
 | `error.pkiCode` | engine failures | pkinative's frozen `PKI_*` code, verbatim — the exact cause |
-| `error.detail` | when known | `limit`/`configured`/`observed`, `offset`, `path`, `algorithm` |
+| `error.detail` | when known | `limit`/`flag`/`configured`/`observed`, `offset`, `path`, `algorithm` |
 | `error.remedy` | when a flag lifts it | The CLI flag(s) that change the outcome, e.g. `--allow-sha1`, `--ber`, `--max-depth <value>` |
 | `error.reasons` | negative verdicts | The engine's `PkiReason` list in the wire form |
 | `diagnostics` | always | Every `PkiDiagnostic` the engine emitted: `{ code, severity, message, standard, path, offset? }` |
@@ -48,7 +48,7 @@ Command-specific success fields (`valid`, `pathLength`, `output`, `bytes` — th
 | `E_PARSE` | 1 | The bytes are not the DER, PEM or JSON they claim to be |
 | `E_IO` | 1 | Filesystem failure, including a refused overwrite (`remedy: --overwrite`) |
 | `E_SECURITY` | 1 | A policy refusal: SHA-1, a legacy PKCS#12 cipher or MAC |
-| `E_LIMIT` | 1 | A bound was exceeded (`detail.limit` names it, `remedy` names the flag) |
+| `E_LIMIT` | 1 | A bound was exceeded: `detail.limit` names it as `pkinative limits` does (`maxDepth`, `maxInputBytes`, `maxContentSize`; `fixed` for a cap no flag lifts), `detail.flag` and `remedy` name the flag that raises it |
 | `E_UNSUPPORTED` | 1 | Algorithm, key or structure not supported |
 | `E_CRYPTO` | 1 | Web Crypto could not run the operation |
 | `E_PASSWORD` | 1 | Wrong password, or a MAC that does not match it |
