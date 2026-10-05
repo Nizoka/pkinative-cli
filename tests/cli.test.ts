@@ -5,6 +5,7 @@ import { COMMANDS, GLOBAL_FLAGS, commandFlags } from '../src/commands/registry.j
 import { CONFIG_FILENAME } from '../src/utils/config.js';
 import { CLI_VERSION } from '../src/utils/version.js';
 import { AT, cli, emptyDir, envelope, fixture } from './helpers/io.js';
+import { validate } from './helpers/json-schema.js';
 
 describe('run: help and version', () => {
     it('prints the help with no arguments or --help', async () => {
@@ -110,6 +111,23 @@ describe('run: a command', () => {
         const failing = await cli(['limits', '--format', 'json', '--json', '--max-depth', 'x'], { cwd: dir });
         expect(failing.code).toBe(2);
         expect(envelope(failing.stderr)).not.toHaveProperty('config');
+    });
+
+    it('accepts exactly the files schema config describes (audit A2-07)', async () => {
+        const schema = JSON.parse((await cli(['schema', 'config'])).stdout) as Record<string, unknown>;
+        const verdict = async (body: object): Promise<[boolean, boolean]> => {
+            const dir = emptyDir();
+            writeFileSync(join(dir, CONFIG_FILENAME), JSON.stringify(body));
+            return [(await cli(['limits'], { cwd: dir })).code !== 2, validate(body, schema).length === 0];
+        };
+        for (const body of [
+            { format: 'json', encoding: 'der', fields: 'a', json: false, pretty: true, quiet: true, 'no-color': true, summary: false, strict: true },
+            { cert: { format: 'json' }, 'cert inspect': { fields: 'subject' }, 'pem decode': { encoding: 'der' } },
+            { json: 'yes' }, { format: true }, { 'cert inspekt': {} }, { cert: true }, { trust: 'x' }, { 'chain verify': { at: 'now' } },
+        ]) {
+            const [loaded, valid] = await verdict(body);
+            expect(loaded, JSON.stringify(body)).toBe(valid);
+        }
     });
 
     it('applies a default only where the subcommand declares it (audit B-02)', async () => {

@@ -1,12 +1,12 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { allFlagSpecs } from '../../src/commands/registry.js';
+import { allFlagSpecs, configSections } from '../../src/commands/registry.js';
 import { parseArgs } from '../../src/utils/args.js';
-import { CONFIG_FILENAME, CONFIG_KEYS, applyConfigDefaults, isConfigKey, loadConfig } from '../../src/utils/config.js';
+import { CONFIG_FILENAME, CONFIG_KEYS, CONFIG_VALUE_KEYS, applyConfigDefaults, isConfigKey, loadConfig } from '../../src/utils/config.js';
 import { emptyDir } from '../helpers/io.js';
 
-const COMMANDS = ['cert', 'chain'];
+const COMMANDS: ReadonlySet<string> = new Set(['cert', 'cert inspect', 'cert create', 'chain']);
 
 function withConfig(content: string): string {
     const dir = emptyDir();
@@ -38,8 +38,9 @@ describe('loadConfig', () => {
         expect(load({ 'cert inspect': { format: 'sub' }, cert: { format: 'command' } }, 'inspect')).toBe('sub');
     });
 
-    it('drops a number JSON reads as infinite', () => {
-        expect(loadConfig('cert', undefined, COMMANDS, undefined, withConfig('{"format":1e999,"encoding":-1e999}')).defaults).toEqual({});
+    it('refuses a number JSON reads as infinite', () => {
+        expect(() => loadConfig('cert', undefined, COMMANDS, undefined, withConfig('{"format":1e999}'))).toThrow(/"format" takes a string/);
+        expect(loadConfig('cert', undefined, COMMANDS, undefined, withConfig('{"encoding":0}')).defaults).toEqual({ encoding: '0' });
     });
 
     it('accepts a file of exactly 1 MiB', () => {
@@ -49,9 +50,34 @@ describe('loadConfig', () => {
         expect(loadConfig('cert', undefined, COMMANDS, undefined, withConfig(body)).defaults).toEqual({ fields: 'a' });
     });
 
-    it('drops values that cannot be flags', () => {
-        const dir = withConfig(JSON.stringify({ json: null, pretty: { x: 1 }, fields: ['a', 1], encoding: Number.MAX_VALUE * 0, cert: { quiet: null } }));
-        expect(loadConfig('cert', undefined, COMMANDS, undefined, dir).defaults).toEqual({ encoding: '0' });
+    it('refuses a value of the wrong type, in any section, without echoing it (audit A2-07)', () => {
+        const load = (body: object): unknown => loadConfig('chain', undefined, COMMANDS, undefined, withConfig(JSON.stringify(body)));
+        for (const body of [{ json: null }, { json: 'yes' }, { pretty: { x: 1 } }, { strict: 1 }, { cert: { quiet: null } }, { 'cert inspect': { summary: 'true' } }]) {
+            expect(() => load(body), JSON.stringify(body)).toThrow(/takes true or false/);
+        }
+        for (const body of [{ fields: ['a', 1] }, { format: true }, { cert: { encoding: null } }]) {
+            expect(() => load(body), JSON.stringify(body)).toThrow(/takes a string/);
+        }
+        expect(() => load({ fields: 'Zq9secret' })).not.toThrow();
+        expect(() => load({ format: { secret: 'Zq9secret' } })).toThrow(/^(?!.*Zq9secret)/);
+    });
+
+    it('refuses a section that names no subcommand, or that is not an object (audit A2-07)', () => {
+        const load = (body: object): unknown => loadConfig('cert', 'inspect', COMMANDS, undefined, withConfig(JSON.stringify(body)));
+        expect(() => load({ 'cert inspekt': { format: 'json' } })).toThrow('"cert inspekt" is not a command or subcommand section.');
+        expect(() => load({ 'cert inspect extra': {} })).toThrow(/is not a command or subcommand section/);
+        expect(() => load({ cert: true })).toThrow(/the section "cert" must be an object/);
+        expect(() => load({ 'cert inspect': ['format'] })).toThrow(/must be an object/);
+    });
+
+    it('holds its switches and value keys to the registry', () => {
+        for (const key of CONFIG_KEYS) {
+            const specs = allFlagSpecs().filter((f) => f.name === key);
+            expect(specs.length, key).toBeGreaterThan(0);
+            for (const f of specs) expect(f.value !== undefined, key).toBe(CONFIG_VALUE_KEYS.includes(key));
+        }
+        expect(configSections()).toContain('cert inspect');
+        expect(configSections()).toContain('fingerprint');
     });
 
     it('honours an explicit path and refuses a missing one', () => {
@@ -75,11 +101,11 @@ describe('loadConfig', () => {
         const refused = [...new Set(allFlagSpecs().map((f) => f.name))].filter((n) => !CONFIG_KEYS.includes(n));
         expect(refused).toEqual(expect.arrayContaining(['input', 'trust', 'untrusted', 'at', 'no-signatures', 'responder-trusted', 'stale-tolerance', 'output', 'certs-out', 'allow-sha1', 'overwrite', 'password-file']));
         for (const key of refused) {
-            expect(() => loadConfig('cert', undefined, COMMANDS, undefined, withConfig(JSON.stringify({ [key]: true }))), key).toThrow(/command line only/);
+            expect(() => loadConfig('cert', undefined, COMMANDS, undefined, withConfig(JSON.stringify({ [key]: true }))), key).toThrow(COMMANDS.has(key) ? /must be an object/ : /command line only/);
+            expect(() => loadConfig('cert', undefined, COMMANDS, undefined, withConfig(JSON.stringify({ [key]: 'x' }))), key).toThrow(COMMANDS.has(key) ? /must be an object/ : /command line only/);
             expect(() => loadConfig('chain', undefined, COMMANDS, undefined, withConfig(JSON.stringify({ 'cert inspect': { [key]: 'x' } }))), key).toThrow(/command line only/);
         }
         expect(() => loadConfig('cert', undefined, COMMANDS, undefined, withConfig('{"__proto__":{"x":1}}'))).toThrow(/forbidden key/);
-        expect(() => loadConfig('cert', undefined, COMMANDS, undefined, withConfig('{"cert inspect extra":{}}'))).toThrow(/command line only/);
         expect(CONFIG_KEYS.every(isConfigKey)).toBe(true);
     });
 });

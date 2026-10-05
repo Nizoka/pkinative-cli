@@ -2,7 +2,7 @@
 // calls process.exit; `run()` returns the code, so every path is testable
 // in-process and stdout is flushed before the process ends.
 
-import { aliasedFlags, booleanFlags, commandNames, findCommand, knownFlags, operandRule, repeatableFlags } from './commands/registry.js';
+import { aliasedFlags, booleanFlags, commandNames, configSections, findCommand, knownFlags, operandRule, repeatableFlags } from './commands/registry.js';
 import { COMMAND_USAGE, USAGE } from './commands/usage.js';
 import { createContext, parseGlobalOptions, type Ctx } from './context.js';
 import { assertKnownFlags, assertOperands, assertSingleValues, canonicaliseAliases, firstPositionalIndex, getStringFlag, hasFlag, parseArgs } from './utils/args.js';
@@ -106,7 +106,7 @@ export async function run(argv: readonly string[], io: Io = processIo()): Promis
         assertSingleValues(args.flags, repeatableFlags(spec, sub), commandLabel);
         assertOperands(args, operandRule(spec, sub), commandLabel);
         if (!hasFlag(args.flags, 'no-config')) {
-            const config = loadConfig(name, sub, commandNames(), getStringFlag(args.flags, 'config'), io.cwd);
+            const config = loadConfig(name, sub, configSections(), getStringFlag(args.flags, 'config'), io.cwd);
             const merged = applyConfigDefaults(args, config.defaults, known);
             args = merged.args;
             if (merged.applied.length > 0) configPath = config.path;

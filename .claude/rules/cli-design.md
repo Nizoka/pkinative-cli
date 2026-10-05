@@ -34,4 +34,4 @@ paths:
 
 ## Configuration
 
-- `.pkinativerc.json` (nearest upward, `--config`, `--no-config`) fills only flags not given, and only flags the invoked subcommand declares. It is presentation only (`CONFIG_KEYS`, ADR 0007): any other key, present or future, is `E_USAGE`, so a planted file never changes an input, trust, time, a bound or an output. The applied file is named in the envelope (`config`).
+- `.pkinativerc.json` (nearest upward, `--config`, `--no-config`) fills only flags not given, and only flags the invoked subcommand declares. It is presentation only (`CONFIG_KEYS`, ADR 0007): any other key, present or future, is `E_USAGE`, as is a value of the wrong type or a section that names no subcommand, so a planted file never changes an input, trust, time, a bound or where output is written; it may choose a report format or an artefact encoding, and `strict` only tightens. The applied file is named in the envelope (`config`).

@@ -267,6 +267,11 @@ export function knownFlags(command: CommandSpec, sub: string | undefined): Reado
     return out;
 }
 
+/** The sections a configuration file may scope: every command, and every "command subcommand". */
+export function configSections(): ReadonlySet<string> {
+    return new Set(COMMANDS.flatMap((c) => [c.name, ...c.subcommands.map((s) => `${c.name} ${s.name}`)]));
+}
+
 /** The flags that may be given several times (a repeatable flag has no alias: tests/docs/usage.test.ts). */
 export function repeatableFlags(command: CommandSpec, sub: string | undefined): ReadonlySet<string> {
     const out = new Set<string>();

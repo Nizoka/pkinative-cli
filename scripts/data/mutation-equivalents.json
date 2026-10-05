@@ -39,7 +39,7 @@
       "reason": "Semantic: the mutant also treats a string value under a non-$ref key as a reference; no such string in the generated INVOCATIONS or REPORT_DEFS names a $defs entry (replaying defsFor over every report and summary body gives no difference), and visiting a string is otherwise a no-op."
     },
     {
-      "id": "src/commands/schema.ts:280:40:number+1",
+      "id": "src/commands/schema.ts:281:40:number+1",
       "original": "0",
       "replacement": "1",
       "reason": "Semantic: the manifest takes the same branch for every command, because no registered command has exactly one subcommand: each has 0 or at least 2 (COMMANDS is a constant, and tests/docs/usage.test.ts holds the registry); the manifest is byte-identical."

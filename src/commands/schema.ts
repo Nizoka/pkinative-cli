@@ -11,7 +11,7 @@ import { serializeJson } from '../utils/projection.js';
 import { CLI_VERSION, engineVersion } from '../utils/version.js';
 import { CONFIG_KEYS, isConfigKey } from '../utils/config.js';
 import { CLI_CODE_MEANING } from './explain.js';
-import { COMMANDS, GLOBAL_FLAGS, operandRule, type CERT_ENCODE_STRUCTURES, type FlagSpec, type OperandSpec } from './registry.js';
+import { COMMANDS, GLOBAL_FLAGS, allFlagSpecs, operandRule, type CERT_ENCODE_STRUCTURES, type FlagSpec, type OperandSpec } from './registry.js';
 
 const DIALECT = 'https://json-schema.org/draft/2020-12/schema';
 const ID = (subject: string): string => `https://github.com/Nizoka/pkinative-cli/schema/${subject}/${CLI_VERSION}`;
@@ -213,7 +213,8 @@ function configSchema(): object {
         [c.name, allowed([...GLOBAL_FLAGS, ...c.flags, ...c.subcommands.flatMap((s) => s.flags)])] as [string, object],
         ...c.subcommands.map((s) => [`${c.name} ${s.name}`, allowed([...GLOBAL_FLAGS, ...s.flags])] as [string, object]),
     ]);
-    const top = allowed(GLOBAL_FLAGS) as { properties: object };
+    // A top-level key is a default for every invocation that declares the flag (format, encoding included).
+    const top = allowed(allFlagSpecs()) as { properties: object };
     return {
         $schema: DIALECT, $id: ID('config'), title: '.pkinativerc.json', type: 'object', additionalProperties: false,
         description: `Presentation defaults only (ADR 0007): ${CONFIG_KEYS.join(', ')}. A key naming a command ("cert") or a subcommand ("cert inspect") scopes its object; a default applies only where the subcommand declares the flag. Inputs, trust, time, bounds, relaxations, outputs and passwords are command-line only.`,

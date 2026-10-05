@@ -25,6 +25,7 @@ As a result, a forged or a revoked certificate passed `chain verify` (findings A
 - **An allow-list, `CONFIG_KEYS`.** A configuration file may set `json`, `pretty`, `quiet`, `no-color`, `format`, `encoding`, `fields`, `summary` and `strict`. These are how a result is shown, plus `strict`, which only tightens a check.
   - Any other key, at the top level or in a section, is `E_USAGE` with exit 2. This includes every flag added after this decision.
   - `tests/utils/config.test.ts` derives the refused list from the registry, so a new flag is covered without being named.
+  - A value of the wrong type (a switch takes `true` or `false`, `format`, `encoding` and `fields` a string) and a section that names no subcommand (`"cert inspekt"`) are `E_USAGE` too: a default that silently applies nowhere is a configuration the user did not get. `pkinative schema config` describes exactly the files the loader accepts.
 - **Defaults apply only where they mean something.** A key is applied only when the invoked subcommand declares the flag; elsewhere it is ignored. Sections may name a command (`"cert"`) or a subcommand (`"cert inspect"`), and the most specific section wins.
 - **Visibility.** When a file supplied a default:
   - the `--json` envelope carries `config: <path>`, on success and on failure;
@@ -34,4 +35,5 @@ As a result, a forged or a revoked certificate passed `chain verify` (findings A
 ### Consequences
 
 - Good: no file in a working directory can change what a command reads, what it trusts, when it judges, what it tolerates or where it writes. The boundary is closed by default, and new flags inherit it.
+- Neutral: a file may still choose how a result is shown — a report format, an artefact encoding (`pem`, `der`, `hex`), the fields of a report — and `strict` only tightens. The envelope names the file that did so.
 - Bad: inputs and policy cannot be shared through the configuration file. Teams put them in the script that calls the CLI, where they are visible in review.

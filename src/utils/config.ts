@@ -22,6 +22,9 @@ const CONFIG_SIZE_LIMIT = 1024 * 1024;
 /** The only keys a configuration file may set: how a result is shown, never what is judged. */
 export const CONFIG_KEYS: readonly string[] = ['json', 'pretty', 'quiet', 'no-color', 'format', 'encoding', 'fields', 'summary', 'strict'];
 
+/** The keys that take a value; the others are switches (tests/utils/config.test.ts holds both to the registry). */
+export const CONFIG_VALUE_KEYS: readonly string[] = ['format', 'encoding', 'fields'];
+
 export function isConfigKey(key: string): boolean {
     return CONFIG_KEYS.includes(key);
 }
@@ -62,11 +65,20 @@ function readBounded(path: string): Buffer {
     }
 }
 
-/** A presentation key takes one value: a string, a boolean or a finite number. */
-function coerce(value: unknown): FlagValue | undefined {
-    if (typeof value === 'string' || typeof value === 'boolean') return value;
-    if (typeof value === 'number' && Number.isFinite(value)) return String(value);
-    return undefined;
+/**
+ * A switch takes true or false; a value key a string (or a finite number).
+ * Anything else is refused, never dropped: a default that silently does not
+ * apply is a configuration the user did not get (audit A2-07). The value is
+ * never echoed.
+ */
+function coerce(key: string, value: unknown, path: string): FlagValue {
+    if (CONFIG_VALUE_KEYS.includes(key)) {
+        if (typeof value === 'string') return value;
+        if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+        throw usageError(`Config file ${path}: "${key}" takes a string.`);
+    }
+    if (typeof value === 'boolean') return value;
+    throw usageError(`Config file ${path}: "${key}" takes true or false.`);
 }
 
 function assertAllowed(key: string, path: string): void {
@@ -74,7 +86,7 @@ function assertAllowed(key: string, path: string): void {
         throw usageError(`Config file ${path} contains the forbidden key "${key}".`);
     }
     if (!isConfigKey(key)) {
-        throw usageError(`Config file ${path} sets "${key}", which is accepted on the command line only: a configuration file sets presentation defaults (${CONFIG_KEYS.join(', ')}), never inputs, trust, time, bounds or outputs.`);
+        throw usageError(`Config file ${path} sets "${key}", which is accepted on the command line only: a configuration file sets presentation defaults (${CONFIG_KEYS.join(', ')}), never inputs, trust, time, bounds or output paths.`);
     }
 }
 
@@ -88,9 +100,10 @@ export interface LoadedConfig {
 /**
  * Load the defaults that apply to `command` (and `sub`): the global section,
  * then the command's section, then the subcommand's section — each winning
- * over the previous. Every key of every section is checked, applicable or not.
+ * over the previous. Every key of every section is checked, applicable or not;
+ * `sections` names every command and "command subcommand" a file may scope.
  */
-export function loadConfig(command: string, sub: string | undefined, commands: readonly string[], explicitPath: string | undefined, cwd: string): LoadedConfig {
+export function loadConfig(command: string, sub: string | undefined, sections: ReadonlySet<string>, explicitPath: string | undefined, cwd: string): LoadedConfig {
     let path: string | undefined;
     if (explicitPath !== undefined) {
         path = resolve(cwd, explicitPath);
@@ -109,24 +122,23 @@ export function loadConfig(command: string, sub: string | undefined, commands: r
     if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
         throw usageError(`Config file ${path} must contain a JSON object.`);
     }
-    const isSection = (key: string): boolean => {
-        const [head = '', ...tail] = key.split(' ');
-        return commands.includes(head) && tail.length <= 1;
-    };
+    const file = path;
     const layers: [Record<string, FlagValue>, Record<string, FlagValue>, Record<string, FlagValue>] = [{}, {}, {}];
     for (const [key, value] of Object.entries(parsed)) {
-        if (isSection(key) && value !== null && typeof value === 'object' && !Array.isArray(value)) {
+        if (sections.has(key)) {
+            if (value === null || typeof value !== 'object' || Array.isArray(value)) throw usageError(`Config file ${file}: the section "${key}" must be an object.`);
             const layer = key === command ? layers[1] : sub !== undefined && key === `${command} ${sub}` ? layers[2] : undefined;
             for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-                assertAllowed(k, path);
-                const c = coerce(v);
-                if (layer !== undefined && c !== undefined) layer[k] = c;
+                assertAllowed(k, file);
+                const c = coerce(k, v, file);
+                if (layer !== undefined) layer[k] = c;
             }
             continue;
         }
-        assertAllowed(key, path);
-        const c = coerce(value);
-        if (c !== undefined) layers[0][key] = c;
+        // "cert inspekt" names no subcommand: refused, never a section that silently applies nowhere.
+        if (sections.has(key.split(' ')[0] as string)) throw usageError(`Config file ${file}: "${key}" is not a command or subcommand section.`);
+        assertAllowed(key, file);
+        layers[0][key] = coerce(key, value, file);
     }
     return { path, defaults: { ...layers[0], ...layers[1], ...layers[2] } };
 }
