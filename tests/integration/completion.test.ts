@@ -22,6 +22,11 @@ const CASES: ReadonlyArray<{ line: string; expect: readonly string[]; not?: read
     { line: 'pkinative cert inspect --', expect: ['--extension', '--raw-extensions', '--json'] },
     { line: 'pkinative cert inspect --format ', expect: ['text', 'json'] },
     { line: 'pkinative fingerprint --alg ', expect: ['SHA-256', 'SHA-1'] },
+    // An alias is its flag, a path flag completes files, and completion completes shells (audit A2-14).
+    { line: 'pkinative cert inspect -f ', expect: ['text', 'json'] },
+    { line: 'pkinative cert inspect -i ', expect: [], not: ['--json', '--extension', 'text'] },
+    { line: 'pkinative cert inspect --input ', expect: [], not: ['--json', '--extension'] },
+    { line: 'pkinative completion ', expect: ['bash', 'zsh', 'fish', 'powershell'], not: ['--json'] },
 ];
 
 async function script(shell: string): Promise<string> {

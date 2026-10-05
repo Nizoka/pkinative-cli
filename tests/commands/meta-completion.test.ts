@@ -49,8 +49,10 @@ describe('completion: the enumerated values', () => {
         // "hex" is a placeholder only beside "random".
         expect(values.get('--encoding')).toEqual(['pem', 'der', 'hex']);
         expect(values.get('--format')).toEqual(['text', 'json']);
-        // Only enumerated flags (a value spec with "|") are keys, and none is empty.
-        const enumerated = new Set(allFlagSpecs().filter((f) => f.value?.includes('|') === true).map(dash));
+        // An alias is its flag (audit A2-14).
+        expect(values.get('-f')).toEqual(['text', 'json']);
+        // Only enumerated flags (a value spec with "|"), under each spelling, are keys, and none is empty.
+        const enumerated = new Set(allFlagSpecs().filter((f) => f.value?.includes('|') === true).flatMap((f) => [dash(f), ...(f.alias !== undefined ? [`-${f.alias}`] : [])]));
         for (const [flag, choices] of values) {
             expect(enumerated.has(flag), flag).toBe(true);
             expect(choices.length, flag).toBeGreaterThan(0);
@@ -71,8 +73,8 @@ describe('completion: bash', () => {
         expect(valueFlags).toEqual(expect.arrayContaining(['--input', '-i', '-o', '--max-depth']));
         expect(valueFlags).not.toContain('--json');
         const pathFlags = /^ {8}(\S+)\) COMPREPLY=\( \$\(compgen -f -- /m.exec(text)?.[1]?.split('|') ?? [];
-        expect(new Set(pathFlags)).toEqual(new Set(allFlagSpecs().filter((f) => f.value === 'file').map(dash)));
-        expect(pathFlags).toContain('--input');
+        expect(new Set(pathFlags)).toEqual(new Set(allFlagSpecs().filter((f) => f.value === 'file').flatMap((f) => [dash(f), ...(f.alias !== undefined ? [`-${f.alias}`] : [])])));
+        expect(pathFlags).toEqual(expect.arrayContaining(['--input', '-i', '-o']));
         expect(pathFlags).not.toContain('--json');
     });
 
@@ -108,6 +110,9 @@ describe('completion: fish', () => {
         expect(lines).toContain(`${top} -l json`);
         expect(lines).toContain(`${top} -l max-depth -r`);
         expect(lines).toContain(`${top} -l input -s i -r -F`);
+        // The shell operand of completion is offered by name (audit A2-14).
+        expect(lines).toContain("complete -c pkinative -n '__fish_seen_subcommand_from completion' -a 'bash zsh fish powershell'");
+        expect(await script('zsh')).toContain("            completion) _values 'value' 'bash' 'zsh' 'fish' 'powershell'; return ;;");
         expect(lines).toContain(`${top} -l pem-mode -x -a 'strict lax'`);
         expect(lines).toContain(`${sub} -l json`);
         expect(lines).toContain(`${sub} -l max-depth -r`);

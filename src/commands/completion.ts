@@ -3,7 +3,8 @@
 // global ones, the literal values of an enumerated flag (`--format text|json`),
 // and paths after a flag taking a file. The command and subcommand are found by
 // skipping flags and the values of value flags, so global flags may come first
-// (`pkinative --json cert <TAB>`), as the parser allows.
+// (`pkinative --json cert <TAB>`), as the parser allows. An alias is its flag:
+// `-f <TAB>` offers the formats, `-i <TAB>` paths (audit A2-14).
 
 import type { Ctx } from '../context.js';
 import { usageError } from '../utils/error.js';
@@ -22,10 +23,16 @@ function contexts(): { key: string; flags: FlagSpec[] }[] {
         : c.subcommands.map((s) => ({ key: `${c.name} ${s.name}`, flags: flagsOf(c, s.name) }))));
 }
 
+/** `--input` and `-i`: every spelling the parser accepts. */
+const spellings = (f: FlagSpec): string[] => [dash(f), ...(f.alias !== undefined ? [`-${f.alias}`] : [])];
+
 const ALL_FLAGS = allFlagSpecs();
-const PATH_FLAGS = [...new Set(ALL_FLAGS.filter((f) => f.value === 'file').map(dash))];
+/** Every spelling of a flag that takes a path. */
+const PATH_FLAGS = [...new Set(ALL_FLAGS.filter((f) => f.value === 'file').flatMap(spellings))];
 /** Every spelling of a flag that consumes the next word. */
-const VALUE_FLAGS = [...new Set(ALL_FLAGS.filter((f) => f.value !== undefined).flatMap((f) => [dash(f), ...(f.alias !== undefined ? [`-${f.alias}`] : [])]))];
+const VALUE_FLAGS = [...new Set(ALL_FLAGS.filter((f) => f.value !== undefined).flatMap(spellings))];
+/** The commands whose operand is one of a closed set. */
+const OPERAND_CHOICES: Readonly<Record<string, readonly string[]>> = { completion: ['bash', 'zsh', 'fish', 'powershell'] };
 
 /**
  * Inside an enumerated value spec (one with `|`), the words that stand for
@@ -38,12 +45,12 @@ function choicesOf(value: string): string[] {
     return value.includes('|') ? value.split('|').filter((v) => !placeholder(v)) : [];
 }
 
-/** The literal choices of each enumerated flag: `--format` → ["text", "json"]. */
+/** The literal choices of each enumerated flag, under each spelling: `--format` and `-f` → ["text", "json"]. */
 export function enumeratedValues(): Map<string, string[]> {
     const out = new Map<string, string[]>();
     for (const f of ALL_FLAGS) {
         const choices = choicesOf(f.value ?? '');
-        if (choices.length > 0) out.set(dash(f), [...new Set([...(out.get(dash(f)) ?? []), ...choices])]);
+        for (const spelling of choices.length > 0 ? spellings(f) : []) out.set(spelling, [...new Set([...(out.get(spelling) ?? []), ...choices])]);
     }
     return out;
 }
@@ -52,6 +59,7 @@ function bash(): string {
     const subs = COMMANDS.filter((c) => c.subcommands.length > 0).map((c) => `        ${c.name}) subs="${c.subcommands.map((s) => s.name).join(' ')}" ;;`).join('\n');
     const cases = contexts().map((x) => `        "${x.key}") opts="${x.flags.map(dash).join(' ')}" ;;`).join('\n');
     const values = [...enumeratedValues()].map(([flag, v]) => `        ${flag}) COMPREPLY=( $(compgen -W "${v.join(' ')}" -- "\${cur}") ); return 0 ;;`).join('\n');
+    const operands = Object.entries(OPERAND_CHOICES).map(([cmd, v]) => `            ${cmd}) COMPREPLY=( $(compgen -W "${v.join(' ')}" -- "\${cur}") ); return 0 ;;`).join('\n');
     return `# bash completion for pkinative
 _pkinative() {
     local cur="\${COMP_WORDS[COMP_CWORD]}" prev="\${COMP_WORDS[COMP_CWORD-1]}"
@@ -76,6 +84,11 @@ ${values}
     case "\${cmd}" in
 ${subs}
     esac
+    if [[ \${#words[@]} -eq 1 && "\${cur}" != -* ]]; then
+        case "\${cmd}" in
+${operands}
+        esac
+    fi
     if [[ -n "\${subs}" && \${#words[@]} -eq 1 && "\${cur}" != -* ]]; then
         COMPREPLY=( $(compgen -W "\${subs}" -- "\${cur}") ); return 0
     fi
@@ -95,6 +108,7 @@ function zsh(): string {
     const subs = COMMANDS.filter((c) => c.subcommands.length > 0).map((c) => `        ${c.name}) subs=(${c.subcommands.map((s) => `'${s.name}:${s.summary.replace(/'/g, '')}'`).join(' ')}) ;;`).join('\n');
     const cases = contexts().map((x) => `        '${x.key}') _values 'flags' ${x.flags.map((f) => `'${dash(f)}'`).join(' ')} ;;`).join('\n');
     const values = [...enumeratedValues()].map(([flag, v]) => `        ${flag}) _values 'value' ${v.map((x) => `'${x}'`).join(' ')}; return ;;`).join('\n');
+    const operands = Object.entries(OPERAND_CHOICES).map(([cmd, v]) => `            ${cmd}) _values 'value' ${v.map((x) => `'${x}'`).join(' ')}; return ;;`).join('\n');
     return `#compdef pkinative
 # zsh completion for pkinative
 _pkinative() {
@@ -120,6 +134,11 @@ ${cmds}
 ${subs}
     esac
     if (( \${#subs} > 0 && \${#args} == 1 )) && [[ "\${words[CURRENT]}" != -* ]]; then _describe 'subcommand' subs; return; fi
+    if (( \${#args} == 1 )) && [[ "\${words[CURRENT]}" != -* ]]; then
+        case "\${args[1]}" in
+${operands}
+        esac
+    fi
     local key="\${args[1]}"; (( \${#subs} > 0 )) && key="\${args[1]} \${args[2]}"
     case "\${key}" in
 ${cases}
@@ -138,6 +157,7 @@ function fish(): string {
             lines.push(`complete -c pkinative -n '__fish_seen_subcommand_from ${c.name}; and not __fish_seen_subcommand_from ${c.subcommands.map((x) => x.name).join(' ')}' -a ${s.name} -d '${s.summary.replace(/'/g, '')}'`);
         }
     }
+    for (const [cmd, v] of Object.entries(OPERAND_CHOICES)) lines.push(`complete -c pkinative -n '__fish_seen_subcommand_from ${cmd}' -a '${v.join(' ')}'`);
     for (const x of contexts()) {
         const [cmd, sub] = x.key.split(' ') as [string, string | undefined];
         const cond = sub === undefined ? `__fish_seen_subcommand_from ${cmd}` : `__fish_seen_subcommand_from ${cmd}; and __fish_seen_subcommand_from ${sub}`;
@@ -154,6 +174,7 @@ function powershell(): string {
     const subs = COMMANDS.filter((c) => c.subcommands.length > 0).map((c) => `        '${c.name}' { @(${c.subcommands.map((s) => `'${s.name}'`).join(', ')}) }`).join('\n');
     const cases = contexts().map((x) => `        '${x.key}' { @(${x.flags.map((f) => `'${dash(f)}'`).join(', ')}) }`).join('\n');
     const values = [...enumeratedValues()].map(([flag, v]) => `        '${flag}' { @(${v.map((x) => `'${x}'`).join(', ')}) }`).join('\n');
+    const operands = Object.entries(OPERAND_CHOICES).map(([cmd, v]) => `        '${cmd}' { @(${v.map((x) => `'${x}'`).join(', ')}) }`).join('\n');
     return `# PowerShell completion for pkinative
 # Add to your profile:  pkinative completion powershell >> $PROFILE
 Register-ArgumentCompleter -Native -CommandName pkinative -ScriptBlock {
@@ -175,6 +196,8 @@ ${values}
         default { $null }
     }
     if ($null -ne $choices) { & $complete $choices 'ParameterValue'; return }
+    # After a flag that takes a path, return nothing: PowerShell then completes file names.
+    if (@(${PATH_FLAGS.map((f) => `'${f}'`).join(', ')}) -contains $prev) { return }
     $commands = @(${COMMANDS.map((c) => `'${c.name}'`).join(', ')})
     if ($words.Count -eq 0 -and -not $wordToComplete.StartsWith('-')) { & $complete $commands 'ParameterValue'; return }
     $cmd = $words[0]
@@ -183,6 +206,11 @@ ${subs}
         default { @() }
     }
     if ($subs.Count -gt 0 -and $words.Count -eq 1 -and -not $wordToComplete.StartsWith('-')) { & $complete $subs 'ParameterValue'; return }
+    $operands = switch ($cmd) {
+${operands}
+        default { @() }
+    }
+    if ($operands.Count -gt 0 -and $words.Count -eq 1 -and -not $wordToComplete.StartsWith('-')) { & $complete $operands 'ParameterValue'; return }
     $key = if ($subs.Count -gt 0) { "$cmd $($words[1])" } else { $cmd }
     $flags = switch ($key) {
 ${cases}
@@ -198,6 +226,6 @@ export async function completion(ctx: Ctx): Promise<void> {
     if (shell === undefined) throw usageError('completion takes one shell: bash, zsh, fish or powershell.');
     const scripts: Readonly<Record<string, () => string>> = { bash, zsh, fish, powershell, pwsh: powershell };
     const build = scripts[shell];
-    if (build === undefined) throw usageError(`Unsupported shell "${shell}": bash, zsh, fish or powershell.`);
+    if (build === undefined) throw usageError(`Unsupported shell "${shell}": ${(OPERAND_CHOICES['completion'] as readonly string[]).join(', ')}.`);
     ctx.io.stdout.write(build());
 }
