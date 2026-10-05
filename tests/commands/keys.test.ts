@@ -75,8 +75,8 @@ describe('p12', () => {
         expect((await cli(['p12', 'verify-mac', fixture('leaf.p12')], { env: ENV })).stdout).toBe('MAC: valid\n');
         const wrong = await cli(['p12', 'verify-mac', fixture('leaf.p12'), '--json'], { env: { PKINATIVE_PASSWORD: 'nope' } });
         expect(wrong.code).toBe(1);
-        // One class for a wrong password across the p12 subcommands (audit A-05).
-        expect(envelope(wrong.stderr)).toMatchObject({ error: { code: 'E_PASSWORD' } });
+        // One class and one remedy for a wrong password across the p12 subcommands (audit A-05, A2-13).
+        expect(envelope(wrong.stderr)).toMatchObject({ error: { code: 'E_PASSWORD', remedy: expect.stringContaining('check the password') } });
         // A legacy MAC: E_SECURITY with the CLI remedy, never a library option name (audit B-10).
         const legacy = await cli(['p12', 'verify-mac', fixture('legacy.p12'), '--json'], { env: ENV });
         expect(envelope(legacy.stderr)).toMatchObject({ error: { code: 'E_SECURITY', pkiCode: 'PKI_KEY_MAC_UNSUPPORTED', remedy: expect.stringContaining('--allow-unverified-integrity') } });
@@ -87,6 +87,10 @@ describe('p12', () => {
         expect(JSON.parse(none.stdout)).toEqual({ valid: false, mac: null });
         expect(envelope(none.stderr)).toMatchObject({ error: { code: 'E_VERIFY_FAILED', remedy: expect.stringContaining('--allow-unverified-integrity') } });
         expect((await cli(['p12', 'verify-mac', fixture('nomac.p12')], { env: ENV })).stdout).toMatch(/MAC \(none present\)/);
+        // No password is asked for a MAC that does not exist (audit A2-13).
+        const unasked = await cli(['p12', 'verify-mac', fixture('nomac.p12'), '--json']);
+        expect(unasked.code).toBe(1);
+        expect(envelope(unasked.stderr)).toMatchObject({ error: { code: 'E_VERIFY_FAILED' } });
     });
 
     it('converts legacy PKCS#12 with the two-step OpenSSL remedy (engine 1.0.0 item 53)', async () => {
@@ -95,6 +99,11 @@ describe('p12', () => {
             expect(envelope(r.stderr), sub).toMatchObject({ error: { code: 'E_SECURITY', remedy: expect.stringContaining('openssl pkcs12 -in legacy.p12 -legacy -aes256 -out bundle.pem') } });
             expect(envelope(r.stderr).error, sub).toMatchObject({ remedy: expect.stringContaining('-pbmac1_pbkdf2 -out modern.p12') });
         }
+        // Each reason code is named once, however many bags carry it (audit A2-13).
+        const message = (envelope((await cli(['p12', 'open', fixture('legacy.p12'), '--json'], { env: ENV })).stderr).error as { message: string }).message;
+        const codes = message.slice(message.lastIndexOf(':') + 1).replace(/\.$/, '').split(',').map((c) => c.trim());
+        expect(codes.length).toBeGreaterThan(0);
+        expect(new Set(codes).size).toBe(codes.length);
     });
 
     it('writes --certs-out only from a file that opened (audit A-02)', async () => {
@@ -105,7 +114,7 @@ describe('p12', () => {
         expect(envelope(nomac.stderr)).toMatchObject({ error: { code: 'E_VERIFY_FAILED', remedy: expect.stringContaining('--allow-unverified-integrity') } });
         expect(existsSync(out)).toBe(false);
         const wrong = await cli(['p12', 'open', fixture('leaf.p12'), '--certs-out', out, '--json'], { env: { PKINATIVE_PASSWORD: 'nope' } });
-        expect(envelope(wrong.stderr)).toMatchObject({ error: { code: 'E_PASSWORD' } });
+        expect(envelope(wrong.stderr)).toMatchObject({ error: { code: 'E_PASSWORD', remedy: expect.stringContaining('check the password') } });
         expect(existsSync(out)).toBe(false);
         expect((await cli(['p12', 'open', fixture('leaf.p12'), '--certs-out', out], { env: ENV })).code).toBe(0);
         expect(readFileSync(out, 'utf8')).toMatch(/^-----BEGIN CERTIFICATE-----/);

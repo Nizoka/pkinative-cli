@@ -58,10 +58,10 @@ export async function run(argv: readonly string[], io: Io = processIo()): Promis
         const booleans = booleanFlags();
         const top = parseArgs(argv, booleans);
         json ||= hasFlag(top.flags, 'json');
-        assertNoLiteralPassword(top);
         const { command: name, rest } = locateCommand(argv, booleans);
 
         if (name === undefined) {
+            assertNoLiteralPassword(top);
             if (hasFlag(top.flags, 'version', 'V')) {
                 io.stdout.write(json
                     ? serializeJson({ name: CLI_NAME, version: CLI_VERSION, pkinative: engineVersion() }, false) + '\n'
@@ -95,6 +95,8 @@ export async function run(argv: readonly string[], io: Io = processIo()): Promis
                 args = { flags: args.flags, positionals: args.positionals.slice(1) };
             }
         }
+        // After the command is known, so the envelope names it; before help or anything else runs.
+        assertNoLiteralPassword(args);
         if (help) {
             // tests/docs/usage.test.ts holds one help block per registered command.
             io.stdout.write(COMMAND_USAGE[name] as string);
@@ -127,8 +129,22 @@ export async function run(argv: readonly string[], io: Io = processIo()): Promis
         }
         return 0;
     } catch (e) {
-        return reportFailure(io, commandLabel, e, ctx, json, configPath);
+        return reportFailure(io, commandLabel, redactMistypedPassword(argv, e), ctx, json, configPath);
     }
+}
+
+/**
+ * `--password-stdin hunter2` is a password typed on argv by mistake: the
+ * switch takes no value, so hunter2 becomes an operand, and a failure that
+ * names the operand would print it. That token is never echoed (audit A2-03).
+ */
+export function redactMistypedPassword(argv: readonly string[], e: unknown): unknown {
+    const i = argv.indexOf('--password-stdin');
+    const next = i === -1 ? undefined : argv[i + 1];
+    if (e instanceof Error && next !== undefined && !next.startsWith('-') && e.message.includes(next)) {
+        e.message = e.message.replaceAll(next, '<operand>');
+    }
+    return e;
 }
 
 export function reportFailure(io: Io, command: string | null, e: unknown, ctx: Ctx | undefined, json: boolean, configPath?: string): number {

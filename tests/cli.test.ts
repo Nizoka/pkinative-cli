@@ -56,8 +56,28 @@ describe('run: usage errors', () => {
         const r = await cli(['limits', '--password', 'hunter2', '--json']);
         expect(r.code).toBe(2);
         const env = envelope(r.stderr);
-        expect(env).toMatchObject({ ok: false, command: null, error: { code: 'E_USAGE', remedy: expect.stringMatching(/--password-file/) } });
+        // The envelope names the command (audit A2-13); the value is never echoed.
+        expect(env).toMatchObject({ ok: false, command: 'limits', error: { code: 'E_USAGE', remedy: expect.stringMatching(/--password-file/) } });
         expect(r.stderr).not.toContain('hunter2');
+        const sub = await cli(['p12', 'open', fixture('leaf.p12'), '--password-stdin=hunter2', '--json']);
+        expect(envelope(sub.stderr)).toMatchObject({ ok: false, command: 'p12 open', error: { code: 'E_USAGE' } });
+        expect(sub.stderr).not.toContain('hunter2');
+        for (const argv of [['--password', 'hunter2'], ['--password', 'hunter2', '--help'], ['cert', '--password', 'hunter2', '--help']]) {
+            const refused = await cli(argv);
+            expect(refused.code, argv.join(' ')).toBe(2);
+            expect(refused.stdout + refused.stderr).not.toContain('hunter2');
+        }
+    });
+
+    it('never echoes a token typed after --password-stdin (audit A2-03)', async () => {
+        for (const json of [[], ['--json']]) {
+            const r = await cli(['p12', 'open', '--password-stdin', 'Zq9fresh', ...json], { stdin: 'pw\n' });
+            expect(r.code).toBe(1);
+            expect(r.stderr).toMatch(/<operand>/);
+            expect(r.stderr).not.toContain('Zq9fresh');
+        }
+        // A path given elsewhere is still named.
+        expect((await cli(['p12', 'inspect', 'Zq9missing.p12'])).stderr).toContain('Zq9missing.p12');
     });
 
     it('writes a JSON envelope for usage errors under --json', async () => {

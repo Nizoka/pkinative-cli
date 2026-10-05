@@ -61,6 +61,8 @@ describe('secrets', () => {
             await expect(readPassword(memoryIo().io, args(argv), false), argv.join(' ')).rejects.toThrow(/cannot come from stdin/);
         }
         await expect(readPassword(memoryIo({ stdin: 'pw' }).io, args(['--password-stdin', '--chain', 'a', '--chain', 'b']), false)).resolves.toBe('pw');
+        // An output named "-" is stdout, not an input read from stdin (audit A2-04).
+        await expect(readPassword(memoryIo({ stdin: 'pw' }).io, args(['--password-stdin', '--output', '-', '--certs-out', '-']), false)).resolves.toBe('pw');
     });
 });
 

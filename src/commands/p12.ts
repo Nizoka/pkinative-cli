@@ -18,7 +18,7 @@ import { CliError, ErrorCode, usageError } from '../utils/error.js';
 import { writeOutput } from '../utils/io.js';
 import { bagView, encryptionView, macView, signingKeyView, type BagView, type SigningKeyView } from '../utils/key-views.js';
 import { emitReport } from '../utils/output.js';
-import { UNVERIFIED_INTEGRITY_REMEDY, guard, guardAsync, pkcs12Failure } from '../utils/pkierr.js';
+import { UNVERIFIED_INTEGRITY_REMEDY, WRONG_PASSWORD_REMEDY, guard, guardAsync, pkcs12Failure } from '../utils/pkierr.js';
 import { readPkiBytes } from '../utils/pki-input.js';
 import { dn, renderVerdict } from '../utils/render.js';
 import { readPassword } from '../utils/secrets.js';
@@ -59,17 +59,18 @@ async function inspect(ctx: Ctx): Promise<void> {
 
 async function verifyMac(ctx: Ctx): Promise<void> {
     const { pkcs12 } = await read(ctx);
-    const pw = await password(ctx);
     // A file without a MAC is a property of the input, not a misuse of the
-    // command: a verdict (exit 1), never a usage error (audit A-03).
+    // command: a verdict (exit 1), never a usage error, and no password is
+    // asked for a MAC that does not exist (audit A-03, A2-13).
     if (pkcs12.mac === undefined) {
         emitReport(ctx, { valid: false, mac: null }, () => renderVerdict(ctx.color, false, 'MAC (none present)', []));
         throw new CliError('The PKCS#12 file carries no MAC: its integrity cannot be verified.', 1, ErrorCode.VERIFY_FAILED, { remedy: UNVERIFIED_INTEGRITY_REMEDY });
     }
+    const pw = await password(ctx);
     const valid = await guardAsync('Cannot verify the MAC', () => verifyPkcs12Mac(pkcs12, pw));
     emitReport(ctx, { valid }, () => renderVerdict(ctx.color, valid, 'MAC', []));
     // One class for a wrong password across every p12 subcommand (audit A-05).
-    if (!valid) throw new CliError('The PKCS#12 MAC does not match: the password is wrong, or the file was altered.', 1, ErrorCode.PASSWORD);
+    if (!valid) throw new CliError('The PKCS#12 MAC does not match: the password is wrong, or the file was altered.', 1, ErrorCode.PASSWORD, { remedy: WRONG_PASSWORD_REMEDY });
 }
 
 async function bags(ctx: Ctx): Promise<void> {

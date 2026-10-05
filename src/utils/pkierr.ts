@@ -119,6 +119,9 @@ export const LEGACY_PKCS12_REMEDY = 'convert it once with OpenSSL 3.4 or later: 
 /** The two ways past an integrity check that cannot run. */
 export const UNVERIFIED_INTEGRITY_REMEDY = '--allow-unverified-integrity (p12 open; only for a file whose origin you trust), or re-export it with openssl pkcs12 -export -pbmac1_pbkdf2';
 
+/** The remedy for a password that decrypts or authenticates nothing. */
+export const WRONG_PASSWORD_REMEDY = '--password-file <file> | --password-stdin | PKINATIVE_PASSWORD (check the password)';
+
 export const PKI_REMEDY = {
     PKI_ASN1_LENGTH_NON_MINIMAL: '--ber (the producer wrote BER, not DER)',
     PKI_ASN1_INDEFINITE_LENGTH_FORBIDDEN: '--ber (indefinite lengths are BER; common in CMS)',
@@ -129,7 +132,7 @@ export const PKI_REMEDY = {
     PKI_PEM_UNEXPECTED_LABEL: 'pkinative pem decode <file> (lists the labels present)',
     PKI_STRICT_DIAGNOSTIC: 'drop --strict, or fix the producer the diagnostic names',
     PKI_CRYPTO_ALGORITHM_REFUSED: '--allow-sha1 (only for legacy material you already trust)',
-    PKI_CRYPTO_DECRYPTION_FAILED: '--password-file <file> | --password-stdin | PKINATIVE_PASSWORD (check the password)',
+    PKI_CRYPTO_DECRYPTION_FAILED: WRONG_PASSWORD_REMEDY,
     PKI_X509_EXTENSION_MALFORMED: 'cert inspect --raw-extensions (keeps every extension undecoded)',
     PKI_KEY_ENCRYPTION_UNSUPPORTED: LEGACY_PKCS12_REMEDY,
     PKI_KEY_MAC_UNSUPPORTED: UNVERIFIED_INTEGRITY_REMEDY,
@@ -147,7 +150,7 @@ export const PKI_REMEDY = {
  */
 export function pkcs12Failure(report: { readonly integrity: string; readonly reasons: readonly { readonly code: string }[] }): CliError {
     const has = (code: string): boolean => report.reasons.some((r) => r.code === code);
-    const codes = report.reasons.map((r) => r.code).join(', ');
+    const codes = [...new Set(report.reasons.map((r) => r.code))].join(', ');
     const options = { reasons: report.reasons };
     if (has('PKI_REASON_PKCS12_RSA_SCHEME_UNSPECIFIED')) {
         return new CliError('The PKCS#12 key is RSA: pass --rsa-scheme pkcs1|pss to import it.', 2, ErrorCode.USAGE, { ...options, remedy: '--rsa-scheme pkcs1|pss' });
@@ -156,7 +159,7 @@ export function pkcs12Failure(report: { readonly integrity: string; readonly rea
         return new CliError(`The PKCS#12 file uses a legacy cipher pkinative refuses by policy (PBES2 and PBMAC1 only): ${codes}.`, 1, ErrorCode.SECURITY, { ...options, remedy: LEGACY_PKCS12_REMEDY });
     }
     if (report.integrity === 'mismatch') {
-        return new CliError('The PKCS#12 MAC does not match: the password is wrong, or the file was altered.', 1, ErrorCode.PASSWORD, options);
+        return new CliError('The PKCS#12 MAC does not match: the password is wrong, or the file was altered.', 1, ErrorCode.PASSWORD, { ...options, remedy: WRONG_PASSWORD_REMEDY });
     }
     if (has('PKI_REASON_PKCS12_INTEGRITY_UNVERIFIED')) {
         return new CliError(`The PKCS#12 integrity cannot be verified: ${codes}.`, 1, ErrorCode.VERIFY_FAILED, { ...options, remedy: UNVERIFIED_INTEGRITY_REMEDY });

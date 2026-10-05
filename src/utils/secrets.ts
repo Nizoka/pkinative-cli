@@ -36,11 +36,14 @@ export function assertNoLiteralPassword(args: ParsedArgs): void {
     }
 }
 
+/** Flags whose "-" is stdout or the password itself, never an input read from stdin. */
+const NOT_STDIN_INPUTS: readonly string[] = ['password-file', 'output', 'certs-out'];
+
 /** Whether any input of the invocation, other than the password itself, is read from stdin. */
 function readsStdin(args: ParsedArgs): boolean {
     if (args.positionals.includes('-')) return true;
     return Object.entries(args.flags).some(([name, value]) =>
-        name !== 'password-file' && (value === '-' || (Array.isArray(value) && value.includes('-'))));
+        !NOT_STDIN_INPUTS.includes(name) && (value === '-' || (Array.isArray(value) && value.includes('-'))));
 }
 
 function firstLine(bytes: Uint8Array): string {
