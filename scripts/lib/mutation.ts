@@ -270,6 +270,23 @@ export function selectTests(graph: ImportGraph, target: string, exclude: readonl
     return { direct, reach };
 }
 
+/**
+ * The CLI loads every command through a dynamic import in src/cli.ts, so the
+ * import graph says every command suite reaches every command module and
+ * names no direct suite. For `src/commands/<name>.ts` (and its helper
+ * modules, `<name>-*.ts`), the direct suites are the reaching suites that
+ * invoke the command by name — an argv starting `['<name>'` — and escalation
+ * to every reaching suite stays the safety net. Other targets keep the graph's
+ * own selection.
+ */
+export function directByInvocation(target: string, sources: ReadonlyMap<string, string>, selection: TestSelection): TestSelection {
+    const m = /^src\/commands\/([a-z0-9]+)(?:-[a-z0-9-]+)?\.ts$/.exec(target);
+    if (m === null) return selection;
+    const invocation = new RegExp(`\\[\\s*'${m[1] as string}'[,\\]]`);
+    const direct = selection.reach.filter((t) => invocation.test(sources.get(t) ?? ''));
+    return direct.length > 0 ? { direct, reach: selection.reach } : selection;
+}
+
 // ── Equivalent mutants ──
 
 /**

@@ -61,7 +61,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import {
-    applyMutant, buildImportGraph, checkEquivalentsFile, enumerateMutants, matchEquivalents, sampleMutants, scoreOf, selectTests,
+    applyMutant, buildImportGraph, directByInvocation, checkEquivalentsFile, enumerateMutants, matchEquivalents, sampleMutants, scoreOf, selectTests,
     type EquivalentEntry, type EquivalentsFile, type FileScore, type Mutant, type MutantStatus,
 } from './lib/mutation.js';
 
@@ -326,7 +326,7 @@ async function main(): Promise<void> {
         const source = sources.get(t.file) ?? readFileSync(join(REPO_ROOT, t.file), 'utf8');
         const all = enumerateMutants(t.file, source);
         const size = t.sample ?? o.sample ?? all.length;
-        const selection = selectTests(graph, t.file, o.exclude);
+        const selection = directByInvocation(t.file, sources, selectTests(graph, t.file, o.exclude));
         const direct = o.tests ?? selection.direct;
         return { file: t.file, source, all, chosen: sampleMutants(all, size, o.seed), direct, reach: selection.reach };
     });

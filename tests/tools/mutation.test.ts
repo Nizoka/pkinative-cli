@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readdirSync, readFileSync } from 'node:fs';
 import {
-    applyMutant, buildImportGraph, checkEquivalentsFile, enumerateMutants, matchEquivalents, sampleMutants, scoreOf, selectTests,
+    applyMutant, buildImportGraph, checkEquivalentsFile, directByInvocation, enumerateMutants, matchEquivalents, sampleMutants, scoreOf, selectTests,
     type EquivalentsFile, type Mutant,
 } from '../../scripts/lib/mutation.ts';
 import { DEFAULT_TARGETS, EXCLUDED_FROM_MUTATION } from '../../scripts/mutate.ts';
@@ -123,6 +123,25 @@ describe('selectTests', () => {
 
     it('should reach every suite that imports the module transitively, minus the excluded prefixes', () => {
         expect(selectTests(graph, 'src/a.ts', ['tests/docs/']).reach).toEqual(['tests/api.test.ts', 'tests/b.test.ts']);
+    });
+});
+
+describe('directByInvocation', () => {
+    const sources = new Map([
+        ['tests/commands/a.test.ts', "await cli(['cert', 'inspect', x]);"],
+        ['tests/commands/b.test.ts', "await cli(['chain', 'verify']); await cli(['certx']);"],
+        ['tests/cli.test.ts', "await cli(['doctor']);"],
+    ]);
+    const selection = { direct: ['tests/cli.test.ts'], reach: ['tests/cli.test.ts', 'tests/commands/a.test.ts', 'tests/commands/b.test.ts'] };
+
+    it('selects, for a command module or its helper, the reaching suites that invoke the command', () => {
+        expect(directByInvocation('src/commands/cert.ts', sources, selection).direct).toEqual(['tests/commands/a.test.ts']);
+        expect(directByInvocation('src/commands/cert-spec.ts', sources, selection).direct).toEqual(['tests/commands/a.test.ts']);
+    });
+
+    it('keeps the graph selection for other modules, and when no suite invokes the command', () => {
+        expect(directByInvocation('src/utils/args.ts', sources, selection)).toBe(selection);
+        expect(directByInvocation('src/commands/p12.ts', sources, selection)).toBe(selection);
     });
 });
 
