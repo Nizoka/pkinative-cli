@@ -52,6 +52,7 @@ function locateCommand(argv: readonly string[], booleans: ReadonlySet<string>): 
 export async function run(argv: readonly string[], io: Io = processIo()): Promise<number> {
     let commandLabel: string | null = null;
     let ctx: Ctx | undefined;
+    let configPath: string | undefined;
     let json = io.env['PKINATIVE_JSON'] === '1' || argv.includes('--json');
     try {
         const booleans = booleanFlags();
@@ -102,12 +103,18 @@ export async function run(argv: readonly string[], io: Io = processIo()): Promis
         const known = knownFlags(spec, sub);
         assertKnownFlags(args.flags, known, commandLabel);
         if (!hasFlag(args.flags, 'no-config')) {
-            args = applyConfigDefaults(args, loadConfig(name, commandNames(), getStringFlag(args.flags, 'config'), io.cwd));
-            assertKnownFlags(args.flags, known, commandLabel);
+            const config = loadConfig(name, sub, commandNames(), getStringFlag(args.flags, 'config'), io.cwd);
+            const merged = applyConfigDefaults(args, config.defaults, known);
+            args = merged.args;
+            if (merged.applied.length > 0) configPath = config.path;
         }
         const opts = parseGlobalOptions(args, io.env);
         json = opts.json;
         ctx = createContext(io, commandLabel, args, opts);
+        if (configPath !== undefined) {
+            ctx.status['config'] = configPath;
+            if (!opts.json && !opts.quiet) io.stderr.write(`note: defaults from ${configPath}\n`);
+        }
         const handler = await loadCommand(name);
         await handler(ctx);
         if (opts.json) {
@@ -117,15 +124,15 @@ export async function run(argv: readonly string[], io: Io = processIo()): Promis
         }
         return 0;
     } catch (e) {
-        return reportFailure(io, commandLabel, e, ctx, json);
+        return reportFailure(io, commandLabel, e, ctx, json, configPath);
     }
 }
 
-export function reportFailure(io: Io, command: string | null, e: unknown, ctx: Ctx | undefined, json: boolean): number {
+export function reportFailure(io: Io, command: string | null, e: unknown, ctx: Ctx | undefined, json: boolean, configPath?: string): number {
     const diagnostics = ctx?.diagnostics ?? [];
     const debug = io.env['PKINATIVE_DEBUG'] === '1';
     if (json) {
-        io.stderr.write(serializeJson(buildErrorEnvelope(command, e, diagnostics), false) + '\n');
+        io.stderr.write(serializeJson(buildErrorEnvelope(command, e, diagnostics, configPath), false) + '\n');
     } else {
         if (ctx !== undefined && !ctx.opts.quiet) {
             for (const d of diagnostics) io.stderr.write(formatDiagnostic(d) + '\n');

@@ -8,7 +8,7 @@ import { effectiveLimits, LIMIT_FLAGS } from '../utils/limits.js';
 import { PKI_REMEDY, PKI_TO_CLI } from '../utils/pkierr.js';
 import { serializeJson } from '../utils/projection.js';
 import { CLI_VERSION, engineVersion } from '../utils/version.js';
-import { isForbiddenConfigKey } from '../utils/config.js';
+import { CONFIG_KEYS, isConfigKey } from '../utils/config.js';
 import { CLI_CODE_MEANING } from './explain.js';
 import { COMMANDS, GLOBAL_FLAGS, type FlagSpec } from './registry.js';
 
@@ -133,14 +133,21 @@ function flagNames(flags: readonly FlagSpec[]): string[] {
 }
 
 function configSchema(): object {
-    const allowed = (flags: readonly FlagSpec[]) => Object.fromEntries(flags.filter((f) => !isForbiddenConfigKey(f.name)).map((f) => [f.name, f.value === undefined ? { type: 'boolean' } : { type: ['string', 'number', 'array'] }]));
+    // The presentation keys a scope declares; any other key is refused (ADR 0007).
+    const allowed = (flags: readonly FlagSpec[]): object => ({
+        type: 'object',
+        additionalProperties: false,
+        properties: Object.fromEntries(flags.filter((f) => isConfigKey(f.name)).map((f) => [f.name, f.value === undefined ? { type: 'boolean' } : { type: ['string', 'number'] }])),
+    });
+    const sections: Array<[string, object]> = COMMANDS.flatMap((c) => [
+        [c.name, allowed([...GLOBAL_FLAGS, ...c.flags, ...c.subcommands.flatMap((s) => s.flags)])] as [string, object],
+        ...c.subcommands.map((s) => [`${c.name} ${s.name}`, allowed([...GLOBAL_FLAGS, ...s.flags])] as [string, object]),
+    ]);
+    const top = allowed(GLOBAL_FLAGS) as { properties: object };
     return {
-        $schema: DIALECT, $id: ID('config'), title: '.pkinativerc.json', type: 'object',
-        description: 'Default flag values; a key naming a command scopes its object to that command. Security-relaxing flags (--allow-*, --max-*, --ber, --pem-mode, --overwrite, passwords) are command-line only.',
-        properties: {
-            ...allowed(GLOBAL_FLAGS),
-            ...Object.fromEntries(COMMANDS.map((c) => [c.name, { type: 'object', properties: allowed([...GLOBAL_FLAGS, ...c.flags, ...c.subcommands.flatMap((s) => s.flags)]) }])),
-        },
+        $schema: DIALECT, $id: ID('config'), title: '.pkinativerc.json', type: 'object', additionalProperties: false,
+        description: `Presentation defaults only (ADR 0007): ${CONFIG_KEYS.join(', ')}. A key naming a command ("cert") or a subcommand ("cert inspect") scopes its object; a default applies only where the subcommand declares the flag. Inputs, trust, time, bounds, relaxations, outputs and passwords are command-line only.`,
+        properties: { ...top.properties, ...Object.fromEntries(sections) },
     };
 }
 

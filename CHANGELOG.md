@@ -20,14 +20,15 @@ The first release: the whole of [pkinative 1.0.0](https://github.com/Nizoka/pkin
 - **feat(signatures):** `cms sign` (attached, detached or from a digest; ESS signing-certificate-v2 and algorithm protection), `verify`, `inspect`, `verify-signer`, `add-attribute` and `add-timestamp`; `tsp request`, `inspect` and `verify`.
 - **feat(keys):** `key inspect` and `check` for PKCS#8, encrypted or not; `p12 inspect`, `verify-mac`, `bags` and `open` (PBES2 and PBMAC1). Signers come from `--key` or `--p12`; the algorithm follows the key, and RSA needs `--rsa-scheme pkcs1|pss`.
 - **feat(meta):** `doctor` (Node.js security floor, engine, Web Crypto capabilities), `limits` (the 22 bounds and their `--max-*` flags), `explain` (13 `E_*` classes, 57 `PKI_*` codes, 43 reasons, 97 diagnostics), `schema` (manifest, catalogues and JSON Schemas, draft 2020-12) and `completion` (bash, zsh, fish, PowerShell).
-- **feat(core):** the process contract — the artefact or report on stdout, one JSON envelope on stderr under `--json`, exit 0/1/2 and 130/143 on a signal; pkinative's `PKI_*` code carried verbatim beside the CLI class; reports in pkinative's ADR 0018 wire form; `--fields`, `--summary` and `--pretty`; `.pkinativerc.json` defaults.
+- **feat(core):** the process contract — the artefact or report on stdout, one JSON envelope on stderr under `--json`, exit 0/1/2 and 130/143 on a signal; pkinative's `PKI_*` code carried verbatim beside the CLI class; reports in pkinative's ADR 0018 wire form; `--fields`, `--summary` and `--pretty`; `.pkinativerc.json` presentation defaults.
 
 ### Security
 
 - **feat(security):** passwords come from `--password-file`, `--password-stdin` or `PKINATIVE_PASSWORD` only; `--password` and its aliases are refused before any command runs (CWE-214).
 - **feat(security):** key and PKCS#12 reports are built from an allow-list; no report contains a private key byte, and signing keys are imported non-extractable (CWE-312).
 - **feat(security):** outputs are created exclusively and refuse a symbolic link; `--overwrite` replaces atomically; a file being written is removed on SIGINT or SIGTERM (CWE-59, CWE-367).
-- **feat(security):** every pkinative bound is reachable through a `--max-*` flag and every input is capped before it is read (CWE-400, CWE-770); no security-relaxing option can come from a configuration file.
+- **feat(security):** every pkinative bound is reachable through a `--max-*` flag and every input is capped before it is read (CWE-400, CWE-770).
+- **feat(security):** `.pkinativerc.json` is presentation only: an allow-list of nine keys, every other key refused, so a file planted in a repository can never change an input, a trust anchor, the validation time, a tolerance, a bound or an output; the applied file is named in the envelope ([ADR 0007](docs/adr/0007-configuration-is-presentation-only.md); CWE-15, CWE-807).
 - **feat(security):** no network access, no key generation, no PKCS#8 or PKCS#12 writer, no legacy PKCS#12 scheme and no default RSA scheme — the engine's refusals, kept ([ADR 0004](docs/adr/0004-offline-and-inherited-refusals.md)).
 
 ### Tests and conformance

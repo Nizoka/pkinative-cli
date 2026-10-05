@@ -102,7 +102,7 @@ Every engine failure keeps pkinative's own code in `pkiCode`; `pkinative explain
 ## 7. Limits
 
 The 22 bounds of pkinative's `DEFAULT_PKI_LIMITS` are `--max-*` flags (`pkinative limits` lists them with their CWE). A bound is a positive integer; there is no "unbounded".
-A config file can never set one: raising a bound is a decision taken on the command line, for input the caller trusts.
+A config file can never set one (it is presentation only, ADR 0007): raising a bound is a decision taken on the command line, for input the caller trusts.
 
 ## 8. pkinative API mapping
 
@@ -233,7 +233,7 @@ The 177 type exports are reached through the inputs and reports of these calls; 
 
 ## 9. Security model
 
-See [SECURITY.md](../SECURITY.md) and [THREAT_MODEL.md](THREAT_MODEL.md). In short: no network; no secret on argv; no key byte in any output; exclusive or atomic writes; every read bounded; refusals inherited from the engine and impossible to relax from a config file.
+See [SECURITY.md](../SECURITY.md) and [THREAT_MODEL.md](THREAT_MODEL.md). In short: no network; no secret on argv; no key byte in any output; exclusive or atomic writes; every read bounded; refusals inherited from the engine and impossible to relax from a config file, which is presentation only.
 
 ## 10. Proofs
 

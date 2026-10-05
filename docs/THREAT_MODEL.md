@@ -26,7 +26,7 @@ The engine's own threat model (parsers, path validation, cryptography) is pkinat
 |---|---|---|---|
 | **S**poofing a signer | Forged certificate, CMS or time-stamp | Every verdict is the engine's (path, signature, revocation, purposes); the CLI never short-circuits one | `tests/parity/library.test.ts`, engine conformance |
 | Spoofing an OCSP responder | Response signed by an unauthorised key | RFC 6960 §4.2.2.2 authorisation: the CA or a delegate it issued with OCSPSigning, unless `--responder-trusted` | `tests/commands/revocation.test.ts` |
-| **T**ampering with a verdict via config | Planted `.pkinativerc.json` setting `allow-sha1`, a raised `max-*`, `ber`, `pem-mode`, `overwrite` | Those keys are refused in any config file | `tests/utils/config.test.ts` |
+| **T**ampering with a verdict via config | Planted `.pkinativerc.json` supplying trust anchors, the validation time, `no-signatures`, a tolerance, a relaxation, a bound, the input or an output path | Presentation keys only (ADR 0007): every other registry key, present or future, is refused; the applied file is named in the envelope | `tests/utils/config.test.ts`, `tests/cli.test.ts` |
 | Tampering by typo | `--alow-sha1` silently ignored | Unknown flags are usage errors | `tests/utils/args.test.ts`, `tests/cli.test.ts` |
 | Tampering with outputs | Existing file, planted (dangling) symlink at `-o` | `lstat` + `open(wx)`; `--overwrite` = temp + rename (replaces the link) | `tests/utils/io.test.ts` |
 | **R**epudiation | A pipeline cannot tell why a verdict failed | Stable `E_*` class, engine `pkiCode`, full `reasons`, diagnostics in the envelope | `tests/utils/output.test.ts`, `docs/AGENT_CONTRACT.md` |

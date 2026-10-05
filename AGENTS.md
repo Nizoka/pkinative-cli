@@ -18,7 +18,7 @@ CRL and OCSP, CMS SignedData, RFC 3161 time-stamps, PKCS#8 and PKCS#12 — with 
 - **Offline, always.** No command opens a socket: CRLs, OCSP responses and time-stamps are files the caller fetched; requests are files the caller sends.
 - **Secrets stay secret.** A password is never accepted on argv (`--password-file`, `--password-stdin`, `PKINATIVE_PASSWORD`); `key` and `p12` reports are allow-list views that never carry a key byte.
 - **Refusals are inherited, never lifted.** pkinative's doctrine (no key generation, no PKCS#8/#12 writing, PBES2 and PBMAC1 only, SHA-1 only under `--allow-sha1`, RSA only with an explicit scheme) is the CLI's.
-  A config file can never relax a check (`--allow-*`, `--max-*`, `--ber`, `--pem-mode`, `--overwrite` and passwords are command-line only).
+  A config file is presentation only (ADR 0007): `json`, `pretty`, `quiet`, `no-color`, `format`, `encoding`, `fields`, `summary`, `strict`; every other key is refused, so it can never change an input, trust, time, a bound or an output.
 - **ESM-first TypeScript strict.** Relative imports carry `.js`; no `any`; no `console.*` in `src/` (every byte goes through `utils/io.ts`); `const` and `readonly` by default.
 - **Human-in-the-loop.** Agents draft and verify; the maintainer pushes, opens PRs/issues, tags and publishes (see Governance).
 - **English everywhere.** Code, comments, tests, samples, docs and release notes are English.

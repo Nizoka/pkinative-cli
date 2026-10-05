@@ -45,8 +45,9 @@ There is therefore no SSRF surface, no DNS dependency, and no verdict that chang
 
 ### Configuration cannot relax a check
 
-`.pkinativerc.json` (found by walking up from the working directory) may set presentation defaults only. It is refused when it sets `--allow-*`, `--max-*`, `--ber`, `--pem-mode`, `--overwrite`, `--config` or a password source:
-a configuration file planted in a cloned repository must never weaken a verdict when someone runs `pkinative chain verify` inside it.
+`.pkinativerc.json` (found by walking up from the working directory) is presentation only ([ADR 0007](docs/adr/0007-configuration-is-presentation-only.md)): it may set `json`, `pretty`, `quiet`, `no-color`, `format`, `encoding`, `fields`, `summary` and `strict`, and nothing else.
+Any other key — an input, a trust anchor, the validation time, a tolerance, a `--no-*` or `--*-trusted` switch, a bound, an output path, a password source, and every flag added later — makes the command fail with `E_USAGE`:
+a configuration file planted in a cloned repository must never change what a command reads, trusts, when it judges, or where it writes. The file that supplied defaults is named in the `--json` envelope (`config`) and in a note on stderr.
 
 ### Writes
 

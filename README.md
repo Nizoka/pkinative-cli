@@ -157,7 +157,7 @@ Shell completion for bash, zsh, fish and PowerShell.
 | `--allow-sha1` | Accept or produce SHA-1 signatures (legacy material only) |
 | `--overwrite` | Replace an existing output file, atomically |
 | `--max-<limit> <n>`, `--max-content-size <size>` | Raise or lower a bound (`pkinative limits`) |
-| `--config <file>`, `--no-config` | `.pkinativerc.json` defaults; never a security-relaxing flag |
+| `--config <file>`, `--no-config` | `.pkinativerc.json` presentation defaults only (`json`, `pretty`, `quiet`, `no-color`, `format`, `encoding`, `fields`, `summary`, `strict`) |
 
 ## Driving pkinative-cli from scripts and AI agents
 

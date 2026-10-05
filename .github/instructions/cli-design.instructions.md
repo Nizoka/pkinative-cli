@@ -23,4 +23,4 @@ applyTo: "src/cli.ts,src/bin.ts,src/context.ts,src/utils/args.ts,src/utils/agent
 
 ## Configuration
 
-- `.pkinativerc.json` (nearest upward, `--config`, `--no-config`) fills only flags not given. It can never set `--allow-*`, `--max-*`, `--ber`, `--pem-mode`, `--overwrite`, `--config` or a password source (`isForbiddenConfigKey`): a planted file must not relax a check.
+- `.pkinativerc.json` (nearest upward, `--config`, `--no-config`) fills only flags not given, and only flags the invoked subcommand declares. It is presentation only (`CONFIG_KEYS`, ADR 0007): any other key, present or future, is `E_USAGE`, so a planted file never changes an input, trust, time, a bound or an output. The applied file is named in the envelope (`config`).

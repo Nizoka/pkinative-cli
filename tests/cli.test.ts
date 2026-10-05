@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { CONFIG_FILENAME } from '../src/utils/config.js';
 import { CLI_VERSION } from '../src/utils/version.js';
-import { cli, emptyDir, envelope } from './helpers/io.js';
+import { AT, cli, emptyDir, envelope, fixture } from './helpers/io.js';
 
 describe('run: help and version', () => {
     it('prints the help with no arguments or --help', async () => {
@@ -85,18 +85,46 @@ describe('run: a command', () => {
         expect(JSON.parse(summary.stdout)).toEqual({ changed: [{ limit: 'maxDepth', effective: 8 }] });
     });
 
-    it('applies a config file, and refuses a relaxing key in it', async () => {
+    it('applies presentation defaults from a config file, and names the file', async () => {
         const dir = emptyDir();
         writeFileSync(join(dir, CONFIG_FILENAME), JSON.stringify({ limits: { format: 'json' } }));
         const r = await cli(['limits'], { cwd: dir });
         expect(JSON.parse(r.stdout)).toHaveProperty('limits');
+        expect(r.stderr).toBe(`note: defaults from ${join(dir, CONFIG_FILENAME)}\n`);
+        expect(envelope((await cli(['limits', '--json'], { cwd: dir })).stderr)).toMatchObject({ ok: true, config: join(dir, CONFIG_FILENAME) });
+        expect((await cli(['limits', '--quiet'], { cwd: dir })).stderr).toBe('');
         expect((await cli(['limits', '--no-config'], { cwd: dir })).stdout).toMatch(/^--max-input-bytes/);
-        const bad = emptyDir();
-        writeFileSync(join(bad, CONFIG_FILENAME), JSON.stringify({ 'max-depth': '1000' }));
-        expect((await cli(['limits'], { cwd: bad })).code).toBe(2);
-        const unknown = emptyDir();
-        writeFileSync(join(unknown, CONFIG_FILENAME), JSON.stringify({ limits: { frob: true } }));
-        expect((await cli(['limits'], { cwd: unknown })).stderr).toMatch(/Unknown flag --frob/);
+        const failing = await cli(['limits', '--json', '--max-depth', 'x'], { cwd: dir });
+        expect(envelope(failing.stderr)).toMatchObject({ ok: false, config: join(dir, CONFIG_FILENAME) });
+    });
+
+    it('applies a default only where the subcommand declares it (audit B-02)', async () => {
+        const dir = emptyDir();
+        writeFileSync(join(dir, CONFIG_FILENAME), JSON.stringify({ format: 'json', cert: { format: 'json' } }));
+        expect((await cli(['schema', 'list'], { cwd: dir })).code).toBe(0);
+        const created = await cli(['cert', 'inspect', fixture('leaf.crt.pem')], { cwd: dir });
+        expect(created.code).toBe(0);
+        expect(JSON.parse(created.stdout)).toHaveProperty('serialNumber');
+    });
+
+    it('never lets a planted config change what is read, trusted, when, or how (audit A-01, V-01)', async () => {
+        const planted = async (config: object, argv: readonly string[]): Promise<number> => {
+            const dir = emptyDir();
+            writeFileSync(join(dir, CONFIG_FILENAME), JSON.stringify(config));
+            const r = await cli(argv, { cwd: dir });
+            expect(r.stderr, JSON.stringify(config)).toMatch(/accepted on the command line only/);
+            return r.code;
+        };
+        const leaf = fixture('leaf.crt.pem');
+        const anchors = ['--trust', fixture('root.crt.pem'), '--untrusted', fixture('inter.crt.pem'), '--at', AT];
+        // Each key below turned a failing verdict into a pass before 1.0.0.
+        expect(await planted({ chain: { 'no-signatures': true } }, ['chain', 'validate', leaf, fixture('inter.crt.pem'), '--trust', fixture('root.crt.pem'), '--at', AT])).toBe(2);
+        expect(await planted({ trust: fixture('root.crt.pem'), untrusted: fixture('inter.crt.pem') }, ['chain', 'verify', leaf, '--at', AT])).toBe(2);
+        expect(await planted({ chain: { input: leaf } }, ['chain', 'verify', fixture('revoked.crt.pem'), ...anchors])).toBe(2);
+        expect(await planted({ at: '2025-01-01T00:00:00Z' }, ['chain', 'verify', leaf, ...anchors])).toBe(2);
+        expect(await planted({ crl: { 'stale-tolerance': 999999999999 } }, ['crl', 'check', fixture('inter.crl.der'), '--cert', leaf, '--issuer', fixture('inter.crt.pem')])).toBe(2);
+        expect(await planted({ ocsp: { 'responder-trusted': true } }, ['ocsp', 'check', fixture('leaf.ocsp.der')])).toBe(2);
+        expect(await planted({ 'max-depth': '1000' }, ['limits'])).toBe(2);
     });
 
     it('prints a stack trace with PKINATIVE_DEBUG=1', async () => {

@@ -35,6 +35,7 @@ Failure:
 | `error.remedy` | when a flag lifts it | The CLI flag(s) that change the outcome, e.g. `--allow-sha1`, `--ber`, `--max-depth <value>` |
 | `error.reasons` | negative verdicts | The engine's `PkiReason` list in the wire form |
 | `diagnostics` | always | Every `PkiDiagnostic` the engine emitted: `{ code, severity, message, standard, path, offset? }` |
+| `config` | a config file supplied defaults | The `.pkinativerc.json` that did; it can only set presentation keys (ADR 0007) |
 
 Command-specific success fields (`valid`, `pathLength`, `output`, `bytes`, `encoding`, `nonce`, `count`, `dryRun`, …) are listed by `pkinative schema manifest` per command.
 

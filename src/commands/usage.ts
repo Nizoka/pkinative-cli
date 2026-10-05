@@ -19,7 +19,9 @@ Global options (any command):
   --pem-mode <strict|lax>  PEM reading: RFC 7468 strict (default) or lax
   --allow-sha1      Accept SHA-1 signatures (legacy material you trust)
   --overwrite       Replace an existing --output file (atomic rename)
-  --config <file>   Use this .pkinativerc.json (default: nearest upward)
+  --config <file>   Use this .pkinativerc.json (default: nearest upward);
+                    presentation defaults only (json, pretty, quiet,
+                    no-color, format, encoding, fields, summary, strict)
   --no-config       Ignore any .pkinativerc.json
   --max-content-size <size>  Bound on content read whole (default 1 GiB)
   --max-<limit> <n>          The 22 pkinative limits, e.g. --max-input-bytes,
