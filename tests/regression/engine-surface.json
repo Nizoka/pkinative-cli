@@ -489,7 +489,7 @@
       "tests": [
         {
           "file": "tests/commands/keys.test.ts",
-          "name": "verifies the MAC"
+          "name": "converts legacy PKCS#12 with the two-step OpenSSL remedy (engine 1.0.0 item 53)"
         }
       ]
     },

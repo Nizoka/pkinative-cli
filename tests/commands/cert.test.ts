@@ -519,7 +519,7 @@ describe('signature algorithm selection', () => {
         expect(pemCert(ok.stdout).signatureAlgorithm.oid).toBe('1.2.840.10045.4.3.2');
         const legacy = await cli(['cert', 'create', '--spec', spec, '--p12', fixture('legacy.p12'), '--json'], { env });
         expect(legacy.code).toBe(1);
-        expect(envelope(legacy.stderr)).toMatchObject({ error: { code: 'E_VERIFY_FAILED', reasons: expect.any(Array) } });
+        expect(envelope(legacy.stderr)).toMatchObject({ error: { code: 'E_SECURITY', reasons: expect.any(Array), remedy: expect.stringContaining('-legacy -aes256') } });
     });
 });
 

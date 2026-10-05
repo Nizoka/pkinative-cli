@@ -552,8 +552,13 @@ Usage:
 
 inspect needs no password; the others read it from --password-file,
 --password-stdin or PKINATIVE_PASSWORD. The legacy RC2 / 3DES ciphers and the
-RFC 7292 Appendix B MAC are refused by doctrine (E_SECURITY); re-export with
-openssl pkcs12 -export -pbmac1_pbkdf2. No report ever contains a key byte.
+RFC 7292 Appendix B MAC are refused by doctrine (E_SECURITY); convert once
+with OpenSSL 3.4 or later:
+  openssl pkcs12 -in legacy.p12 -legacy -aes256 -out bundle.pem
+  openssl pkcs12 -export -in bundle.pem -pbmac1_pbkdf2 -out modern.p12
+(then delete bundle.pem). A wrong password is E_PASSWORD; a file without a
+checkable MAC opens only with --allow-unverified-integrity. --certs-out is
+written only from a file that opened. No report ever contains a key byte.
 
 Options:
   --input, -i <file>        The PKCS#12 file (default: the positional)

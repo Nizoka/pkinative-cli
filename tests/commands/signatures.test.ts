@@ -94,6 +94,22 @@ describe('cms sign', () => {
         expect(plain.certificates).toHaveLength(2);
     });
 
+    it('holds a --p12 signer to the same flag rules as --key (audit A-12)', async () => {
+        const sign = (args: string[]) => cli(['cms', 'sign', '--content', fixture('content.txt'), '--dry-run', '--json', ...args], { env: ENV });
+        for (const flags of [['--rsa-scheme', 'pss'], ['--rsa-scheme', 'pkcs1']]) {
+            const viaP12 = await sign(['--p12', fixture('leaf.p12'), ...flags]);
+            const viaKey = await sign(['--key', fixture('leaf.key.pem'), '--cert', fixture('leaf.crt.pem'), ...flags]);
+            expect([viaP12.code, viaKey.code], flags.join(' ')).toEqual([2, 2]);
+            expect(viaP12.stderr).toMatch(/apply to RSA keys only/);
+        }
+        expect((await sign(['--p12', fixture('rsa.p12'), '--rsa-scheme', 'pkcs1', '--salt-length', '32'])).stderr).toMatch(/--salt-length applies to --rsa-scheme pss only/);
+        expect((await sign(['--p12', fixture('rsa.p12'), '--salt-length', '32'])).stderr).toMatch(/--salt-length applies to --rsa-scheme pss only/);
+        const pss = await sign(['--p12', fixture('rsa.p12'), '--rsa-scheme', 'pss', '--salt-length', '20']);
+        expect(pss.code).toBe(0);
+        expect((await sign(['--p12', fixture('ed25519.p12'), '--hash', 'SHA-256'])).stderr).toMatch(/--hash does not apply to Ed25519/);
+        expect((await sign(['--p12', fixture('ed25519.p12')])).code).toBe(0);
+    });
+
     it('signs a precomputed digest', async () => {
         const { createHash } = await import('node:crypto');
         const digest = createHash('sha256').update(readFileSync(fixture('content.txt'))).digest('hex');

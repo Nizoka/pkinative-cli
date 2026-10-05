@@ -30,7 +30,7 @@ import {
 import { parseOptions, type Ctx } from '../context.js';
 import { getChoiceFlag, getIntFlag, getStringFlag } from './args.js';
 import { CliError, ErrorCode, usageError } from './error.js';
-import { guard, guardAsync, mapPkiError } from './pkierr.js';
+import { guard, guardAsync, mapPkiError, pkcs12Failure } from './pkierr.js';
 import { LABELS, readPkiBytes, readPkiObject } from './pki-input.js';
 import { readPassword } from './secrets.js';
 import type { KeyKind, KeyType } from './spki.js';
@@ -177,29 +177,28 @@ async function loadPkcs12(ctx: Ctx, path: string, password: string | undefined):
     const der = await readPkiBytes(ctx, path, 'PKCS#12 file');
     const scheme = getChoiceFlag(ctx.args.flags, 'rsa-scheme', ['pkcs1', 'pss'] as const);
     const hash = hashFlag(ctx);
+    const salt = getIntFlag(ctx.args.flags, 'salt-length', 0, 512);
+    if (salt !== undefined && scheme !== 'pss') throw usageError('--salt-length applies to --rsa-scheme pss only.');
     const rsaAlgorithm = scheme === undefined ? undefined : scheme === 'pkcs1'
         ? { name: 'RSASSA-PKCS1-v1_5' as const, hash: hash ?? 'SHA-256' }
-        : { name: 'RSA-PSS' as const, hash: hash ?? 'SHA-256' };
+        : { name: 'RSA-PSS' as const, hash: hash ?? 'SHA-256', ...(salt !== undefined ? { saltLength: salt } : {}) };
     const report = await guardAsync('Cannot open the PKCS#12 file', () => openPkcs12(der, {
         ...parseOptions(ctx),
         password,
         ...(rsaAlgorithm !== undefined ? { rsaAlgorithm } : {}),
     }));
-    if (!report.valid) {
-        const scheme_ = report.reasons.some((r) => r.code === 'PKI_REASON_PKCS12_RSA_SCHEME_UNSPECIFIED');
-        throw new CliError(
-            scheme_ ? 'The PKCS#12 key is RSA: pass --rsa-scheme pkcs1|pss.' : `The PKCS#12 file did not open: ${report.reasons.map((r) => r.code).join(', ')}.`,
-            scheme_ ? 2 : 1,
-            scheme_ ? ErrorCode.USAGE : report.integrity === 'mismatch' ? ErrorCode.PASSWORD : ErrorCode.VERIFY_FAILED,
-            { reasons: report.reasons },
-        );
-    }
+    if (!report.valid) throw pkcs12Failure(report);
     const keys = report.keys.filter((k) => k.signingKey !== undefined);
     const [first] = keys;
     if (first === undefined || keys.length > 1) {
         throw new CliError(`The PKCS#12 file holds ${keys.length} usable keys; one is needed.`, 1, ErrorCode.INPUT);
     }
     let signer = first.signingKey as SigningKey;
+    // The key's algorithm is known only once the file is open: hold the
+    // signing flags to it as signatureAlgorithm() does for --key (audit A-12).
+    const name = signer.algorithm.name;
+    if (name !== 'RSASSA-PKCS1-v1_5' && name !== 'RSA-PSS' && scheme !== undefined) throw usageError('--rsa-scheme and --salt-length apply to RSA keys only.');
+    if ((name === 'Ed25519' || name === 'Ed448') && hash !== undefined) throw usageError(`--hash does not apply to ${name}, which hashes internally.`);
     // ECDSA keys are not bound to a hash in Web Crypto: --hash re-targets them.
     if (signer.algorithm.name === 'ECDSA' && hash !== undefined) signer = { key: signer.key, algorithm: { ...signer.algorithm, hash } };
     const chain = report.certificates.filter((c) => c !== first.certificate);

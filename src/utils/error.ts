@@ -20,7 +20,7 @@ export const ErrorCode = {
     UNSUPPORTED: 'E_UNSUPPORTED',
     /** Web Crypto could not run the operation the input requires. */
     CRYPTO: 'E_CRYPTO',
-    /** A password is wrong, missing or refused. */
+    /** A password is wrong: a decryption or a PKCS#12 MAC fails under it. A missing password is E_USAGE. */
     PASSWORD: 'E_PASSWORD',
     /** A named item (an error code, an extension, a block) does not exist. */
     NOT_FOUND: 'E_NOT_FOUND',

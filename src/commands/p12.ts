@@ -18,7 +18,7 @@ import { CliError, ErrorCode, usageError } from '../utils/error.js';
 import { writeOutput } from '../utils/io.js';
 import { bagView, encryptionView, macView, signingKeyView } from '../utils/key-views.js';
 import { emitReport } from '../utils/output.js';
-import { guard, guardAsync } from '../utils/pkierr.js';
+import { UNVERIFIED_INTEGRITY_REMEDY, guard, guardAsync, pkcs12Failure } from '../utils/pkierr.js';
 import { readPkiBytes } from '../utils/pki-input.js';
 import { dn, renderVerdict } from '../utils/render.js';
 import { readPassword } from '../utils/secrets.js';
@@ -60,9 +60,16 @@ async function inspect(ctx: Ctx): Promise<void> {
 async function verifyMac(ctx: Ctx): Promise<void> {
     const { pkcs12 } = await read(ctx);
     const pw = await password(ctx);
+    // A file without a MAC is a property of the input, not a misuse of the
+    // command: a verdict (exit 1), never a usage error (audit A-03).
+    if (pkcs12.mac === undefined) {
+        emitReport(ctx, { valid: false, mac: null }, () => renderVerdict(ctx.color, false, 'MAC (none present)', []));
+        throw new CliError('The PKCS#12 file carries no MAC: its integrity cannot be verified.', 1, ErrorCode.VERIFY_FAILED, { remedy: UNVERIFIED_INTEGRITY_REMEDY });
+    }
     const valid = await guardAsync('Cannot verify the MAC', () => verifyPkcs12Mac(pkcs12, pw));
     emitReport(ctx, { valid }, () => renderVerdict(ctx.color, valid, 'MAC', []));
-    if (!valid) throw new CliError('The MAC does not verify: the password is wrong or the file was altered.', 1, ErrorCode.VERIFY_FAILED);
+    // One class for a wrong password across every p12 subcommand (audit A-05).
+    if (!valid) throw new CliError('The PKCS#12 MAC does not match: the password is wrong, or the file was altered.', 1, ErrorCode.PASSWORD);
 }
 
 async function bags(ctx: Ctx): Promise<void> {
@@ -117,17 +124,15 @@ async function open(ctx: Ctx): Promise<void> {
         ...report.keys.map((k) => `  key ${k.path}${k.certificate !== undefined ? ` — ${dn(k.certificate.subject)}` : ''}${k.signingKey === undefined ? ' (not imported)' : ''}`),
         ...report.certificates.map((c) => `  certificate ${dn(c.subject)}`),
     ].join('\n'));
+    // Nothing is written from a file that did not open: neither an
+    // unauthenticated certificate nor an empty bundle that a retry would then
+    // refuse to overwrite (audit A-02).
+    if (!report.valid) throw pkcs12Failure(report);
     const out = getStringFlag(ctx.args.flags, 'certs-out');
     if (out !== undefined && !ctx.opts.dryRun) {
         const pem = pemBundle(report.certificates.map((c) => c.der), report.crls);
         await writeOutput(ctx.io, out, pem, { overwrite: ctx.opts.overwrite });
         ctx.status['certsOut'] = out;
-    }
-    if (!report.valid) {
-        const needsScheme = report.reasons.some((r) => r.code === 'PKI_REASON_PKCS12_RSA_SCHEME_UNSPECIFIED');
-        if (needsScheme) throw usageError('The PKCS#12 key is RSA: pass --rsa-scheme pkcs1|pss to import it.', '--rsa-scheme pkcs1|pss');
-        throw new CliError(`The PKCS#12 file did not open: ${report.reasons.map((r) => r.code).join(', ')}.`, 1,
-            report.integrity === 'mismatch' ? ErrorCode.PASSWORD : ErrorCode.VERIFY_FAILED, { reasons: report.reasons });
     }
 }
 

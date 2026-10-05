@@ -64,7 +64,7 @@ export async function readPassword(io: Io, args: ParsedArgs, stdinTaken: boolean
     if ((fromStdin || file === '-') && (stdinTaken || readsStdin(args))) {
         throw usageError('The password cannot come from stdin when an input is read from stdin too; use --password-file <file> or PKINATIVE_PASSWORD.');
     }
-    const limits = { what: 'password', maxBytes: MAX_PASSWORD_BYTES, limitFlag: 'password-file' };
+    const limits = { what: 'password', maxBytes: MAX_PASSWORD_BYTES };
     if (file !== undefined) return firstLine(await readInput(io, file === '-' ? undefined : file, limits));
     if (fromStdin) return firstLine(await readInput(io, '-', limits));
     return env !== undefined && env !== '' ? env : undefined;

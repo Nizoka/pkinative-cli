@@ -55,6 +55,7 @@ function nonceFlag(ctx: Ctx): Uint8Array | undefined {
     if (raw === 'random') return webcrypto.getRandomValues(new Uint8Array(16));
     const bytes = fromHex(raw);
     if (bytes === undefined) throw usageError(`--nonce expects "random" or hexadecimal, got "${raw}".`);
+    if (bytes.length < 1 || bytes.length > 32) throw usageError(`--nonce takes 1 to 32 octets (RFC 8954 §2.1), got ${bytes.length}.`);
     return bytes;
 }
 

@@ -72,7 +72,7 @@ const MAP: Readonly<Record<number, Item>> = {
     50: { waiver: 'LIB', note: 'string diagnostics inside the engine' },
     51: { waiver: 'LIB', note: 'reason paths produced by the engine, printed unchanged' },
     52: { waiver: 'LIB', note: 'KEY_USAGE_BITS immutability inside the engine' },
-    53: { tests: [[KEYS, 'verifies the MAC']] },
+    53: { tests: [[KEYS, 'converts legacy PKCS#12 with the two-step OpenSSL remedy (engine 1.0.0 item 53)']] },
     54: { waiver: 'TOOLING', note: 'engine interop limitations' },
     55: { waiver: 'DOCS', note: 'engine prose' },
 };

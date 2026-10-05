@@ -87,6 +87,7 @@ describe('ocsp', () => {
         const random = await cli(['ocsp', 'request', fixture('leaf.crt.pem'), '--issuer', fixture('inter.crt.pem'), '--nonce', 'random', '--encoding', 'hex', '--json']);
         expect(envelope(random.stderr)['nonce']).toMatch(/^[0-9a-f]{32}$/);
         expect((await cli(['ocsp', 'request', fixture('leaf.crt.pem'), '--issuer', fixture('inter.crt.pem'), '--nonce', 'zz'])).code).toBe(2);
+        expect((await cli(['ocsp', 'request', fixture('leaf.crt.pem'), '--issuer', fixture('inter.crt.pem'), '--nonce', 'ab'.repeat(33)])).stderr).toMatch(/--nonce takes 1 to 32 octets/);
         expect((await cli(['ocsp', 'request', fixture('leaf.crt.pem')])).stderr).toMatch(/needs --issuer/);
         expect((await cli(['ocsp', 'cert-id', '--cert', fixture('leaf.crt.pem'), '--issuer', fixture('inter.crt.pem')])).stdout).toMatch(/^303b300906052b0e03021a0500/);
         expect((await cli(['ocsp', 'cert-id', '--cert', fixture('leaf.crt.pem'), '--issuer', fixture('inter.crt.pem'), '--hash', 'SHA-256'])).stdout).toMatch(/^3057/);

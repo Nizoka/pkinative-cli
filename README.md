@@ -8,7 +8,7 @@ decode and encode ASN.1, PEM and OIDs — offline, with a stable `--json` contra
 - **The whole engine.** 18 commands reach every one of pkinative 1.0.0's 294 exports, and a test proves it ([`docs/data/core-exports.json`](docs/data/core-exports.json)).
 - **One runtime dependency:** `pkinative`. No network, ever.
 - **Agent-first.** stdout carries the artefact or the report, stderr one JSON envelope with a stable `E_*` class and pkinative's `PKI_*` code verbatim; exit 0/1/2.
-- **Secure by default.** Passwords never on the command line; key material never printed; SHA-1, legacy PKCS#12 and lifted bounds only on an explicit flag that a config file cannot set.
+- **Secure by default.** Passwords never on the command line; no `key` or `p12` report prints key material; SHA-1 and lifted bounds only on an explicit command-line flag, legacy PKCS#12 never; a config file sets presentation only.
 - **Proven.** 100 % coverage on four axes, a seeded fuzz suite, CLI ⇔ library parity tests, pinned samples per subcommand, and OpenSSL verifying what the CLI writes.
 
 ## Installation

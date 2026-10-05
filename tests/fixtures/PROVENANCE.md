@@ -24,6 +24,7 @@ CA, OCSP-responder and TSA keys were deleted after signing.
 | `leaf.csr.{pem,der}` | PKCS#10 request for `csr.example.test` with a SAN extension request |
 | `leaf.p12` | PKCS#12 with the leaf key and certificate plus the intermediate; PBES2 AES-256-CBC, PBMAC1 integrity (RFC 9579) |
 | `rsa.p12` | PKCS#12 with the RSA key and certificate; PBES2, PBMAC1 |
+| `ed25519.p12` | PKCS#12 with the Ed25519 key and certificate; PBES2, PBMAC1 (added 2026-10-05, OpenSSL 3.5.5, for the `--p12` signer rules) |
 | `legacy.p12` | The leaf key and certificate in the legacy form (RC2 / 3DES, RFC 7292 SHA-1 HMAC) pkinative refuses |
 | `plain-keybag.p12` | The leaf key in an UNENCRYPTED keyBag and its certificate, PBMAC1: proves no report prints key bytes |
 | `nomac.p12` | The intermediate certificate in a PKCS#12 with no MAC and no encryption |

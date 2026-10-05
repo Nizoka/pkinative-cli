@@ -70,7 +70,7 @@
       "pkiCode": "PKI_API_MISUSE",
       "cliCode": "E_USAGE",
       "exitCode": 2,
-      "remedy": "pkinative <command> --help (a required option is missing, e.g. --rsa-scheme)"
+      "remedy": "pkinative <command> --help (the options given are incomplete or inconsistent for this input)"
     },
     {
       "pkiCode": "PKI_STRICT_DIAGNOSTIC",
@@ -135,7 +135,7 @@
       "pkiCode": "PKI_ASN1_TRAILING_DATA",
       "cliCode": "E_PARSE",
       "exitCode": 1,
-      "remedy": "pass exactly one object, or asn1 decode --sequence for concatenated objects"
+      "remedy": "pass exactly one object; asn1 decode --sequence for concatenated objects; --allow-trailing (asn1 decode, cms inspect, cms verify) when the container defines what follows"
     },
     {
       "pkiCode": "PKI_ASN1_UNEXPECTED_TAG",
@@ -346,12 +346,14 @@
     {
       "pkiCode": "PKI_KEY_ENCRYPTION_UNSUPPORTED",
       "cliCode": "E_SECURITY",
-      "exitCode": 1
+      "exitCode": 1,
+      "remedy": "convert it once with OpenSSL 3.4 or later: openssl pkcs12 -in legacy.p12 -legacy -aes256 -out bundle.pem, then openssl pkcs12 -export -in bundle.pem -pbmac1_pbkdf2 -out modern.p12 (delete bundle.pem afterwards)"
     },
     {
       "pkiCode": "PKI_KEY_MAC_UNSUPPORTED",
       "cliCode": "E_SECURITY",
-      "exitCode": 1
+      "exitCode": 1,
+      "remedy": "--allow-unverified-integrity (p12 open; only for a file whose origin you trust), or re-export it with openssl pkcs12 -export -pbmac1_pbkdf2"
     }
   ]
 }

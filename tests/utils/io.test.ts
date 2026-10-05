@@ -28,6 +28,21 @@ describe('readInput', () => {
         await expect(readInput(memoryIo().io, dir, limits)).rejects.toMatchObject({ code: 'E_IO', message: expect.stringMatching(/directory/) });
     });
 
+    it('refuses a device, never reading it unbounded (audit A-13)', async () => {
+        // A character device stats with size 0, so a stat-then-readFile reader
+        // would read /dev/zero forever; the descriptor's type is checked first.
+        const device = process.platform === 'win32' ? '\\\\.\\NUL' : '/dev/null';
+        await expect(readInput(memoryIo().io, device, limits)).rejects.toMatchObject({ code: 'E_INPUT', message: expect.stringMatching(/not a regular file/) });
+    });
+
+    it('caps a fixed-size input without offering a flag to lift it (audit A-16)', async () => {
+        const dir = emptyDir();
+        writeFileSync(join(dir, 'pw'), '0123456789');
+        const err = await readInput(memoryIo().io, join(dir, 'pw'), { what: 'password', maxBytes: 8 }).catch((e: unknown) => e);
+        expect(err).toMatchObject({ code: 'E_LIMIT', detail: { limit: 'fixed', configured: 8 }, remedy: undefined });
+        expect((err as Error).message).toMatch(/exceeds its 8-byte cap/);
+    });
+
     it('reads stdin, string and byte chunks, bounded', async () => {
         await expect(readInput(memoryIo({ stdin: ['ab', new Uint8Array([0x63])] }).io, '-', limits)).resolves.toEqual(new TextEncoder().encode('abc'));
         await expect(readInput(memoryIo({ stdin: 'x' }).io, undefined, limits)).resolves.toHaveLength(1);

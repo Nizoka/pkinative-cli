@@ -57,7 +57,7 @@ a configuration file planted in a cloned repository must never change what a com
 
 ### Refusals inherited from the engine
 
-The CLI never lifts what pkinative refuses by doctrine: no SHA-1 signature made or accepted without `--allow-sha1`; no RC2/3DES PKCS#12 and no RFC 7292 Appendix B MAC (`E_SECURITY`, with the OpenSSL re-export command as remedy);
+The CLI never lifts what pkinative refuses by doctrine: no SHA-1 signature made or accepted without `--allow-sha1`; no RC2/3DES PKCS#12 and no RFC 7292 Appendix B MAC (`E_SECURITY`, with the two-step OpenSSL conversion as `remedy`, no flag lifts it);
 no default RSA signature scheme (`--rsa-scheme` is required); no key generation; no PKCS#8 or PKCS#12 writer. A created certificate, request or SignedData is verified before it is written, so a key that does not belong to its certificate is refused.
 
 ### Code safety

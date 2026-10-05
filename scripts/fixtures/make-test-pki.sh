@@ -119,6 +119,8 @@ openssl pkcs12 -export -inkey leaf.key.pem -in leaf.crt.pem -certfile inter.crt.
 # SHA-1 HMAC form pkinative refuses by doctrine (its ADR 0002).
 openssl pkcs12 -export -inkey rsa.key.pem -in rsa.crt.pem -name "test rsa" -keypbe AES-256-CBC -certpbe AES-256-CBC -pbmac1_pbkdf2 -passout pass:$PASS -out rsa.p12
 openssl pkcs12 -export -legacy -inkey leaf.key.pem -in leaf.crt.pem -passout pass:$PASS -out legacy.p12
+# The Ed25519 key as PKCS#12 (PBES2, PBMAC1): a --p12 signer whose key hashes internally (added for 1.0.0, audit A-12).
+openssl pkcs12 -export -inkey ed25519.key.pem -in ed25519.crt.pem -name "test ed25519" -keypbe AES-256-CBC -certpbe AES-256-CBC -pbmac1_pbkdf2 -passout pass:$PASS -out ed25519.p12
 
 # The worst case for a report: an UNENCRYPTED keyBag (plaintext PKCS#8), PBMAC1.
 openssl pkcs12 -export -inkey leaf.key.pem -in leaf.crt.pem -keypbe NONE -certpbe NONE -pbmac1_pbkdf2 -passout pass:$PASS -out plain-keybag.p12

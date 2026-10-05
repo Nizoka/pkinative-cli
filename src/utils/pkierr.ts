@@ -112,20 +112,57 @@ export const PKI_ERROR_CODES: readonly PkiErrorCode[] = Object.keys(PKI_TO_CLI) 
  * it (the input itself must change); `pkinative explain <code>` prints the
  * engine's full remedy.
  */
+/** The one-time conversion of a legacy PKCS#12 file, as pkinative 1.0.0 gives it (its CHANGELOG item 53). */
+export const LEGACY_PKCS12_REMEDY = 'convert it once with OpenSSL 3.4 or later: openssl pkcs12 -in legacy.p12 -legacy -aes256 -out bundle.pem, '
+    + 'then openssl pkcs12 -export -in bundle.pem -pbmac1_pbkdf2 -out modern.p12 (delete bundle.pem afterwards)';
+
+/** The two ways past an integrity check that cannot run. */
+export const UNVERIFIED_INTEGRITY_REMEDY = '--allow-unverified-integrity (p12 open; only for a file whose origin you trust), or re-export it with openssl pkcs12 -export -pbmac1_pbkdf2';
+
 export const PKI_REMEDY = {
     PKI_ASN1_LENGTH_NON_MINIMAL: '--ber (the producer wrote BER, not DER)',
     PKI_ASN1_INDEFINITE_LENGTH_FORBIDDEN: '--ber (indefinite lengths are BER; common in CMS)',
     PKI_ASN1_CONSTRUCTED_STRING_FORBIDDEN: '--ber (constructed strings are BER)',
     PKI_ASN1_BOOLEAN_INVALID: '--ber (a non-0xFF TRUE is BER)',
-    PKI_ASN1_TRAILING_DATA: 'pass exactly one object, or asn1 decode --sequence for concatenated objects',
+    PKI_ASN1_TRAILING_DATA: 'pass exactly one object; asn1 decode --sequence for concatenated objects; --allow-trailing (asn1 decode, cms inspect, cms verify) when the container defines what follows',
     PKI_PEM_BASE64_INVALID: '--pem-mode lax (tolerates whitespace and missing padding)',
     PKI_PEM_UNEXPECTED_LABEL: 'pkinative pem decode <file> (lists the labels present)',
     PKI_STRICT_DIAGNOSTIC: 'drop --strict, or fix the producer the diagnostic names',
     PKI_CRYPTO_ALGORITHM_REFUSED: '--allow-sha1 (only for legacy material you already trust)',
     PKI_CRYPTO_DECRYPTION_FAILED: '--password-file <file> | --password-stdin | PKINATIVE_PASSWORD (check the password)',
     PKI_X509_EXTENSION_MALFORMED: 'cert inspect --raw-extensions (keeps every extension undecoded)',
-    PKI_API_MISUSE: 'pkinative <command> --help (a required option is missing, e.g. --rsa-scheme)',
+    PKI_KEY_ENCRYPTION_UNSUPPORTED: LEGACY_PKCS12_REMEDY,
+    PKI_KEY_MAC_UNSUPPORTED: UNVERIFIED_INTEGRITY_REMEDY,
+    PKI_API_MISUSE: 'pkinative <command> --help (the options given are incomplete or inconsistent for this input)',
 } as const satisfies Partial<Record<PkiErrorCode, string>>;
+
+/**
+ * The CliError for a PKCS#12 file that did not open, shared by `p12 open` and
+ * the --p12 signer so both say the same thing (audit A-04, A-05):
+ *   an RSA key without a scheme   E_USAGE, exit 2 (the invocation is incomplete)
+ *   a legacy cipher               E_SECURITY, with the two-step conversion
+ *   a MAC the password misses     E_PASSWORD
+ *   no checkable MAC              E_VERIFY_FAILED, --allow-unverified-integrity
+ *   anything else                 E_VERIFY_FAILED, with the reasons
+ */
+export function pkcs12Failure(report: { readonly integrity: string; readonly reasons: readonly { readonly code: string }[] }): CliError {
+    const has = (code: string): boolean => report.reasons.some((r) => r.code === code);
+    const codes = report.reasons.map((r) => r.code).join(', ');
+    const options = { reasons: report.reasons };
+    if (has('PKI_REASON_PKCS12_RSA_SCHEME_UNSPECIFIED')) {
+        return new CliError('The PKCS#12 key is RSA: pass --rsa-scheme pkcs1|pss to import it.', 2, ErrorCode.USAGE, { ...options, remedy: '--rsa-scheme pkcs1|pss' });
+    }
+    if (has('PKI_REASON_PKCS12_ENCRYPTION_UNSUPPORTED')) {
+        return new CliError(`The PKCS#12 file uses a legacy cipher pkinative refuses by policy (PBES2 and PBMAC1 only): ${codes}.`, 1, ErrorCode.SECURITY, { ...options, remedy: LEGACY_PKCS12_REMEDY });
+    }
+    if (report.integrity === 'mismatch') {
+        return new CliError('The PKCS#12 MAC does not match: the password is wrong, or the file was altered.', 1, ErrorCode.PASSWORD, options);
+    }
+    if (has('PKI_REASON_PKCS12_INTEGRITY_UNVERIFIED')) {
+        return new CliError(`The PKCS#12 integrity cannot be verified: ${codes}.`, 1, ErrorCode.VERIFY_FAILED, { ...options, remedy: UNVERIFIED_INTEGRITY_REMEDY });
+    }
+    return new CliError(`The PKCS#12 file did not open: ${codes}.`, 1, ErrorCode.VERIFY_FAILED, options);
+}
 
 /** The remedy for a CliError: an explicit one wins, else the PKI_* table. */
 export function remedyFor(err: CliError): string | undefined {

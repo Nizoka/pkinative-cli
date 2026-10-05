@@ -4,7 +4,7 @@
 // `Io`, which tests replace with an in-memory one.
 
 import { randomBytes } from 'node:crypto';
-import { lstat, open, readFile, rename, rm, stat, type FileHandle } from 'node:fs/promises';
+import { lstat, open, rename, rm, type FileHandle } from 'node:fs/promises';
 import { basename, dirname, join } from 'node:path';
 import { CliError, ErrorCode, usageError } from './error.js';
 import { clearInFlight, markInFlight } from './inflight.js';
@@ -32,7 +32,11 @@ export function processIo(): Io {
     return { stdout: process.stdout, stderr: process.stderr, stdin: process.stdin, env: process.env, cwd: process.cwd() };
 }
 
-function tooLarge(what: string, observed: number, configured: number, flag: string): CliError {
+function tooLarge(what: string, observed: number, configured: number, flag: string | undefined): CliError {
+    if (flag === undefined) {
+        // A fixed cap, not a bound a flag lifts: there is no remedy to offer.
+        return new CliError(`${what} exceeds its ${configured}-byte cap (observed at least ${observed}).`, 1, ErrorCode.LIMIT, { detail: { limit: 'fixed', configured, observed } });
+    }
     return new CliError(
         `${what} exceeds --${flag} (${configured} bytes; observed at least ${observed}). Raise the bound only for trusted input.`,
         1,
@@ -46,8 +50,8 @@ export interface ReadOptions {
     readonly what: string;
     /** Upper bound in bytes; checked by stat before a file is read. */
     readonly maxBytes: number;
-    /** The flag that raises `maxBytes`, for the remedy. */
-    readonly limitFlag: string;
+    /** The flag that raises `maxBytes`, for the remedy; absent for a fixed cap. */
+    readonly limitFlag?: string;
 }
 
 /**
@@ -63,14 +67,32 @@ export async function readInput(io: Io, path: string | undefined, options: ReadO
         return readStream(io.stdin, options);
     }
     try {
-        const st = await stat(path);
-        if (st.isDirectory()) {
-            throw new CliError(`Cannot read ${options.what} "${path}": it is a directory.`, 1, ErrorCode.IO);
-        }
-        if (st.size > options.maxBytes) throw tooLarge(`${options.what} "${path}"`, st.size, options.maxBytes, options.limitFlag);
-        return new Uint8Array(await readFile(path));
+        return await readRegularFile(path, options);
     } catch (e) {
         throw mapPkiError(e, `Cannot read ${options.what} "${path}"`);
+    }
+}
+
+/**
+ * A path is read only when it names a regular file, through one descriptor
+ * whose own size is checked before the read and bounds it: a FIFO, a device
+ * (/dev/zero) or a file that grows between the check and the read is never
+ * read past the cap (audit A-13).
+ */
+async function readRegularFile(path: string, options: ReadOptions): Promise<Uint8Array> {
+    const handle = await open(path, 'r');
+    try {
+        const st = await handle.stat();
+        if (st.isDirectory()) throw new CliError(`Cannot read ${options.what} "${path}": it is a directory.`, 1, ErrorCode.IO);
+        if (!st.isFile()) {
+            throw new CliError(`Cannot read ${options.what} "${path}": it is not a regular file (a device, a FIFO or a socket); pipe it on stdin instead.`, 1, ErrorCode.INPUT);
+        }
+        if (st.size > options.maxBytes) throw tooLarge(`${options.what} "${path}"`, st.size, options.maxBytes, options.limitFlag);
+        const buf = new Uint8Array(st.size);
+        const { bytesRead } = await handle.read(buf, 0, st.size, 0);
+        return buf.subarray(0, bytesRead);
+    } finally {
+        await handle.close();
     }
 }
 
