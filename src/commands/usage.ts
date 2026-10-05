@@ -291,7 +291,10 @@ check-purpose:              exit 1 (E_CHECK_FAILED) when the purpose fails
   --no-restrict-issuers     Do not require the purpose in issuer EKUs
   --require-explicit-purpose  Refuse a certificate without an EKU
 
+verify-signature / check-name / check-purpose:
   --input, -i <file>        The certificate (default: the positional)
+
+decode-extension / verify-signature / check-name / match-name / check-purpose:
   --format, -f <text|json>  Report format (json under --json)
 
 ${SIGNING_USAGE}`;
@@ -339,9 +342,9 @@ validate takes the path in order and verifies each link's signature first.
 A negative verdict prints the report, then exits 1 (E_VERIFY_FAILED).
 
 Inputs:
-  --input, -i <file>        The leaf certificate (default: the positional)
+  --input, -i <file>        verify, build: the leaf (default: the positional)
   --trust <file>            Trust anchors, PEM bundle or DER (repeatable)
-  --untrusted <file>        Intermediate candidates (repeatable)
+  --untrusted <file>        verify, build: intermediate candidates (repeatable)
   --path <file>             validate: the path, leaf first (repeatable)
   --at <instant>            Validation time: ISO 8601 (UTC unless zoned),
                             epoch milliseconds or "now" (default now)
@@ -385,8 +388,8 @@ With --issuer the CRL signature is verified; without it, it counts as unchecked.
 Options:
   --input, -i <file>        The CRL, PEM or DER (default: the positional)
   --serial <hex>            find: the serial number, hexadecimal
-  --cert <file>             The certificate to look up or check
-  --issuer <file>           The CRL issuer (verifies the CRL signature)
+  --cert <file>             find, check: the certificate to look up or check
+  --issuer <file>           verify-signature, check: the CRL issuer
   --delta <file>            check: a delta CRL to apply on top
   --at <instant>            check: decision time (default now)
   --stale-tolerance <ms>    check: accept a CRL this long past nextUpdate
@@ -504,6 +507,7 @@ add-attribute / add-timestamp:
   --output, -o <file>       Output file (default: stdout)
   --encoding <pem|der|hex>  Output encoding (default der)
 
+verify / inspect / verify-signer:
   --format, -f <text|json>  Report format (json under --json)
 
 ${SIGNING_USAGE}`;
@@ -594,16 +598,17 @@ written only from a file that opened. No report ever contains a key byte.
 
 Options:
   --input, -i <file>        The PKCS#12 file (default: the positional)
-  --password-file <file>    The password, first line of the file
-  --password-stdin          ... or the first line of stdin
+  --password-file <file>    verify-mac, bags, open: the password, first line
+  --password-stdin          verify-mac, bags, open: ... or stdin's first line
   --allow-unverified-integrity  open: accept a file whose MAC cannot be checked
   --rsa-scheme <pkcs1|pss>  open: import an RSA key for this scheme
   --hash <SHA-256|SHA-384|SHA-512>  open: the RSA key's digest (default SHA-256)
   --certs-out <file>        open: write the certificates and CRLs as PEM
   --format, -f <text|json>  Report format (json under --json)
 
-verify-mac exits 1 (E_VERIFY_FAILED) on a wrong password or an altered file;
-open exits 1 (E_PASSWORD on a MAC mismatch) unless everything opened.
+verify-mac exits 1: E_PASSWORD when the MAC does not match (a wrong password
+or an altered file), E_VERIFY_FAILED when the file carries no MAC; open exits 1
+(E_PASSWORD on a MAC mismatch) unless everything opened.
 `;
 
 const DOCTOR_USAGE = `\

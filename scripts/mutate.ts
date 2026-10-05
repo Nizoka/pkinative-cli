@@ -27,9 +27,9 @@
  *
  * Usage:
  *   npm run mutate                                        # every executable module of src/
- *   npx tsx scripts/mutate.ts --files src/keys/key-pbes2.ts
- *   npx tsx scripts/mutate.ts --files src/asn1/asn1-decode.ts=80 --seed 7
- *   npx tsx scripts/mutate.ts --files src/cms/cms-check.ts --list
+ *   npx tsx scripts/mutate.ts --files src/utils/args.ts
+ *   npx tsx scripts/mutate.ts --files src/commands/cert.ts=80 --seed 7
+ *   npx tsx scripts/mutate.ts --files src/utils/config.ts --list
  *
  * Flags:
  *   --files a,b=N       targets (repository-relative); `=N` samples N mutants of that file

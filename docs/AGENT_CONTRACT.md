@@ -91,4 +91,4 @@ The CLI adds nothing to an engine result except where it is a CLI view: `key` an
 
 ## 8. Governance
 
-An agent working **on** this repository follows [AGENTS.md](../AGENTS.md) and [.github/AGENT_RULES.md](../.github/AGENT_RULES.md): it drafts and verifies; the maintainer pushes, tags and publishes.
+An agent working **on** this repository follows [AGENTS.md](https://github.com/Nizoka/pkinative-cli/blob/main/AGENTS.md) and [.github/AGENT_RULES.md](https://github.com/Nizoka/pkinative-cli/blob/main/.github/AGENT_RULES.md): it drafts and verifies; the maintainer pushes, tags and publishes.

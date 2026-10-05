@@ -24,7 +24,7 @@ The threat model is [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md).
 
 ### Offline, always
 
-No module of `src/` opens a socket or makes a request (`node:net` is imported for `isIP` only, to classify a name). The CLI never fetches a CRL, an OCSP response, a time-stamp, an intermediate or an AIA URL: revocation evidence and time-stamps are files the caller supplies, and requests (`ocsp request`, `tsp request`) are files the caller sends.
+No module of `src/` opens a socket or makes a request (`node:net` is imported for `isIPv4` and `isIPv6` only, to classify a name). The CLI never fetches a CRL, an OCSP response, a time-stamp, an intermediate or an AIA URL: revocation evidence and time-stamps are files the caller supplies, and requests (`ocsp request`, `tsp request`) are files the caller sends.
 There is therefore no SSRF surface, no DNS dependency, and no verdict that changes with the network.
 
 ### Secrets

@@ -85,6 +85,52 @@ describe('help text', () => {
         expect(problems).toEqual([]);
     });
 
+    it('describes every option line for exactly the subcommands that accept it (audit B2-09)', () => {
+        // An option line names its scope with a "sub, sub:" prefix, else its
+        // section heading does; with neither, it claims every subcommand.
+        const problems: string[] = [];
+        for (const c of COMMANDS.filter((x) => x.subcommands.length > 0)) {
+            const subs = c.subcommands.map((s) => s.name);
+            let section: string[] = [];
+            let fresh = true;
+            let pending = '';
+            for (const line of (COMMAND_USAGE[c.name] as string).split('\n')) {
+                // A heading (which may wrap: "Signing key (cert create, …,\ncms sign):") that names
+                // subcommands scopes its block; an unscoped heading after a blank line claims them
+                // all; the continuation lines of a heading keep its scope.
+                if (/^\S/.test(line)) {
+                    const text = `${pending}${line} `;
+                    const heading = /^([^:]*):/.exec(text);
+                    if (heading === null) {
+                        if (pending === '') section = fresh ? [] : section;
+                        pending = text;
+                    } else {
+                        const names = (heading[1] as string).split(/[\s,/()]+/).filter((w) => subs.includes(w));
+                        if (names.length > 0 || pending !== '' || fresh) section = names;
+                        pending = '';
+                    }
+                }
+                fresh = line.trim() === '';
+                if (fresh) {
+                    section = [];
+                    pending = '';
+                }
+                const option = /^ {2}(-\S.*?)(?:\s{2,}(.*))?$/.exec(line);
+                if (option === null) continue;
+                const prefix = /^([a-z-]+(?:, [a-z-]+)*):\s/.exec(option[2] ?? '');
+                const named = prefix === null ? [] : (prefix[1] as string).split(', ');
+                const scope = named.length > 0 && named.every((w) => subs.includes(w)) ? named : section.length > 0 ? section : subs;
+                for (const flag of mentioned(option[1] as string)) {
+                    if (GLOBAL_FLAGS.some((g) => g.name === flag)) continue;
+                    for (const sub of scope) {
+                        if (!commandFlags(c, sub).some((f) => f.name === flag)) problems.push(`${c.name} ${sub}: --${flag}`);
+                    }
+                }
+            }
+        }
+        expect(problems).toEqual([]);
+    });
+
     it('gives no command exactly one subcommand (scripts/data/mutation-equivalents.json relies on it)', () => {
         for (const c of COMMANDS) expect(c.subcommands.length, c.name).not.toBe(1);
     });

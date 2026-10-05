@@ -328,7 +328,8 @@ export async function schema(ctx: Ctx): Promise<void> {
     if (subject !== 'report' && subject !== 'summary' && ctx.args.positionals.length > 1) throw usageError(`schema ${String(subject)} takes no further argument.`);
     if (subject === undefined || subject === 'list') {
         const rows = SUBJECTS.map((s) => ({ name: s.name, kind: s.kind, summary: s.summary }));
-        ctx.io.stdout.write(ctx.opts.json ? serializeJson({ subjects: rows }, ctx.opts.pretty) + '\n' : rows.map((r) => `${r.name.padEnd(10)} ${r.kind.padEnd(9)} ${r.summary}`).join('\n') + '\n');
+        const width = Math.max(...rows.map((r) => r.name.length));
+        ctx.io.stdout.write(ctx.opts.json ? serializeJson({ subjects: rows }, ctx.opts.pretty) + '\n' : rows.map((r) => `${r.name.padEnd(width)} ${r.kind.padEnd(9)} ${r.summary}`).join('\n') + '\n');
         return;
     }
     const found = SUBJECTS.find((s) => s.name === subject);

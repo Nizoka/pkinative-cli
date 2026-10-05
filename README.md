@@ -163,7 +163,7 @@ Shell completion for bash, zsh, fish and PowerShell.
 ## Driving pkinative-cli from scripts and AI agents
 
 ```sh
-$ pkinative chain verify revoked.pem --trust root.pem --crl ca.crl --json --summary
+$ pkinative chain verify revoked.pem --trust root.pem --untrusted ca.pem --crl ca.crl --json --summary
 {"valid":false,"reasons":["PKI_REASON_REVOKED"],"path":["CN=revoked.example.test",…]}
 # stderr:
 {"ok":false,"command":"chain verify","error":{"code":"E_VERIFY_FAILED","message":"…","reasons":[…]},"diagnostics":[…]}

@@ -279,7 +279,8 @@
     {
       "pkiCode": "PKI_LIMIT_EXCEEDED",
       "cliCode": "E_LIMIT",
-      "exitCode": 1
+      "exitCode": 1,
+      "remedy": "--max-<limit> <value>, the flag detail.flag names (pkinative limits lists them); raise a bound for trusted input only"
     },
     {
       "pkiCode": "PKI_LIMIT_INVALID",

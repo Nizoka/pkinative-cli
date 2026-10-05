@@ -15,19 +15,19 @@
       "reason": "Semantic: `> 1` differs from `> 0` only for a command with exactly one subcommand, and no registered command has exactly one subcommand: each has 0 or at least 2 (COMMANDS is a constant, and tests/docs/usage.test.ts holds the registry)."
     },
     {
-      "id": "src/commands/completion.ts:52:64:number+1",
+      "id": "src/commands/completion.ts:59:64:number+1",
       "original": "0",
       "replacement": "1",
       "reason": "Semantic: the filter keeps the same commands, because no registered command has exactly one subcommand: each has 0 or at least 2 (COMMANDS is a constant, and tests/docs/usage.test.ts holds the registry); the bash script is byte-identical."
     },
     {
-      "id": "src/commands/completion.ts:95:64:number+1",
+      "id": "src/commands/completion.ts:108:64:number+1",
       "original": "0",
       "replacement": "1",
       "reason": "Semantic: the filter keeps the same commands, because no registered command has exactly one subcommand: each has 0 or at least 2 (COMMANDS is a constant, and tests/docs/usage.test.ts holds the registry); the zsh script is byte-identical."
     },
     {
-      "id": "src/commands/completion.ts:154:64:number+1",
+      "id": "src/commands/completion.ts:174:64:number+1",
       "original": "0",
       "replacement": "1",
       "reason": "Semantic: the filter keeps the same commands, because no registered command has exactly one subcommand: each has 0 or at least 2 (COMMANDS is a constant, and tests/docs/usage.test.ts holds the registry); the PowerShell script is byte-identical."

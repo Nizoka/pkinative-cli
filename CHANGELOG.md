@@ -46,7 +46,7 @@ The first release: the whole of [pkinative 1.0.0](https://github.com/Nizoka/pkin
 
 ### Documentation
 
-- **docs:** README, `docs/KNOWLEDGE_BASE.md`, `docs/AGENT_CONTRACT.md`, `docs/THREAT_MODEL.md`, six ADRs, `SECURITY.md` with the release verification commands, and the agent layer (`AGENTS.md`, `.github/instructions/`, `.claude/`).
+- **docs:** README, `docs/KNOWLEDGE_BASE.md`, `docs/AGENT_CONTRACT.md`, `docs/THREAT_MODEL.md`, seven ADRs, `SECURITY.md` with the release verification commands, and the agent layer (`AGENTS.md`, `.github/instructions/`, `.claude/`).
 
 [Unreleased]: https://github.com/Nizoka/pkinative-cli/compare/v1.0.0...HEAD
 [1.0.0]: https://github.com/Nizoka/pkinative-cli/releases/tag/v1.0.0
