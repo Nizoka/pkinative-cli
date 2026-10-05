@@ -43,7 +43,7 @@ Command-specific success fields (`valid`, `pathLength`, `output`, `bytes`, `enco
 
 | Class | Exit | When |
 |---|---|---|
-| `E_USAGE` | 2 | Missing or invalid flag, argument or option; also an engine `PKI_API_MISUSE` / `PKI_INVALID_OPTION` |
+| `E_USAGE` | 2 | Missing, unknown or invalid flag, argument or option — including a single-value flag given twice, a surplus argument, an argument beside the flag it stands for, and a date that does not exist; also an engine `PKI_API_MISUSE` / `PKI_INVALID_OPTION` |
 | `E_INPUT` | 1 | A spec, label or value is unacceptable; a key does not belong to its certificate |
 | `E_PARSE` | 1 | The bytes are not the DER, PEM or JSON they claim to be |
 | `E_IO` | 1 | Filesystem failure, including a refused overwrite (`remedy: --overwrite`) |

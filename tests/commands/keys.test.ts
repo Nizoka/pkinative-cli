@@ -54,7 +54,7 @@ describe('key', () => {
         const dir = emptyDir();
         writeFileSync(join(dir, 'pw'), 'test-only-password\n');
         expect((await cli(['key', 'check', fixture('leaf.key.enc.pem'), '--key-type', 'ec-p256', '--password-file', join(dir, 'pw')])).code).toBe(0);
-        expect((await cli(['key', 'check', '--password-stdin'], { stdin: 'x' })).stderr).toMatch(/cannot be used when the input/);
+        expect((await cli(['key', 'check', '--password-stdin'], { stdin: 'x' })).stderr).toMatch(/cannot come from stdin/);
     });
 });
 

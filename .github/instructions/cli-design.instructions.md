@@ -9,6 +9,7 @@ applyTo: "src/cli.ts,src/bin.ts,src/context.ts,src/utils/args.ts,src/utils/agent
 - `run(argv, io)` in `src/cli.ts` returns the exit code; it never calls `process.exit`. `src/bin.ts` is the only file that touches the process (EPIPE, signals, `process.exitCode`).
 - The command and subcommand are located with the parser's own rules (`firstPositionalIndex`), so a flag value is never mistaken for a command. Global flags are accepted before or after the command.
 - Every flag a command accepts is declared in `src/commands/registry.ts`; anything else is `E_USAGE` ("Unknown flag"). A flag is boolean or valued everywhere, never both.
+- The registry is enforced, not advisory: a value flag not marked `repeatable` given twice, a flag under both its name and alias, more positionals than `operandRule` allows, or an operand beside the flag it stands for (`--input`) is `E_USAGE` — a verdict never depends on flag order. Values are never echoed.
 
 ## Output
 

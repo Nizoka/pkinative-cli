@@ -229,8 +229,7 @@ export const SUBJECTS: readonly Subject[] = [
 ];
 
 export async function schema(ctx: Ctx): Promise<void> {
-    const [subject, ...extra] = ctx.args.positionals;
-    if (extra.length > 0) throw usageError('schema takes one subject.');
+    const [subject] = ctx.args.positionals;
     if (subject === undefined || subject === 'list') {
         const rows = SUBJECTS.map((s) => ({ name: s.name, kind: s.kind, summary: s.summary }));
         ctx.io.stdout.write(ctx.opts.json ? serializeJson({ subjects: rows }, ctx.opts.pretty) + '\n' : rows.map((r) => `${r.name.padEnd(10)} ${r.kind.padEnd(9)} ${r.summary}`).join('\n') + '\n');

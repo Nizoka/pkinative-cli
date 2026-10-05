@@ -176,3 +176,40 @@ describe('run: diagnostics', () => {
         expect(envelope(jsonFail.stderr)).toMatchObject({ ok: false, diagnostics: [{ code: 'PKI_DIAG_BER_CONSTRUCT_ACCEPTED' }] });
     });
 });
+
+describe('run: the parser enforces the registry (audit A-08, A-10, A-11, A-19)', () => {
+    it('refuses a repeated single-value flag instead of letting the order decide the verdict', async () => {
+        for (const hosts of [['example.test', 'evil.invalid'], ['evil.invalid', 'example.test']]) {
+            const r = await cli(['cert', 'check-name', fixture('leaf.crt.pem'), '--host', hosts[0] as string, '--host', hosts[1] as string]);
+            expect(r.code).toBe(2);
+            expect(r.stderr).toMatch(/--host is given 2 times/);
+        }
+    });
+
+    it('refuses surplus operands and an operand beside --input', async () => {
+        expect((await cli(['fingerprint', fixture('leaf.crt.pem'), fixture('root.crt.pem')])).stderr).toMatch(/takes at most 1 argument, got 2/);
+        expect((await cli(['cert', 'inspect', fixture('leaf.crt.pem'), '--input', fixture('root.crt.pem')])).stderr).toMatch(/given --input and an argument/);
+        expect((await cli(['doctor', 'extra'])).stderr).toMatch(/takes no arguments/);
+        expect((await cli(['oid', 'name', '2.5.4.3', '2.5.4.6'])).code).toBe(0);
+    });
+
+    it('never echoes a value typed after --password-stdin', async () => {
+        for (const argv of [['p12', 'open', fixture('leaf.p12'), '--password-stdin=hunter2'], ['p12', 'open', '--password-stdin', 'hunter2', fixture('leaf.p12')]]) {
+            const r = await cli(argv);
+            expect(r.code).toBe(2);
+            expect(r.stderr).not.toContain('hunter2');
+        }
+    });
+
+    it('refuses a date that does not exist', async () => {
+        const r = await cli(['chain', 'verify', fixture('leaf.crt.pem'), '--trust', fixture('root.crt.pem'), '--at', '2027-02-31T00:00:00Z']);
+        expect(r.code).toBe(2);
+        expect(r.stderr).toMatch(/--at expects/);
+    });
+
+    it('refuses a stdin password when the content is read from stdin', async () => {
+        const r = await cli(['cms', 'sign', '--content', '-', '--password-stdin', '--key', fixture('leaf.key.enc.pem'), '--cert', fixture('leaf.crt.pem')], { stdin: 'hello' });
+        expect(r.code).toBe(2);
+        expect(r.stderr).toMatch(/cannot come from stdin/);
+    });
+});

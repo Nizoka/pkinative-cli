@@ -61,4 +61,10 @@ describe('help text', () => {
             kinds.set(f.name, valued);
         }
     });
+
+    it('gives no repeatable flag an alias (repeatableFlags counts names only)', () => {
+        for (const f of [...GLOBAL_FLAGS, ...COMMANDS.flatMap(allFlags)]) {
+            if (f.repeatable === true) expect(f.alias, `--${f.name}`).toBeUndefined();
+        }
+    });
 });

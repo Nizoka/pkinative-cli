@@ -155,8 +155,8 @@ function finishCheck(ctx: Ctx, reasons: readonly PkiReason[], what: string): voi
 }
 
 async function matchName(ctx: Ctx): Promise<void> {
-    const [presented, reference, ...extra] = ctx.args.positionals;
-    if (presented === undefined || reference === undefined || extra.length > 0) throw usageError('cert match-name takes <presented> <reference>.');
+    const [presented, reference] = ctx.args.positionals;
+    if (presented === undefined || reference === undefined) throw usageError('cert match-name takes <presented> <reference>.');
     const match = guard('Cannot match the names', () => matchDnsName(presented, reference, { allowWildcards: !hasFlag(ctx.args.flags, 'no-wildcards') }));
     emitReport(ctx, { match }, () => (match ? ctx.color.ok('match') : ctx.color.bad('no match')));
     if (!match) throw new CliError(`"${presented}" does not match "${reference}".`, 1, ErrorCode.CHECK_FAILED);
@@ -231,8 +231,8 @@ export const ENCODE_STRUCTURES = [
 ] as const;
 
 async function encodeStructure(ctx: Ctx): Promise<void> {
-    const [structure, ...extra] = ctx.args.positionals;
-    if (structure === undefined || extra.length > 0 || !(ENCODE_STRUCTURES as readonly string[]).includes(structure)) {
+    const [structure] = ctx.args.positionals;
+    if (structure === undefined || !(ENCODE_STRUCTURES as readonly string[]).includes(structure)) {
         throw usageError(`cert encode takes one structure: ${ENCODE_STRUCTURES.join(', ')}.`);
     }
     if (structure === 'signature-algorithm') {

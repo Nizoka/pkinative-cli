@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
     assertKnownFlags,
+    assertOperands,
+    assertSingleValues,
     firstPositionalIndex,
     getBoolFlag,
     getChoiceFlag,
@@ -110,5 +112,29 @@ describe('flag accessors', () => {
     it('assertKnownFlags refuses an undeclared flag', () => {
         expect(() => assertKnownFlags(flags, new Set(['a']), 'pem')).toThrow(/Unknown flag --b for "pem"/);
         expect(() => assertKnownFlags({ a: 'x' }, new Set(['a']), 'pem')).not.toThrow();
+    });
+});
+
+describe('declarations the parser enforces (audit A-11)', () => {
+    it('refuses a non-repeatable value flag given twice, and a flag under both its names', () => {
+        const parsed = parseArgs(['--host', 'a', '--host', 'b', '--trust', 'x', '--trust', 'y'], new Set());
+        expect(() => assertSingleValues(parsed.flags, new Set(['trust']), [], 'chain verify')).toThrow(/--host is given 2 times for "chain verify"/);
+        expect(() => assertSingleValues(parseArgs(['--trust', 'x', '--trust', 'y'], new Set()).flags, new Set(['trust']), [], 'x')).not.toThrow();
+        const both = parseArgs(['-i', 'a', '--input', 'b'], new Set()).flags;
+        expect(() => assertSingleValues(both, new Set(), [{ name: 'input', alias: 'i' }], 'x')).toThrow(/--input and -i are the same flag/);
+        expect(() => assertSingleValues({ input: 'a' }, new Set(), [{ name: 'input', alias: 'i' }], 'x')).not.toThrow();
+    });
+
+    it('refuses surplus operands without echoing them, and an operand beside the flag it stands for', () => {
+        const run = (argv: string[], rule: { max: number; for?: string[] }): string => {
+            try { assertOperands(parseArgs(argv, new Set()), rule, 'p12 open'); return ''; } catch (e) { return (e as Error).message; }
+        };
+        expect(run(['a.p12', 'hunter2'], { max: 1, for: ['input'] })).toBe('"p12 open" takes at most 1 argument, got 2. Run pkinative p12 open --help.');
+        expect(run(['x'], { max: 0 })).toMatch(/takes no arguments, got 1/);
+        expect(run(['a', 'b', 'c'], { max: 2 })).toMatch(/at most 2 arguments, got 3/);
+        expect(run(['a.p12', '--input', 'b.p12'], { max: 1, for: ['input'] })).toMatch(/given --input and an argument/);
+        expect(run(['a.p12'], { max: 1, for: ['input'] })).toBe('');
+        expect(run(['--input', 'b.p12'], { max: 1, for: ['input'] })).toBe('');
+        expect(run(['a', 'b'], { max: Number.POSITIVE_INFINITY })).toBe('');
     });
 });

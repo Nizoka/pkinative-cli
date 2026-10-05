@@ -69,8 +69,8 @@ export async function explain(ctx: Ctx): Promise<void> {
         emitReport(ctx, { codes: rows }, () => rows.map((e) => `${e.code.padEnd(44)} ${e.kind}`).join('\n'), () => ({ codes: rows.map((e) => e.code) }));
         return;
     }
-    const [code, ...extra] = ctx.args.positionals;
-    if (code === undefined || extra.length > 0) throw usageError('explain takes one code, e.g. pkinative explain PKI_ASN1_TRUNCATED, or --list.');
+    const [code] = ctx.args.positionals;
+    if (code === undefined) throw usageError('explain takes one code, e.g. pkinative explain PKI_ASN1_TRUNCATED, or --list.');
     const entry = all.find((e) => e.code === code.toUpperCase());
     if (entry === undefined) throw new CliError(`Unknown code "${code}": run pkinative explain --list.`, 1, ErrorCode.NOT_FOUND);
     emitReport(ctx, entry, () => `${entry.code}\n${render(entry)}`);

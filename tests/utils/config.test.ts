@@ -20,18 +20,18 @@ describe('loadConfig', () => {
     });
 
     it('layers global, command and subcommand sections, found upward', () => {
-        const dir = withConfig(JSON.stringify({ pretty: true, encoding: 'der', 'no-color': true, fields: ['a', 1], cert: { encoding: 'pem', format: 'json' }, 'cert inspect': { format: 'text' }, chain: { pretty: false } }));
+        const dir = withConfig(JSON.stringify({ pretty: true, encoding: 'der', 'no-color': true, fields: 'a,b', cert: { encoding: 'pem', format: 'json' }, 'cert inspect': { format: 'text' }, chain: { pretty: false } }));
         const nested = join(dir, 'a', 'b');
         mkdirSync(nested, { recursive: true });
         const loaded = loadConfig('cert', 'inspect', COMMANDS, undefined, nested);
         expect(loaded.path).toBe(join(dir, CONFIG_FILENAME));
-        expect(loaded.defaults).toEqual({ pretty: true, encoding: 'pem', 'no-color': true, fields: ['a', '1'], format: 'text' });
+        expect(loaded.defaults).toEqual({ pretty: true, encoding: 'pem', 'no-color': true, fields: 'a,b', format: 'text' });
         expect(loadConfig('cert', 'create', COMMANDS, undefined, nested).defaults['format']).toBe('json');
         expect(loadConfig('chain', undefined, COMMANDS, undefined, dir).defaults['pretty']).toBe(false);
     });
 
     it('drops values that cannot be flags', () => {
-        const dir = withConfig(JSON.stringify({ json: null, pretty: { x: 1 }, fields: [{}], encoding: Number.MAX_VALUE * 0, cert: { quiet: null } }));
+        const dir = withConfig(JSON.stringify({ json: null, pretty: { x: 1 }, fields: ['a', 1], encoding: Number.MAX_VALUE * 0, cert: { quiet: null } }));
         expect(loadConfig('cert', undefined, COMMANDS, undefined, dir).defaults).toEqual({ encoding: '0' });
     });
 

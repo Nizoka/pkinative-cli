@@ -16,6 +16,16 @@ describe('secrets', () => {
             expect(() => assertNoLiteralPassword(args([f, 'x']))).toThrow(/visible to every process/);
         }
         expect(() => assertNoLiteralPassword(args(['--password-file', 'f']))).not.toThrow();
+        expect(() => assertNoLiteralPassword(args(['--password-stdin']))).not.toThrow();
+    });
+
+    it('refuses a value given to --password-stdin, without echoing it (audit A-19)', () => {
+        for (const argv of [['--password-stdin=hunter2'], ['--password-stdin=a', '--password-stdin=b']]) {
+            let message = '';
+            try { assertNoLiteralPassword(args(argv)); } catch (e) { message = (e as Error).message; }
+            expect(message).toMatch(/takes no value/);
+            expect(message).not.toContain('hunter2');
+        }
     });
 
     it('reads the first line of a password file', async () => {
@@ -37,7 +47,12 @@ describe('secrets', () => {
 
     it('refuses two sources, and --password-stdin when stdin carries the input', async () => {
         await expect(readPassword(memoryIo({ env: { [PASSWORD_ENV]: 'x' } }).io, args(['--password-stdin']), false)).rejects.toMatchObject({ code: 'E_USAGE' });
-        await expect(readPassword(memoryIo().io, args(['--password-stdin']), true)).rejects.toThrow(/cannot be used when the input/);
+        await expect(readPassword(memoryIo().io, args(['--password-stdin']), true)).rejects.toThrow(/cannot come from stdin/);
+        // stdin claimed by any input flag or operand, also for a '-' password file (audit A-08).
+        for (const argv of [['--password-stdin', '--content', '-'], ['--password-file', '-', '--chain', 'a', '--chain', '-'], ['--password-file', '-', '-']]) {
+            await expect(readPassword(memoryIo().io, args(argv), false), argv.join(' ')).rejects.toThrow(/cannot come from stdin/);
+        }
+        await expect(readPassword(memoryIo({ stdin: 'pw' }).io, args(['--password-stdin', '--chain', 'a', '--chain', 'b']), false)).resolves.toBe('pw');
     });
 });
 
@@ -50,10 +65,12 @@ describe('time', () => {
         expect(parseInstant('2027-01-01T10:00:00+02:00', 'at')).toBe(Date.UTC(2027, 0, 1, 8));
         expect(parseInstant('2027-01-01T10:00:00Z', 'at')).toBe(Date.UTC(2027, 0, 1, 10));
         expect(typeof parseInstant('now', 'at')).toBe('number');
+        expect(parseInstant('2028-02-29T23:59:59.5z', 'at')).toBe(Date.UTC(2028, 1, 29, 23, 59, 59, 500));
+        expect(parseInstant('2027-01-01T10:00', 'at')).toBe(Date.UTC(2027, 0, 1, 10));
     });
 
     it('refuses anything else', () => {
-        for (const bad of ['tomorrow', '2027-13-45T99:00', '99999999999999999999', '']) {
+        for (const bad of ['tomorrow', '2027-13-45T99:00', '99999999999999999999', '', '2027-02-31T00:00:00Z', '2027-04-31', '2028-02-30', '2027-01-01T24:00:00Z', '2027-01-01T10:60:00', '2027-01-01T10:00:60Z', '2027-00-10', '2027-01-00', '2027-01-01 10:00', '2027-01-01T10']) {
             expect(() => parseInstant(bad, 'at')).toThrow(/--at expects/);
         }
         expect(formatInstant(0)).toBe('1970-01-01T00:00:00.000Z');

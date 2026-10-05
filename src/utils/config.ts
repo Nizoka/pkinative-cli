@@ -62,12 +62,10 @@ function readBounded(path: string): Buffer {
     }
 }
 
+/** A presentation key takes one value: a string, a boolean or a finite number. */
 function coerce(value: unknown): FlagValue | undefined {
     if (typeof value === 'string' || typeof value === 'boolean') return value;
     if (typeof value === 'number' && Number.isFinite(value)) return String(value);
-    if (Array.isArray(value) && value.every((v) => typeof v === 'string' || typeof v === 'number')) {
-        return value.map(String);
-    }
     return undefined;
 }
 

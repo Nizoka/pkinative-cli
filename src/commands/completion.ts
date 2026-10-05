@@ -125,8 +125,8 @@ ${cases}
 }
 
 export async function completion(ctx: Ctx): Promise<void> {
-    const [shell, ...extra] = ctx.args.positionals;
-    if (shell === undefined || extra.length > 0) throw usageError('completion takes one shell: bash, zsh, fish or powershell.');
+    const [shell] = ctx.args.positionals;
+    if (shell === undefined) throw usageError('completion takes one shell: bash, zsh, fish or powershell.');
     const scripts: Readonly<Record<string, () => string>> = { bash, zsh, fish, powershell, pwsh: powershell };
     const build = scripts[shell];
     if (build === undefined) throw usageError(`Unsupported shell "${shell}": bash, zsh, fish or powershell.`);

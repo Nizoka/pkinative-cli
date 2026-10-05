@@ -180,6 +180,47 @@ export function getIntFlag(flags: ParsedArgs['flags'], name: string, min = 0, ma
     return value;
 }
 
+/**
+ * Refuse a value flag given twice when the registry does not declare it
+ * repeatable, and a flag given under both its name and its alias: the second
+ * value would otherwise be dropped silently, and a verdict would depend on
+ * the order of the flags (audit A-11).
+ */
+export function assertSingleValues(
+    flags: ParsedArgs['flags'],
+    repeatable: ReadonlySet<string>,
+    aliased: ReadonlyArray<{ readonly name: string; readonly alias?: string }>,
+    command: string,
+): void {
+    for (const [name, value] of Object.entries(flags)) {
+        if (Array.isArray(value) && !repeatable.has(name)) {
+            throw usageError(`--${name} is given ${value.length} times for "${command}"; it takes one value.`);
+        }
+    }
+    for (const f of aliased) {
+        if (flags[f.name] !== undefined && flags[f.alias as string] !== undefined) {
+            throw usageError(`--${f.name} and -${f.alias as string} are the same flag; give it once.`);
+        }
+    }
+}
+
+/**
+ * Refuse positionals beyond what the invocation takes, and an operand given
+ * together with the flag it stands for. The values are never echoed: a stray
+ * positional may be a secret typed in the wrong place.
+ */
+export function assertOperands(args: ParsedArgs, rule: { readonly max: number; readonly for?: readonly string[] }, command: string): void {
+    const n = args.positionals.length;
+    if (n > rule.max) {
+        const most = rule.max === 0 ? 'no arguments' : `at most ${rule.max} argument${rule.max === 1 ? '' : 's'}`;
+        throw usageError(`"${command}" takes ${most}, got ${n}. Run pkinative ${command} --help.`);
+    }
+    const flag = (rule.for ?? []).find((name) => args.flags[name] !== undefined);
+    if (n > 0 && flag !== undefined) {
+        throw usageError(`"${command}" was given --${flag} and an argument for the same input; give it once.`);
+    }
+}
+
 /** Refuse flags that no command or global table declares. */
 export function assertKnownFlags(flags: ParsedArgs['flags'], known: ReadonlySet<string>, command: string): void {
     for (const name of Object.keys(flags)) {

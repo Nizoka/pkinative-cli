@@ -16,10 +16,23 @@ export interface FlagSpec {
     readonly repeatable?: boolean;
 }
 
+/**
+ * The positional arguments an invocation takes. By default a subcommand that
+ * declares --input takes at most one, standing for that flag; any other takes
+ * none. An operand and the flag it stands for are never both given.
+ */
+export interface OperandSpec {
+    /** The most positionals accepted (Infinity for a list). */
+    readonly max: number;
+    /** The flags a single operand stands for. */
+    readonly for?: readonly string[];
+}
+
 export interface SubcommandSpec {
     readonly name: string;
     readonly summary: string;
     readonly flags: readonly FlagSpec[];
+    readonly operands?: OperandSpec;
 }
 
 export interface CommandSpec {
@@ -30,6 +43,8 @@ export interface CommandSpec {
     readonly subcommands: readonly SubcommandSpec[];
     /** The command's own flags when it has no subcommands. */
     readonly flags: readonly FlagSpec[];
+    /** The command's operands when it has no subcommands. */
+    readonly operands?: OperandSpec;
 }
 
 export type CommandGroup = 'Encodings' | 'Certificates' | 'Paths & revocation' | 'Signatures & time-stamps' | 'Keys' | 'Meta';
@@ -72,6 +87,8 @@ const signing: readonly FlagSpec[] = [
     { name: 'password-file', value: 'file' },
     { name: 'password-stdin' },
 ];
+/** Any number of positionals (dotted OIDs, path files). */
+const LIST: OperandSpec = { max: Number.POSITIVE_INFINITY };
 const chainFlag: FlagSpec = { name: 'chain', value: 'file', repeatable: true };
 const pathInputs: readonly FlagSpec[] = [
     { name: 'trust', value: 'file', repeatable: true },
@@ -92,10 +109,10 @@ export const COMMANDS: readonly CommandSpec[] = [
     },
     {
         name: 'oid', group: 'Encodings', summary: 'Name, encode, decode, validate and list object identifiers', flags: [], subcommands: [
-            { name: 'name', summary: 'The registered name of each OID', flags: [format] },
-            { name: 'encode', summary: 'Encode a dotted OID (content octets, or TLV)', flags: [{ name: 'tlv' }, { name: 'relative' }, ...artefact] },
+            { name: 'name', summary: 'The registered name of each OID', flags: [format], operands: LIST },
+            { name: 'encode', summary: 'Encode a dotted OID (content octets, or TLV)', flags: [{ name: 'tlv' }, { name: 'relative' }, ...artefact], operands: LIST },
             { name: 'decode', summary: 'Decode OID bytes (hex argument or --input file)', flags: [input, { name: 'tlv' }, { name: 'relative' }, format] },
-            { name: 'validate', summary: 'Check dotted OIDs; exit 1 when one is invalid', flags: [format] },
+            { name: 'validate', summary: 'Check dotted OIDs; exit 1 when one is invalid', flags: [format], operands: LIST },
             { name: 'list', summary: 'The OID registry, optionally filtered', flags: [{ name: 'filter', value: 'text' }, format] },
         ],
     },
@@ -119,18 +136,18 @@ export const COMMANDS: readonly CommandSpec[] = [
                     { name: 'reencode' }, ...artefact,
                 ],
             },
-            { name: 'encode', summary: 'Encode a JSON node spec to DER', flags: [{ name: 'spec', value: 'file' }, ...artefact, label] },
+            { name: 'encode', summary: 'Encode a JSON node spec to DER', flags: [{ name: 'spec', value: 'file' }, ...artefact, label], operands: { max: 1, for: ['spec'] } },
         ],
     },
     {
         name: 'cert', group: 'Certificates', summary: 'Inspect, create, encode, verify and check X.509 certificates', flags: [], subcommands: [
             { name: 'inspect', summary: 'Decode a certificate (one extension with --extension)', flags: [input, format, { name: 'raw-extensions' }, { name: 'extension', value: 'kind' }] },
             { name: 'create', summary: 'Issue a certificate from a JSON spec', flags: [{ name: 'spec', value: 'file' }, { name: 'issuer', value: 'file' }, { name: 'public-key', value: 'file' }, ...signing, ...artefact] },
-            { name: 'encode', summary: 'Encode one X.509 building block to DER', flags: [{ name: 'spec', value: 'file' }, ...signing, ...artefact] },
-            { name: 'decode-extension', summary: 'Decode an extension value by OID', flags: [{ name: 'oid', value: 'oid' }, { name: 'value', value: 'hex' }, input, { name: 'critical' }, format] },
+            { name: 'encode', summary: 'Encode one X.509 building block to DER', flags: [{ name: 'spec', value: 'file' }, ...signing, ...artefact], operands: { max: 1 } },
+            { name: 'decode-extension', summary: 'Decode an extension value by OID', flags: [{ name: 'oid', value: 'oid' }, { name: 'value', value: 'hex' }, input, { name: 'critical' }, format], operands: { max: 0 } },
             { name: 'verify-signature', summary: 'Verify a signature against its issuer (or itself)', flags: [input, { name: 'issuer', value: 'file' }, { name: 'allow-algorithm-mismatch' }, format] },
             { name: 'check-name', summary: 'Check a certificate against a host name or IP (RFC 6125)', flags: [input, { name: 'host', value: 'name' }, { name: 'ip', value: 'address' }, chainFlag, { name: 'allow-cn-fallback' }, { name: 'no-wildcards' }, format] },
-            { name: 'match-name', summary: 'Match a presented DNS name against a reference', flags: [{ name: 'no-wildcards' }, format] },
+            { name: 'match-name', summary: 'Match a presented DNS name against a reference', flags: [{ name: 'no-wildcards' }, format], operands: { max: 2 } },
             { name: 'check-purpose', summary: 'Check extended key usage along a path', flags: [input, chainFlag, { name: 'purpose', value: 'name|oid' }, { name: 'no-restrict-issuers' }, { name: 'require-explicit-purpose' }, format] },
         ],
     },
@@ -145,7 +162,7 @@ export const COMMANDS: readonly CommandSpec[] = [
         name: 'chain', group: 'Paths & revocation', summary: 'Verify, build and validate certification paths (RFC 5280)', flags: [], subcommands: [
             { name: 'verify', summary: 'One-call verdict: path, signatures, name, purpose, revocation', flags: [input, ...pathInputs, { name: 'untrusted', value: 'file', repeatable: true }, { name: 'host', value: 'name' }, { name: 'ip', value: 'address' }, { name: 'crl', value: 'file', repeatable: true }, { name: 'ocsp', value: 'file', repeatable: true }, { name: 'ocsp-nonce', value: 'hex' }, { name: 'require-ocsp-nonce' }, { name: 'require-revocation' }, format] },
             { name: 'build', summary: 'Find a path from the leaf to a trust anchor', flags: [input, ...pathInputs, { name: 'untrusted', value: 'file', repeatable: true }, format] },
-            { name: 'validate', summary: 'Validate a given path, leaf first, signatures included', flags: [{ name: 'path', value: 'file', repeatable: true }, ...pathInputs, { name: 'no-signatures' }, format] },
+            { name: 'validate', summary: 'Validate a given path, leaf first, signatures included', flags: [{ name: 'path', value: 'file', repeatable: true }, ...pathInputs, { name: 'no-signatures' }, format], operands: LIST },
         ],
     },
     {
@@ -158,8 +175,8 @@ export const COMMANDS: readonly CommandSpec[] = [
     },
     {
         name: 'ocsp', group: 'Paths & revocation', summary: 'Build OCSP requests and judge OCSP responses (RFC 6960)', flags: [], subcommands: [
-            { name: 'request', summary: 'Build an OCSP request for a certificate', flags: [{ name: 'cert', value: 'file' }, { name: 'issuer', value: 'file' }, { name: 'hash', value: 'SHA-1|SHA-256' }, { name: 'nonce', value: 'hex|random' }, ...artefact] },
-            { name: 'cert-id', summary: 'Encode the CertID of a certificate', flags: [{ name: 'cert', value: 'file' }, { name: 'issuer', value: 'file' }, { name: 'hash', value: 'SHA-1|SHA-256' }, ...artefact] },
+            { name: 'request', summary: 'Build an OCSP request for a certificate', flags: [{ name: 'cert', value: 'file' }, { name: 'issuer', value: 'file' }, { name: 'hash', value: 'SHA-1|SHA-256' }, { name: 'nonce', value: 'hex|random' }, ...artefact], operands: { max: 1, for: ['cert'] } },
+            { name: 'cert-id', summary: 'Encode the CertID of a certificate', flags: [{ name: 'cert', value: 'file' }, { name: 'issuer', value: 'file' }, { name: 'hash', value: 'SHA-1|SHA-256' }, ...artefact], operands: { max: 1, for: ['cert'] } },
             { name: 'inspect', summary: 'Decode an OCSP response', flags: [input, format] },
             { name: 'verify-signature', summary: 'Verify the responder signature', flags: [input, { name: 'responder', value: 'file' }, format] },
             { name: 'check', summary: 'Decide a certificate status from an OCSP response', flags: [input, { name: 'cert', value: 'file' }, { name: 'issuer', value: 'file' }, { name: 'responder', value: 'file' }, { name: 'responder-trusted' }, { name: 'hash', value: 'SHA-1|SHA-256' }, { name: 'nonce', value: 'hex' }, { name: 'require-nonce' }, { name: 'at', value: 'instant' }, { name: 'stale-tolerance', value: 'ms' }, { name: 'future-tolerance', value: 'ms' }, format] },
@@ -179,7 +196,7 @@ export const COMMANDS: readonly CommandSpec[] = [
         name: 'tsp', group: 'Signatures & time-stamps', summary: 'RFC 3161 time-stamp requests, tokens and verdicts', flags: [], subcommands: [
             { name: 'request', summary: 'Build a time-stamp request', flags: [{ name: 'data', value: 'file' }, { name: 'digest', value: 'hex' }, { name: 'hash', value: 'SHA-256|SHA-384|SHA-512' }, { name: 'nonce', value: 'n|random' }, { name: 'policy', value: 'oid' }, { name: 'no-cert-req' }, ...artefact] },
             { name: 'inspect', summary: 'Decode a response, a token or a TSTInfo', flags: [input, { name: 'as', value: 'response|token|tstinfo' }, format] },
-            { name: 'verify', summary: 'Verify a time-stamp token or response', flags: [{ name: 'token', value: 'file' }, { name: 'response', value: 'file' }, { name: 'request', value: 'file' }, { name: 'data', value: 'file' }, { name: 'digest', value: 'hex' }, { name: 'trust', value: 'file', repeatable: true }, { name: 'untrusted', value: 'file', repeatable: true }, { name: 'crl', value: 'file', repeatable: true }, { name: 'ocsp', value: 'file', repeatable: true }, { name: 'require-revocation' }, { name: 'at', value: 'instant' }, { name: 'allow-noncritical-eku' }, format] },
+            { name: 'verify', summary: 'Verify a time-stamp token or response', flags: [{ name: 'token', value: 'file' }, { name: 'response', value: 'file' }, { name: 'request', value: 'file' }, { name: 'data', value: 'file' }, { name: 'digest', value: 'hex' }, { name: 'trust', value: 'file', repeatable: true }, { name: 'untrusted', value: 'file', repeatable: true }, { name: 'crl', value: 'file', repeatable: true }, { name: 'ocsp', value: 'file', repeatable: true }, { name: 'require-revocation' }, { name: 'at', value: 'instant' }, { name: 'allow-noncritical-eku' }, format], operands: { max: 1, for: ['response', 'token'] } },
         ],
     },
     {
@@ -198,9 +215,9 @@ export const COMMANDS: readonly CommandSpec[] = [
     },
     { name: 'doctor', group: 'Meta', summary: 'Offline preflight: Node.js floor, pkinative, Web Crypto', subcommands: [], flags: [format] },
     { name: 'limits', group: 'Meta', summary: 'The 22 pkinative security bounds: flags, defaults, effective', subcommands: [], flags: [format] },
-    { name: 'explain', group: 'Meta', summary: 'Explain any E_*, PKI_*, PKI_REASON_* or PKI_DIAG_* code', subcommands: [], flags: [{ name: 'list' }, { name: 'kind', value: 'error|reason|diagnostic|cli' }, format] },
-    { name: 'schema', group: 'Meta', summary: 'JSON Schemas, the capability manifest, the error catalogue', subcommands: [], flags: [] },
-    { name: 'completion', group: 'Meta', summary: 'Shell completion script (bash, zsh, fish, powershell)', subcommands: [], flags: [] },
+    { name: 'explain', group: 'Meta', summary: 'Explain any E_*, PKI_*, PKI_REASON_* or PKI_DIAG_* code', subcommands: [], flags: [{ name: 'list' }, { name: 'kind', value: 'error|reason|diagnostic|cli' }, format], operands: { max: 1 } },
+    { name: 'schema', group: 'Meta', summary: 'JSON Schemas, the capability manifest, the error catalogue', subcommands: [], flags: [], operands: { max: 1 } },
+    { name: 'completion', group: 'Meta', summary: 'Shell completion script (bash, zsh, fish, powershell)', subcommands: [], flags: [], operands: { max: 1 } },
 ];
 
 /** Every command name, in table order. */
@@ -241,4 +258,25 @@ export function knownFlags(command: CommandSpec, sub: string | undefined): Reado
         if (f.alias !== undefined) out.add(f.alias);
     }
     return out;
+}
+
+/** The flags that may be given several times (a repeatable flag has no alias: tests/docs/usage.test.ts). */
+export function repeatableFlags(command: CommandSpec, sub: string | undefined): ReadonlySet<string> {
+    const out = new Set<string>();
+    for (const f of [...GLOBAL_FLAGS, ...commandFlags(command, sub)]) {
+        if (f.repeatable === true) out.add(f.name);
+    }
+    return out;
+}
+
+/** The flag specs that carry an alias, so a flag and its alias are never both given. */
+export function aliasedFlags(command: CommandSpec, sub: string | undefined): readonly FlagSpec[] {
+    return [...GLOBAL_FLAGS, ...commandFlags(command, sub)].filter((f) => f.alias !== undefined);
+}
+
+/** The operand rule of an invocation (see OperandSpec). */
+export function operandRule(command: CommandSpec, sub: string | undefined): OperandSpec {
+    const spec = sub === undefined ? command.operands : (command.subcommands.find((s) => s.name === sub) as SubcommandSpec).operands;
+    if (spec !== undefined) return spec;
+    return commandFlags(command, sub).some((f) => f.name === 'input') ? { max: 1, for: ['input'] } : { max: 0 };
 }

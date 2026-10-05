@@ -28,6 +28,7 @@ The first release: the whole of [pkinative 1.0.0](https://github.com/Nizoka/pkin
 - **feat(security):** key and PKCS#12 reports are built from an allow-list; no report contains a private key byte, and signing keys are imported non-extractable (CWE-312).
 - **feat(security):** outputs are created exclusively and refuse a symbolic link; `--overwrite` replaces atomically; a file being written is removed on SIGINT or SIGTERM (CWE-59, CWE-367).
 - **feat(security):** every pkinative bound is reachable through a `--max-*` flag and every input is capped before it is read (CWE-400, CWE-770).
+- **feat(security):** the parser enforces the registry: a single-value flag given twice, a flag under both its names, a surplus argument, an argument beside `--input`, a value after `--password-stdin` and a date that does not exist are `E_USAGE` (never echoed), so no verdict depends on the order of the flags; a password is never read from stdin when an input is.
 - **feat(security):** `.pkinativerc.json` is presentation only: an allow-list of nine keys, every other key refused, so a file planted in a repository can never change an input, a trust anchor, the validation time, a tolerance, a bound or an output; the applied file is named in the envelope ([ADR 0007](docs/adr/0007-configuration-is-presentation-only.md); CWE-15, CWE-807).
 - **feat(security):** no network access, no key generation, no PKCS#8 or PKCS#12 writer, no legacy PKCS#12 scheme and no default RSA scheme — the engine's refusals, kept ([ADR 0004](docs/adr/0004-offline-and-inherited-refusals.md)).
 
