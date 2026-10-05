@@ -87,10 +87,11 @@ failures `{ ok: false, command, error: { code, message, pkiCode?, detail?, remed
 | `samples/**/*.sh`, `samples/**/*.ps1`, `samples/inputs/` | `npm run samples:generate` |
 | `tests/regression/baselines/samples.sha256.json` | `npm run build && npx tsx scripts/verify-samples.ts --update` — only with the reason in the release note |
 | `docs/data/errors.json`, `docs/data/package-files.json`, the generated sections of `docs/KNOWLEDGE_BASE.md` | `npm run docs:build` |
+| `src/generated/report-schemas.ts` (every report, `--summary` and status schema) | `npm run schemas:build` (drift fails `verify:docs`) |
 
 ## Counts and versions
 
-18 commands, 53 invocations (commands and subcommands), 13 error classes, 294 engine exports reached, 22 limit flags, 9 schema subjects, 57 pinned samples.
+18 commands, 53 invocations (commands and subcommands), 13 error classes, 294 engine exports reached, 22 limit flags, 12 schema subjects, 57 pinned samples.
 `npm run verify:docs` holds every count quoted in the docs to the source. Coverage: 100 % on statements, branches, functions and lines, never lowered.
 Engine: pkinative 1.0.0 (`^1.0.0`); Node.js `^22.22.2 || ^24.14.1 || >=25.8.2` (CVE-2026-21713).
 

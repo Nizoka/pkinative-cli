@@ -31,6 +31,7 @@ import {
     type PkiReason,
     type ServerIdentity,
 } from '../core-bridge/index.js';
+import { CERT_ENCODE_STRUCTURES } from './registry.js';
 import { parseOptions, type Ctx } from '../context.js';
 import { getStringFlag, getStringFlagAll, hasFlag } from '../utils/args.js';
 import { CliError, ErrorCode, usageError } from '../utils/error.js';
@@ -224,16 +225,10 @@ async function create(ctx: Ctx): Promise<void> {
     await emitArtifact(ctx, der, { label: 'CERTIFICATE', defaultEncoding: 'pem' });
 }
 
-export const ENCODE_STRUCTURES = [
-    'name', 'name-attribute', 'validity', 'spki', 'algorithm-identifier', 'attribute', 'extension', 'extensions',
-    'basic-constraints', 'key-usage', 'extended-key-usage', 'subject-alt-name', 'subject-key-identifier',
-    'authority-key-identifier', 'signature-algorithm',
-] as const;
-
 async function encodeStructure(ctx: Ctx): Promise<void> {
     const [structure] = ctx.args.positionals;
-    if (structure === undefined || !(ENCODE_STRUCTURES as readonly string[]).includes(structure)) {
-        throw usageError(`cert encode takes one structure: ${ENCODE_STRUCTURES.join(', ')}.`);
+    if (structure === undefined || !(CERT_ENCODE_STRUCTURES as readonly string[]).includes(structure)) {
+        throw usageError(`cert encode takes one structure: ${CERT_ENCODE_STRUCTURES.join(', ')}.`);
     }
     if (structure === 'signature-algorithm') {
         const loaded = await loadSigner(ctx, { stdinTaken: false });
@@ -247,38 +242,50 @@ async function encodeStructure(ctx: Ctx): Promise<void> {
         if (!isSpec(spec)) throw specError('$', 'expected a JSON object');
         return spec;
     };
+    // Required members are checked here, with the spec path in the message, so a
+    // missing "algorithm" is E_INPUT and never the engine's "undefined is not an
+    // OID" (audit B-05); `pkinative schema cert-encode-spec` documents them.
+    const oidMember = (s: Readonly<Record<string, unknown>>, key: string): string => {
+        const v = s[key];
+        if (typeof v !== 'string' || !/^\d+(\.\d+)+$/.test(v)) throw specError(key, 'expected a dotted OID string');
+        return v;
+    };
     const der = guard(`Cannot encode the ${structure}`, () => {
         switch (structure) {
             case 'name': return encodeDistinguishedName(parseNameSpec(spec, 'spec $'), { limits: ctx.opts.limits });
             case 'name-attribute': return encodeNameAttribute(parseNameAttribute(spec, 'spec $'));
             case 'validity': {
+                // An encoded Validity names its own start: no implicit 'now'.
+                if (obj()['notBefore'] === undefined) throw specError('notBefore', 'required: the start of the validity period');
                 const v = validity(obj());
                 return encodeValidity(v.notBefore, v.notAfter);
             }
             case 'spki': {
                 const s = obj();
                 const params = s['parameters'] === undefined ? undefined : hexValue(s['parameters'], 'parameters');
-                return encodeSubjectPublicKeyInfo(String(s['algorithm']), hexValue(s['publicKey'], 'publicKey'), params);
+                return encodeSubjectPublicKeyInfo(oidMember(s, 'algorithm'), hexValue(s['publicKey'], 'publicKey'), params);
             }
             case 'algorithm-identifier': {
                 const s = obj();
-                return s['parameters'] === undefined ? encodeAlgorithmIdentifier(String(s['oid'])) : encodeAlgorithmIdentifier(String(s['oid']), hexValue(s['parameters'], 'parameters'));
+                return s['parameters'] === undefined ? encodeAlgorithmIdentifier(oidMember(s, 'oid')) : encodeAlgorithmIdentifier(oidMember(s, 'oid'), hexValue(s['parameters'], 'parameters'));
             }
             case 'attribute': {
                 const s = obj();
                 const values = s['values'];
                 if (!Array.isArray(values)) throw specError('values', 'expected an array of hex strings');
-                return encodeAttribute(String(s['oid']), values.map((v: unknown, i) => hexValue(v, `values[${i}]`)));
+                return encodeAttribute(oidMember(s, 'oid'), values.map((v: unknown, i) => hexValue(v, `values[${i}]`)));
             }
             case 'extension': {
                 const s = obj();
-                return encodeExtension({ oid: String(s['oid']), critical: s['critical'] === true, value: hexValue(s['value'], 'value') });
+                return encodeExtension({ oid: oidMember(s, 'oid'), critical: s['critical'] === true, value: hexValue(s['value'], 'value') });
             }
             case 'extensions': return encodeExtensions(buildExtensions(spec, { subjectKeyBits: new Uint8Array(), issuerKeyId: undefined, defaults: { ski: false, aki: false } }), { limits: ctx.opts.limits });
             case 'basic-constraints': {
                 const s = obj();
                 const pathLen = s['pathLen'];
-                return encodeBasicConstraints({ cA: s['ca'] === true, ...(typeof pathLen === 'number' ? { pathLenConstraint: pathLen } : {}) });
+                if (typeof s['ca'] !== 'boolean') throw specError('ca', 'expected a boolean');
+                if (pathLen !== undefined && (typeof pathLen !== 'number' || !Number.isSafeInteger(pathLen) || pathLen < 0)) throw specError('pathLen', 'expected a non-negative integer');
+                return encodeBasicConstraints({ cA: s['ca'], ...(typeof pathLen === 'number' ? { pathLenConstraint: pathLen } : {}) });
             }
             case 'key-usage': return encodeKeyUsage(keyUsages(stringList(spec), '$'));
             case 'extended-key-usage': return encodeExtendedKeyUsage(stringList(spec).map((p) => purposeOid(p, '$')));

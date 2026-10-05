@@ -10,6 +10,7 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, normalize, relative, resolve } from 'node:path';
 import { COMMANDS } from '../src/commands/registry.ts';
+import { SUBJECTS } from '../src/commands/schema.ts';
 import { ERROR_CODES } from '../src/utils/error.ts';
 import { LIMIT_FLAG_NAMES } from '../src/utils/limits.ts';
 import { expectedRules, RULES_DIR } from './build-claude-rules.ts';
@@ -72,7 +73,9 @@ export const FIGURES: ReadonlyArray<{ readonly what: string; readonly value: num
     { what: 'diagnostics', value: countOf('docs/data/pkinative/diagnostics.json', 'diagnostics'), phrases: [/\b(\d+) (?:`?PKI_DIAG_\*`? )?diagnostics\b/g] },
     { what: 'limits', value: LIMIT_FLAG_NAMES.length, phrases: [/\b(\d+) (?:pkinative )?(?:security )?bounds\b/g, /\b(\d+) limits\b/g] },
     { what: 'engine CHANGELOG bullets', value: readJson<{ items: unknown[] }>('tests/regression/engine-surface.json').items.length, phrases: [/\b(\d+) bullets\b/g] },
-    { what: 'samples', value: SAMPLES.length, phrases: [/\b(\d+) samples\b/g] },
+    { what: 'samples', value: SAMPLES.length, phrases: [/\b(\d+) samples\b/g, /\b(\d+) pinned samples\b/g] },
+    { what: 'invocations', value: COMMANDS.reduce((n, c) => n + Math.max(1, c.subcommands.length), 0), phrases: [/\b(\d+) invocations\b/g] },
+    { what: 'schema subjects', value: SUBJECTS.length, phrases: [/\b(\d+) schema subjects\b/g] },
 ];
 
 /** Files whose figures describe the current release (history is left alone). */
@@ -113,8 +116,10 @@ function generated(): string[] {
     for (const [path, text] of Object.entries(expected)) {
         if (!existsSync(join(ROOT, path)) || read(path) !== text) out.push(`${path} is stale: run npm run docs:build / npm run surface:build`);
     }
-    const engine = spawnSync(process.execPath, ['--import', 'tsx', 'scripts/build-engine-surface.ts', '--check'], { cwd: ROOT, encoding: 'utf8', windowsHide: true });
-    if (engine.status !== 0) out.push(engine.stderr.trim() || 'scripts/build-engine-surface.ts --check failed');
+    for (const script of ['scripts/build-engine-surface.ts', 'scripts/build-report-schemas.ts']) {
+        const run = spawnSync(process.execPath, ['--import', 'tsx', script, '--check'], { cwd: ROOT, encoding: 'utf8', windowsHide: true });
+        if (run.status !== 0) out.push(run.stderr.trim() || `${script} --check failed`);
+    }
     for (const [name, text] of Object.entries(expectedRules(ROOT))) {
         const path = `${RULES_DIR}/${name}`;
         if (!existsSync(join(ROOT, path)) || read(path) !== text) out.push(`${path} is out of sync with .github/instructions: run npm run agents:rules`);
@@ -296,7 +301,7 @@ function adrs(): string[] {
 }
 
 export const RULES: readonly Rule[] = [
-    { id: 'generated', holds: 'errors.json, the knowledge-base tables, core-exports.json, engine-surface.json and .claude/rules equal their generators', check: generated },
+    { id: 'generated', holds: 'errors.json, the knowledge-base tables, core-exports.json, engine-surface.json, the report schemas and .claude/rules equal their generators', check: generated },
     { id: 'commands', holds: 'README headings and table, knowledge base, usage text and samples cover every registry command and subcommand', check: commands },
     { id: 'samples', holds: 'samples/ equals the rendering of the sample plan, with nothing extra', check: samples },
     { id: 'figures', holds: 'every count quoted in the docs equals its source', check: figures },

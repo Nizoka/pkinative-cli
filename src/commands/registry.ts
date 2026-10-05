@@ -87,6 +87,13 @@ const signing: readonly FlagSpec[] = [
     { name: 'password-file', value: 'file' },
     { name: 'password-stdin' },
 ];
+/** The building blocks `cert encode <structure>` encodes; `pkinative schema cert-encode-spec` describes each spec. */
+export const CERT_ENCODE_STRUCTURES = [
+    'name', 'name-attribute', 'validity', 'spki', 'algorithm-identifier', 'attribute', 'extension', 'extensions',
+    'basic-constraints', 'key-usage', 'extended-key-usage', 'subject-alt-name', 'subject-key-identifier',
+    'authority-key-identifier', 'signature-algorithm',
+] as const;
+
 /** Any number of positionals (dotted OIDs, path files). */
 const LIST: OperandSpec = { max: Number.POSITIVE_INFINITY };
 const chainFlag: FlagSpec = { name: 'chain', value: 'file', repeatable: true };
@@ -216,7 +223,7 @@ export const COMMANDS: readonly CommandSpec[] = [
     { name: 'doctor', group: 'Meta', summary: 'Offline preflight: Node.js floor, pkinative, Web Crypto', subcommands: [], flags: [format] },
     { name: 'limits', group: 'Meta', summary: 'The 22 pkinative security bounds: flags, defaults, effective', subcommands: [], flags: [format] },
     { name: 'explain', group: 'Meta', summary: 'Explain any E_*, PKI_*, PKI_REASON_* or PKI_DIAG_* code', subcommands: [], flags: [{ name: 'list' }, { name: 'kind', value: 'error|reason|diagnostic|cli' }, format], operands: { max: 1 } },
-    { name: 'schema', group: 'Meta', summary: 'JSON Schemas, the capability manifest, the error catalogue', subcommands: [], flags: [], operands: { max: 1 } },
+    { name: 'schema', group: 'Meta', summary: 'JSON Schemas, the capability manifest, the error catalogue', subcommands: [], flags: [], operands: { max: 3 } },
     { name: 'completion', group: 'Meta', summary: 'Shell completion script (bash, zsh, fish, powershell)', subcommands: [], flags: [], operands: { max: 1 } },
 ];
 

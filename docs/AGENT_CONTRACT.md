@@ -1,7 +1,7 @@
 # Agent contract
 
 How a program — a CI step, a script, an AI agent — drives pkinative-cli. Everything here is stable across 1.x; fields are only ever added.
-Machine forms: `pkinative schema manifest`, `pkinative schema status`, `pkinative schema error`, `pkinative schema errors`.
+Machine forms: `pkinative schema manifest`, `pkinative schema status`, `pkinative schema error`, `pkinative schema errors`, and for every invocation `pkinative schema report <command> [<subcommand>]` and `pkinative schema summary …`.
 
 ## 1. Streams and exit codes
 
@@ -37,7 +37,7 @@ Failure:
 | `diagnostics` | always | Every `PkiDiagnostic` the engine emitted: `{ code, severity, message, standard, path, offset? }` |
 | `config` | a config file supplied defaults | The `.pkinativerc.json` that did; it can only set presentation keys (ADR 0007) |
 
-Command-specific success fields (`valid`, `pathLength`, `output`, `bytes`, `encoding`, `nonce`, `count`, `dryRun`, …) are listed by `pkinative schema manifest` per command.
+Command-specific success fields (`valid`, `pathLength`, `output`, `bytes` — the DER length of an artefact, `encoding`, `nonce`, `count`, `dryRun`, …) are listed, with their JSON Schemas, by `pkinative schema manifest` under each invocation's `status`. The stdout report of every invocation is described by `pkinative schema report <command> [<subcommand>]`, its `--summary` shape by `pkinative schema summary …`; both are generated from the TypeScript types and held to every sample, and objects are open (fields are only ever added).
 
 ## 3. Error classes
 
@@ -78,7 +78,7 @@ The CLI adds nothing to an engine result except where it is a CLI view: `key` an
 - Time: `--at <ISO 8601 | epoch ms | now>`, UTC unless zoned. Pin it for reproducible verdicts.
 - Secrets: `PKINATIVE_PASSWORD`, `--password-file` or `--password-stdin` — never a flag value (refused, exit 2).
 - `--dry-run` validates every input and writes nothing.
-- Specs (`cert create`, `csr create`, `asn1 encode`, `cert encode`) are JSON files or stdin (`-`); their schemas: `pkinative schema cert-spec | csr-spec | asn1-spec`.
+- Specs (`cert create`, `csr create`, `asn1 encode`, `cert encode`) are JSON files or stdin (`-`); their schemas: `pkinative schema cert-spec | csr-spec | asn1-spec | cert-encode-spec` (one `$defs` entry per `cert encode` structure).
 
 ## 7. Recommended loop
 

@@ -353,6 +353,15 @@ describe('cert encode', () => {
         expect((await cli(['cert', 'encode', 'name'])).stderr).toMatch(/needs --spec/);
         expect((await enc('validity', [1])).stderr).toMatch(/expected a JSON object/);
         expect((await enc('attribute', { oid: '1.2', values: 'x' })).stderr).toMatch(/array of hex strings/);
+        // Required members are named, as E_INPUT, never the engine's "undefined" OID (audit B-05).
+        for (const [structure, spec, path] of [
+            ['spki', { publicKey: '00' }, 'algorithm'], ['algorithm-identifier', {}, 'oid'], ['attribute', { values: [] }, 'oid'],
+            ['extension', { oid: 'x', value: '00' }, 'oid'], ['basic-constraints', { ca: 'yes' }, 'ca'], ['basic-constraints', { ca: true, pathLen: -1 }, 'pathLen'],
+            ['basic-constraints', { ca: true, pathLen: 'x' }, 'pathLen'], ['validity', { notAfter: '2027-01-01T00:00:00Z' }, 'notBefore'],
+        ] as const) {
+            const r = await enc(structure, spec, ['--json']);
+            expect(envelope(r.stderr), `${structure} ${JSON.stringify(spec)}`).toMatchObject({ error: { code: 'E_INPUT', message: expect.stringContaining(`spec ${path}:`) } });
+        }
         expect((await enc('key-usage', { usages: [] })).stderr).toMatch(/array of strings/);
         expect((await enc('spki', { algorithm: '1.2', publicKey: 'zz' })).stderr).toMatch(/hexadecimal/);
     });

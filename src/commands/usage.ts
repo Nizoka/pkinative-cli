@@ -252,6 +252,7 @@ encode <structure>: name, name-attribute, validity, spki,
   algorithm-identifier, attribute, extension, extensions, basic-constraints,
   key-usage, extended-key-usage, subject-alt-name, subject-key-identifier,
   authority-key-identifier, signature-algorithm (from the signing key)
+  Members of each spec: pkinative schema cert-encode-spec ($defs/<structure>)
   --spec <file>             JSON value of the structure ("-" = stdin)
   --output, -o <file>       Output file      --encoding <pem|der|hex> (hex)
 
@@ -611,6 +612,8 @@ pkinative schema — The machine contract
 Usage:
   pkinative schema [list]
   pkinative schema <subject>
+  pkinative schema report <command> [<subcommand>]
+  pkinative schema summary <command> [<subcommand>]
 
 Subjects:
   manifest    Commands, flags, exit codes, error classes, the wire form
@@ -622,8 +625,14 @@ Subjects:
   cert-spec   JSON Schema of the cert create spec
   csr-spec    JSON Schema of the csr create spec
   config      JSON Schema of .pkinativerc.json
+  cert-encode-spec  JSON Schema of each cert encode spec ($defs/<structure>)
+  report      JSON Schema of the --json report of an invocation
+  summary     JSON Schema of its --summary shape
 
 JSON Schemas are draft 2020-12 with an $id versioned by the CLI release.
+Report and summary schemas are generated from the TypeScript types and held
+to every sample; the manifest lists each invocation's flags, operands,
+outputs and envelope status fields.
 `;
 
 const COMPLETION_USAGE = `\

@@ -137,7 +137,7 @@ Explains any code: the 13 `E_*` classes, and pkinative's 57 `PKI_*` errors (with
 
 ### `pkinative schema`
 
-The capability manifest, the error catalogue, the limits, and JSON Schemas (draft 2020-12) of the envelopes, the specs and the config file.
+The capability manifest (every invocation's flags, operands, outputs and envelope fields), the error catalogue, the limits, and JSON Schemas (draft 2020-12) of the envelopes, the specs, the config file and — generated from the code and held to every sample — the `--json` report and `--summary` shape of every invocation (`pkinative schema report cert inspect`).
 
 ### `pkinative completion`
 

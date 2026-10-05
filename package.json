@@ -39,6 +39,7 @@
     "verify:samples": "npx tsx scripts/verify-samples.ts",
     "surface:build": "npx tsx scripts/build-surface.ts && npx tsx scripts/build-engine-surface.ts",
     "docs:build": "npx tsx scripts/build-docs.ts",
+    "schemas:build": "npx tsx scripts/build-report-schemas.ts",
     "agents:rules": "npx tsx scripts/build-claude-rules.ts",
     "verify:docs": "npx tsx scripts/verify-docs.ts",
     "check:package": "npx tsx scripts/package-files.ts",

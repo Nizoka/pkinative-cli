@@ -3,14 +3,15 @@
 // capability manifest, the error catalogue and the limits.
 
 import type { Ctx } from '../context.js';
-import { ERROR_CODES, usageError } from '../utils/error.js';
+import { INVOCATIONS, REPORT_DEFS, type InvocationShape } from '../generated/report-schemas.js';
+import { CliError, ErrorCode, ERROR_CODES, usageError } from '../utils/error.js';
 import { effectiveLimits, LIMIT_FLAGS } from '../utils/limits.js';
 import { PKI_REMEDY, PKI_TO_CLI } from '../utils/pkierr.js';
 import { serializeJson } from '../utils/projection.js';
 import { CLI_VERSION, engineVersion } from '../utils/version.js';
 import { CONFIG_KEYS, isConfigKey } from '../utils/config.js';
 import { CLI_CODE_MEANING } from './explain.js';
-import { COMMANDS, GLOBAL_FLAGS, type FlagSpec } from './registry.js';
+import { COMMANDS, GLOBAL_FLAGS, operandRule, type CERT_ENCODE_STRUCTURES, type FlagSpec, type OperandSpec } from './registry.js';
 
 const DIALECT = 'https://json-schema.org/draft/2020-12/schema';
 const ID = (subject: string): string => `https://github.com/Nizoka/pkinative-cli/schema/${subject}/${CLI_VERSION}`;
@@ -128,8 +129,78 @@ function csrSpec(): object {
     };
 }
 
-function flagNames(flags: readonly FlagSpec[]): string[] {
-    return flags.map((f) => f.name);
+/** One schema per `cert encode <structure>` spec (audit B-05). */
+function certEncodeSpec(): object {
+    const obj = (properties: object, required: string[]): object => ({ type: 'object', required, additionalProperties: false, properties });
+    const keyId = obj({ keyIdentifier: hex }, ['keyIdentifier']);
+    const strings = { type: 'array', items: { type: 'string' } };
+    const structures: Record<(typeof CERT_ENCODE_STRUCTURES)[number], object> = {
+        'name': { $ref: '#/$defs/name' },
+        'name-attribute': obj({ type: { type: 'string', description: 'short name (CN, O, C, …) or dotted OID' }, value: { type: 'string' }, stringType: { enum: ['utf8', 'printable', 'ia5', 'numeric'] } }, ['type', 'value']),
+        'validity': { ...obj({ notBefore: instant, notAfter: instant, validityDays: { type: 'integer', minimum: 1 } }, ['notBefore']), not: { required: ['notAfter', 'validityDays'] }, description: 'notBefore, then notAfter or validityDays (default 365)' },
+        'spki': obj({ algorithm: oid, publicKey: hex, parameters: hex }, ['algorithm', 'publicKey']),
+        'algorithm-identifier': obj({ oid, parameters: hex }, ['oid']),
+        'attribute': obj({ oid, values: { type: 'array', items: hex } }, ['oid', 'values']),
+        'extension': obj({ oid, critical: { type: 'boolean' }, value: hex }, ['oid', 'value']),
+        'extensions': extensions,
+        'basic-constraints': obj({ ca: { type: 'boolean' }, pathLen: { type: 'integer', minimum: 0 } }, ['ca']),
+        'key-usage': { ...strings, description: 'key usage names, e.g. ["digitalSignature", "keyCertSign"]' },
+        'extended-key-usage': { ...strings, description: 'purpose names (serverAuth, …) or dotted OIDs' },
+        'subject-alt-name': generalNames,
+        'subject-key-identifier': keyId,
+        'authority-key-identifier': keyId,
+        'signature-algorithm': { not: {}, description: 'takes no --spec: the signer flags (--key or --p12, --rsa-scheme, --hash) decide it' },
+    };
+    return {
+        $schema: DIALECT, $id: ID('cert-encode-spec'), title: 'cert encode <structure> --spec',
+        description: 'One definition per structure: pkinative cert encode <structure> --spec <file> expects $defs/<structure>.',
+        $defs: { ...structures, name: nameSchema },
+    };
+}
+
+/** The named types `schema` references, closed over their own references. */
+function defsFor(root: unknown): Record<string, object> {
+    const out: Record<string, object> = {};
+    const visit = (node: unknown): void => {
+        if (Array.isArray(node)) {
+            node.forEach(visit);
+        } else if (node !== null && typeof node === 'object') {
+            for (const [key, value] of Object.entries(node)) {
+                if (key === '$ref' && typeof value === 'string') {
+                    const name = value.replace('#/$defs/', '');
+                    const def = REPORT_DEFS[name];
+                    if (def !== undefined && out[name] === undefined) {
+                        out[name] = def;
+                        visit(def);
+                    }
+                } else {
+                    visit(value);
+                }
+            }
+        }
+    };
+    visit(root);
+    return out;
+}
+
+/** `schema report <command> [<subcommand>]` and `schema summary …`: the generated shape of an invocation's stdout JSON. */
+function reportSchema(ctx: Ctx, kind: 'report' | 'summary'): object {
+    const invocation = ctx.args.positionals.slice(1).join(' ');
+    const shape = INVOCATIONS[invocation];
+    if (shape === undefined) {
+        throw usageError(`schema ${kind} takes an invocation, e.g. "schema ${kind} cert inspect" or "schema ${kind} fingerprint"; got "${invocation}".`);
+    }
+    const body = kind === 'report' ? shape.report : shape.summary;
+    if (body === undefined) {
+        throw new CliError(`"${invocation}" has no ${kind === 'report' ? 'JSON report' : '--summary shape'}: it prints ${shape.outputs.join(' or ')}.`, 1, ErrorCode.NOT_FOUND);
+    }
+    return {
+        $schema: DIALECT, $id: ID(`${kind}/${invocation.replace(' ', '/')}`),
+        title: `pkinative ${invocation} --json${kind === 'summary' ? ' --summary' : ''} (stdout)`,
+        description: 'Generated from the TypeScript types (scripts/build-report-schemas.ts), in the ADR 0018 wire form: bigint → decimal string, bytes → lowercase hex. Objects are open: fields are only ever added.',
+        ...body,
+        $defs: defsFor(body),
+    };
 }
 
 function configSchema(): object {
@@ -154,7 +225,8 @@ function configSchema(): object {
 function statusSchema(): object {
     return {
         $schema: DIALECT, $id: ID('status'), title: '--json success envelope (stderr)', type: 'object', required: ['ok', 'command', 'diagnostics'],
-        properties: { ok: { const: true }, command: { type: 'string' }, diagnostics: { type: 'array', items: { $ref: '#/$defs/diagnostic' } } },
+        description: 'The fields an invocation adds (valid, bytes, output, …) are listed per invocation by `pkinative schema manifest` (status) with their schemas.',
+        properties: { ok: { const: true }, command: { type: 'string' }, diagnostics: { type: 'array', items: { $ref: '#/$defs/diagnostic' } }, config: { type: 'string', description: 'the .pkinativerc.json that supplied defaults (ADR 0007)' } },
         additionalProperties: true,
         $defs: { diagnostic: { type: 'object', required: ['code', 'severity', 'message', 'standard', 'path'], properties: { code: { type: 'string' }, severity: { enum: ['warning', 'info'] }, message: { type: 'string' }, standard: { type: 'string' }, path: { type: 'string' }, offset: { type: 'integer' } } } },
     };
@@ -171,7 +243,24 @@ function errorSchema(): object {
                 properties: { code: errorCode, message: { type: 'string' }, pkiCode: { type: 'string', pattern: '^PKI_' }, detail: { type: 'object' }, remedy: { type: 'string' }, reasons: { type: 'array' } },
             },
             diagnostics: { type: 'array' },
+            config: { type: 'string', description: 'the .pkinativerc.json that supplied defaults (ADR 0007)' },
         },
+    };
+}
+
+/** One invocation as the manifest describes it: flags, operands, what stdout carries, the status fields. */
+function invocationEntry(name: string, summary: string, flags: readonly FlagSpec[], operands: OperandSpec, invocation: string): object {
+    // Every invocation has a shape: tests/regression/report-schemas.test.ts holds the two lists equal.
+    const shape = INVOCATIONS[invocation] as InvocationShape;
+    return {
+        name,
+        summary,
+        flags,
+        operands: { max: Number.isFinite(operands.max) ? operands.max : null, ...(operands.for !== undefined ? { for: operands.for } : {}) },
+        outputs: shape.outputs,
+        report: shape.report !== undefined,
+        summaryShape: shape.summary !== undefined,
+        status: shape.status,
     };
 }
 
@@ -189,9 +278,12 @@ export function manifest(): object {
             name: c.name,
             group: c.group,
             summary: c.summary,
-            ...(c.subcommands.length > 0 ? { subcommands: c.subcommands.map((s) => ({ name: s.name, summary: s.summary, flags: flagNames(s.flags) })) } : { flags: flagNames(c.flags) }),
+            ...(c.subcommands.length > 0
+                ? { subcommands: c.subcommands.map((s) => invocationEntry(s.name, s.summary, s.flags, operandRule(c, s.name), `${c.name} ${s.name}`)) }
+                : invocationEntry(c.name, c.summary, c.flags, operandRule(c, undefined), c.name)),
         })),
         schemas: SUBJECTS.filter((s) => s.kind === 'schema').map((s) => s.name),
+        reports: 'pkinative schema report <command> [<subcommand>]; pkinative schema summary <command> [<subcommand>]',
     };
 }
 
@@ -226,10 +318,14 @@ export const SUBJECTS: readonly Subject[] = [
     { name: 'cert-spec', kind: 'schema', summary: 'The cert create spec', build: () => certSpec() },
     { name: 'csr-spec', kind: 'schema', summary: 'The csr create spec', build: () => csrSpec() },
     { name: 'config', kind: 'schema', summary: 'The .pkinativerc.json file', build: () => configSchema() },
+    { name: 'cert-encode-spec', kind: 'schema', summary: 'The cert encode spec of each structure', build: () => certEncodeSpec() },
+    { name: 'report', kind: 'schema', summary: 'report <command> [<sub>]: the --json report on stdout', build: (ctx) => reportSchema(ctx, 'report') },
+    { name: 'summary', kind: 'schema', summary: 'summary <command> [<sub>]: the --summary shape', build: (ctx) => reportSchema(ctx, 'summary') },
 ];
 
 export async function schema(ctx: Ctx): Promise<void> {
     const [subject] = ctx.args.positionals;
+    if (subject !== 'report' && subject !== 'summary' && ctx.args.positionals.length > 1) throw usageError(`schema ${String(subject)} takes no further argument.`);
     if (subject === undefined || subject === 'list') {
         const rows = SUBJECTS.map((s) => ({ name: s.name, kind: s.kind, summary: s.summary }));
         ctx.io.stdout.write(ctx.opts.json ? serializeJson({ subjects: rows }, ctx.opts.pretty) + '\n' : rows.map((r) => `${r.name.padEnd(10)} ${r.kind.padEnd(9)} ${r.summary}`).join('\n') + '\n');

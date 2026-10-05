@@ -16,7 +16,7 @@ import { parseOptions, type Ctx } from '../context.js';
 import { getChoiceFlag, getStringFlag, hasFlag } from '../utils/args.js';
 import { CliError, ErrorCode, usageError } from '../utils/error.js';
 import { writeOutput } from '../utils/io.js';
-import { bagView, encryptionView, macView, signingKeyView } from '../utils/key-views.js';
+import { bagView, encryptionView, macView, signingKeyView, type BagView, type SigningKeyView } from '../utils/key-views.js';
 import { emitReport } from '../utils/output.js';
 import { UNVERIFIED_INTEGRITY_REMEDY, guard, guardAsync, pkcs12Failure } from '../utils/pkierr.js';
 import { readPkiBytes } from '../utils/pki-input.js';
@@ -52,8 +52,8 @@ async function inspect(ctx: Ctx): Promise<void> {
         })),
     };
     emitReport(ctx, view, () => [
-        `PKCS#12 v${view.version}, MAC: ${view.mac === null ? 'none' : `${String(view.mac['kind'])}, ${String(view.mac['iterations'])} iterations`}`,
-        ...view.contents.map((c) => `  ${c.path}: ${c.encrypted ? `encrypted (${String(c.encryption?.['scheme'])})` : `${c.bags.length} bag(s): ${c.bags.map((b) => String(b['kind'])).join(', ')}`}`),
+        `PKCS#12 v${view.version}, MAC: ${view.mac === null ? 'none' : `${view.mac.kind}, ${view.mac.iterations} iterations`}`,
+        ...view.contents.map((c) => `  ${c.path}: ${c.encrypted ? `encrypted (${String(c.encryption?.scheme)})` : `${c.bags.length} bag(s): ${c.bags.map((b) => b.kind).join(', ')}`}`),
     ].join('\n'));
 }
 
@@ -75,14 +75,14 @@ async function verifyMac(ctx: Ctx): Promise<void> {
 async function bags(ctx: Ctx): Promise<void> {
     const { pkcs12 } = await read(ctx);
     const pw = await password(ctx);
-    const opened: { path: string; encrypted: boolean; bags: Record<string, unknown>[] }[] = [];
+    const opened: { path: string; encrypted: boolean; bags: BagView[] }[] = [];
     for (const contents of pkcs12.contents) {
         const list = contents.encrypted ? await guardAsync(`Cannot open ${contents.path}`, () => openSafeContents(contents, pw, parseOptions(ctx))) : contents.bags;
         opened.push({ path: contents.path, encrypted: contents.encrypted, bags: list.map((b) => bagView(b, parseOptions(ctx))) });
     }
     emitReport(ctx, { contents: opened }, () => opened.flatMap((c) => c.bags.map((b) => {
-        const cert = b['certificate'] as { subject?: string } | undefined;
-        return `${String(b['path'])}: ${String(b['kind'])}${cert?.subject !== undefined ? ` ${cert.subject}` : ''}${typeof b['friendlyName'] === 'string' ? ` "${b['friendlyName']}"` : ''}`;
+        const subject = b.certificate !== undefined && 'subject' in b.certificate ? ` ${b.certificate.subject}` : '';
+        return `${b.path}: ${b.kind}${subject}${b.friendlyName !== undefined ? ` "${b.friendlyName}"` : ''}`;
     })).join('\n'));
 }
 
@@ -91,7 +91,21 @@ export function pemBundle(certificates: readonly Uint8Array[], crls: readonly Ui
     return [...certificates.map((c) => encodePem('CERTIFICATE', c)), ...crls.map((c) => encodePem('X509 CRL', c))].join('');
 }
 
-function openView(report: OpenPkcs12Report): Record<string, unknown> {
+export interface OpenView {
+    readonly valid: boolean;
+    readonly integrity: OpenPkcs12Report['integrity'];
+    readonly keys: readonly {
+        readonly path: string;
+        readonly friendlyName?: string;
+        readonly certificate?: string;
+        readonly signingKey: SigningKeyView | null;
+    }[];
+    readonly certificates: readonly { readonly subject: string; readonly serialNumber: string }[];
+    readonly crls: number;
+    readonly reasons: OpenPkcs12Report['reasons'];
+}
+
+function openView(report: OpenPkcs12Report): OpenView {
     return {
         valid: report.valid,
         integrity: report.integrity,

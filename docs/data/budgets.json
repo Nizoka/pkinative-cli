@@ -1,4 +1,4 @@
 {
-  "$comment": "Byte budget of every file under dist/ (scripts/gate.ts bundle-size, scripts/package-files.ts). Raise one deliberately, in the commit that needs it, and say why in the CHANGELOG. dist/cli.cjs was 343030 bytes at 1.0.0.",
-  "dist/cli.cjs": 409600
+  "$comment": "Byte budget of every file under dist/ (scripts/gate.ts bundle-size, scripts/package-files.ts). Raise one deliberately, in the commit that needs it, and say why in the CHANGELOG. dist/cli.cjs: 343030 bytes before the report schemas, 451130 with them (src/generated/report-schemas.ts, every report and --summary shape, about 108 KB); budget 480 KiB.",
+  "dist/cli.cjs": 491520
 }

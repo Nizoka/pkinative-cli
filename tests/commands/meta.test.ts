@@ -94,12 +94,35 @@ describe('schema', () => {
 
     it('prints every subject as JSON, schemas with a versioned $id', async () => {
         for (const s of SUBJECTS) {
-            const doc = JSON.parse((await cli(['schema', s.name, '--json'])).stdout) as Record<string, unknown>;
+            // report and summary take an invocation; cert inspect has both shapes.
+            const extra = s.name === 'report' || s.name === 'summary' ? ['cert', 'inspect'] : [];
+            const doc = JSON.parse((await cli(['schema', s.name, ...extra, '--json'])).stdout) as Record<string, unknown>;
             if (s.kind === 'schema') {
                 expect(doc['$schema'], s.name).toBe('https://json-schema.org/draft/2020-12/schema');
-                expect(doc['$id'], s.name).toMatch(new RegExp(`/schema/${s.name}/\\d+\\.\\d+\\.\\d+$`));
+                expect(doc['$id'], s.name).toMatch(new RegExp(`/schema/${s.name}/${extra.join('/')}${extra.length > 0 ? '/' : ''}\\d+\\.\\d+\\.\\d+$`));
             }
         }
+    });
+
+    it('describes the report and summary of an invocation, with the types it references (audit A-09)', async () => {
+        const report = JSON.parse((await cli(['schema', 'report', 'cert', 'inspect'])).stdout);
+        expect(report.anyOf ?? report.$ref).toBeDefined();
+        expect(Object.keys(report.$defs)).toEqual(expect.arrayContaining(['Certificate', 'DistinguishedName']));
+        const fingerprint = JSON.parse((await cli(['schema', 'report', 'fingerprint'])).stdout);
+        expect(fingerprint.$id).toMatch(/\/schema\/report\/fingerprint\//);
+        expect(JSON.parse((await cli(['schema', 'summary', 'chain', 'verify'])).stdout).properties).toHaveProperty('valid');
+        const artefact = await cli(['schema', 'report', 'cert', 'create', '--json']);
+        expect(artefact.code).toBe(1);
+        expect(envelope(artefact.stderr)).toMatchObject({ error: { code: 'E_NOT_FOUND', message: expect.stringMatching(/prints artifact/) } });
+        expect((await cli(['schema', 'summary', 'cert', 'match-name'])).stderr).toMatch(/has no --summary shape/);
+        expect((await cli(['schema', 'report', 'nope'])).code).toBe(2);
+        expect((await cli(['schema', 'errors', 'extra'])).stderr).toMatch(/takes no further argument/);
+    });
+
+    it('describes each cert encode spec (audit B-05)', async () => {
+        const doc = JSON.parse((await cli(['schema', 'cert-encode-spec'])).stdout);
+        expect(Object.keys(doc.$defs)).toEqual(expect.arrayContaining(['spki', 'validity', 'basic-constraints', 'subject-alt-name', 'name']));
+        expect(doc.$defs.spki.required).toEqual(['algorithm', 'publicKey']);
     });
 
     it('derives the manifest from the registry', async () => {
@@ -107,6 +130,13 @@ describe('schema', () => {
         expect(manifest.commands.map((c: { name: string }) => c.name)).toEqual(COMMANDS.map((c) => c.name));
         expect(manifest.errorCodes).toHaveLength(13);
         expect(manifest.offline).toBe(true);
+        // Each invocation: flags with their value placeholders, operands, outputs, status fields (audit A-09).
+        const create = manifest.commands.find((c: { name: string }) => c.name === 'cert').subcommands.find((s: { name: string }) => s.name === 'create');
+        expect(create).toMatchObject({ operands: { max: 0 }, outputs: ['artifact'], report: false, status: { selfSigned: { type: 'boolean' }, serialNumber: expect.any(Object) } });
+        expect(create.flags).toContainEqual({ name: 'output', alias: 'o', value: 'file' });
+        const oidName = manifest.commands.find((c: { name: string }) => c.name === 'oid').subcommands.find((s: { name: string }) => s.name === 'name');
+        expect(oidName.operands).toEqual({ max: null });
+        expect(manifest.commands.find((c: { name: string }) => c.name === 'fingerprint')).toMatchObject({ operands: { max: 1, for: ['input'] }, outputs: ['report'], report: true });
         const errors = JSON.parse((await cli(['schema', 'errors'])).stdout);
         expect(errors.pkiToCli).toHaveLength(57);
         expect(JSON.parse((await cli(['schema', 'limits', '--max-depth', '7'])).stdout).limits.find((l: { limit: string }) => l.limit === 'maxDepth').value).toBe(7);
