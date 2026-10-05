@@ -98,6 +98,19 @@ describe('run: a command', () => {
         expect(envelope(failing.stderr)).toMatchObject({ ok: false, config: join(dir, CONFIG_FILENAME) });
     });
 
+    it('names no config file that supplied nothing', async () => {
+        const dir = emptyDir();
+        writeFileSync(join(dir, CONFIG_FILENAME), JSON.stringify({ limits: { format: 'json' }, cert: { format: 'json' } }));
+        // The flag is given, so the file applies nothing: no note, no config in the envelope.
+        const given = await cli(['limits', '--format', 'text'], { cwd: dir });
+        expect(given.code).toBe(0);
+        expect(given.stderr).toBe('');
+        expect(envelope((await cli(['limits', '--format', 'json', '--json'], { cwd: dir })).stderr)).toEqual({ ok: true, command: 'limits', diagnostics: [] });
+        const failing = await cli(['limits', '--format', 'json', '--json', '--max-depth', 'x'], { cwd: dir });
+        expect(failing.code).toBe(2);
+        expect(envelope(failing.stderr)).not.toHaveProperty('config');
+    });
+
     it('applies a default only where the subcommand declares it (audit B-02)', async () => {
         const dir = emptyDir();
         writeFileSync(join(dir, CONFIG_FILENAME), JSON.stringify({ format: 'json', cert: { format: 'json' } }));
@@ -170,6 +183,9 @@ describe('run: diagnostics', () => {
         expect(quiet.stderr).toMatch(/^error E_NOT_FOUND/);
         const ok = await cli(['asn1', 'decode', file, '--ber']);
         expect(ok.stderr).toMatch(/^info PKI_DIAG_BER_CONSTRUCT_ACCEPTED/);
+        const okQuiet = await cli(['asn1', 'decode', file, '--ber', '--quiet']);
+        expect(okQuiet.code).toBe(0);
+        expect(okQuiet.stderr).toBe('');
         const json = await cli(['asn1', 'decode', file, '--ber', '--json']);
         expect(envelope(json.stderr)).toMatchObject({ ok: true, diagnostics: [{ code: 'PKI_DIAG_BER_CONSTRUCT_ACCEPTED', severity: 'info' }] });
         const jsonFail = await cli(['asn1', 'decode', file, '--ber', '--path', '5', '--json']);
@@ -184,6 +200,12 @@ describe('run: the parser enforces the registry (audit A-08, A-10, A-11, A-19)',
             expect(r.code).toBe(2);
             expect(r.stderr).toMatch(/--host is given 2 times/);
         }
+    });
+
+    it('refuses a flag given under both its name and its alias', async () => {
+        const r = await cli(['fingerprint', '--input', fixture('leaf.crt.pem'), '-i', fixture('root.crt.pem')]);
+        expect(r.code).toBe(2);
+        expect(r.stderr).toMatch(/--input and -i are the same flag/);
     });
 
     it('refuses surplus operands and an operand beside --input', async () => {

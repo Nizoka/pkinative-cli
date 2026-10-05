@@ -48,10 +48,10 @@ function purposes(ctx: Ctx): string[] {
 }
 
 /** The RFC 5280 §6.1.1 policy inputs shared by the three subcommands. */
-function policyInputs(ctx: Ctx): { initialPolicySet?: string[]; requireExplicitPolicy: boolean; inhibitPolicyMapping: boolean; inhibitAnyPolicy: boolean } {
+function policyInputs(ctx: Ctx): { initialPolicySet: string[]; requireExplicitPolicy: boolean; inhibitPolicyMapping: boolean; inhibitAnyPolicy: boolean } {
     const set = getStringFlagAll(ctx.args.flags, 'policy');
     return {
-        ...(set.length > 0 ? { initialPolicySet: [...set] } : {}),
+        initialPolicySet: [...set],
         requireExplicitPolicy: hasFlag(ctx.args.flags, 'require-explicit-policy'),
         inhibitPolicyMapping: hasFlag(ctx.args.flags, 'inhibit-policy-mapping'),
         inhibitAnyPolicy: hasFlag(ctx.args.flags, 'inhibit-any-policy'),
@@ -103,7 +103,7 @@ async function verify(ctx: Ctx): Promise<void> {
         trustAnchors: anchors,
         at: at(ctx),
         ...(name !== undefined ? { serverName: name } : {}),
-        ...(purposeOids.length > 0 ? { purposes: purposeOids } : {}),
+        purposes: purposeOids,
         crls,
         ocspResponses: ocsp,
         ...(nonce !== undefined ? { ocspNonce: nonce } : {}),
@@ -127,7 +127,7 @@ async function build(ctx: Ctx): Promise<void> {
         candidates,
         trustAnchors: anchors,
         at: at(ctx),
-        ...(purposeOids.length > 0 ? { purposes: purposeOids } : {}),
+        purposes: purposeOids,
         ...policyInputs(ctx),
         limits: ctx.opts.limits,
     }));

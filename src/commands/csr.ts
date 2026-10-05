@@ -66,7 +66,7 @@ async function create(ctx: Ctx): Promise<void> {
     const der = await guardAsync('Cannot create the request', () => createCertificationRequest({
         subject,
         subjectPublicKey: spki,
-        ...(extensions.length > 0 ? { extensions } : {}),
+        extensions,
     }, loaded.signer, { limits: ctx.opts.limits }));
     // A request signed by a key that is not the one it names is useless to a CA.
     const check = await guardAsync('Cannot verify the new request', () => verifyCertificationRequest(der, { ...parseOptions(ctx), allowSha1: ctx.opts.allowSha1 }));

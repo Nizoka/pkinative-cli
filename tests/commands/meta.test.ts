@@ -39,6 +39,12 @@ describe('doctor', () => {
         expect(bad[0]?.detail).toMatch(/CVE-2026-21713/);
     });
 
+    it('words each detail by its outcome', () => {
+        // A passing check says what holds; a failing one says what does not.
+        for (const c of runChecks(ALL_OK)) expect(c.detail, c.name).not.toMatch(/not|below/);
+        for (const c of runChecks({ node: '22.17.0', engine: '2.0.0', canVerify: false, canSign: false, canDecrypt: false })) expect(c.detail, c.name).toMatch(/not|below/);
+    });
+
     it('reports on both sides of the Node.js floor', async () => {
         const version = await import('../../src/utils/version.js');
         const spy = vi.spyOn(version, 'nodeVersion');
@@ -54,7 +60,7 @@ describe('doctor', () => {
             const fail = await cli(['doctor', '--json', '--summary']);
             expect(fail.code).toBe(1);
             expect(JSON.parse(fail.stdout)).toEqual({ ok: false, failed: ['node'] });
-            expect(envelope(fail.stderr)).toMatchObject({ error: { code: 'E_CHECK_FAILED' } });
+            expect(envelope(fail.stderr)).toMatchObject({ error: { code: 'E_CHECK_FAILED', message: 'Preflight failed: node.' } });
             expect((await cli(['doctor'])).stdout).toMatch(/FAIL {2}node/);
         } finally {
             spy.mockRestore();
@@ -144,6 +150,37 @@ describe('schema', () => {
         expect(config.properties).toHaveProperty('pretty');
         expect(config.properties).not.toHaveProperty('allow-sha1');
         expect(config.properties.cert.properties).toHaveProperty('encoding');
+    });
+
+    it('titles a report and a summary schema by the command line that prints them', async () => {
+        expect(JSON.parse((await cli(['schema', 'report', 'cert', 'inspect'])).stdout).title).toBe('pkinative cert inspect --json (stdout)');
+        expect(JSON.parse((await cli(['schema', 'summary', 'chain', 'verify'])).stdout).title).toBe('pkinative chain verify --json --summary (stdout)');
+    });
+
+    it('types a boolean config key as a boolean and a valued one as a value', async () => {
+        const config = JSON.parse((await cli(['schema', 'config'])).stdout);
+        expect(config.properties.pretty).toEqual({ type: 'boolean' });
+        expect(config.properties.cert.properties.encoding).toEqual({ type: ['string', 'number'] });
+    });
+
+    it('marks the invocations with a --summary shape, lists the schema subjects, and the remedies', async () => {
+        const manifest = JSON.parse((await cli(['schema', 'manifest'])).stdout);
+        const cert = manifest.commands.find((c: { name: string }) => c.name === 'cert').subcommands;
+        expect(cert.find((s: { name: string }) => s.name === 'inspect').summaryShape).toBe(true);
+        expect(cert.find((s: { name: string }) => s.name === 'match-name').summaryShape).toBe(false);
+        expect(manifest.schemas).toEqual(SUBJECTS.filter((s) => s.kind === 'schema').map((s) => s.name));
+        expect(manifest.schemas).toContain('status');
+        expect(manifest.schemas).not.toContain('manifest');
+        const errors = JSON.parse((await cli(['schema', 'errors'])).stdout);
+        expect(errors.pkiToCli.find((e: { pkiCode: string }) => e.pkiCode === 'PKI_CRYPTO_ALGORITHM_REFUSED')).toMatchObject({ remedy: expect.stringMatching(/^--allow-sha1/) });
+    });
+
+    it('indents a subject for a reader, and prints it compact under --json unless --pretty', async () => {
+        expect((await cli(['schema', 'status'])).stdout).toMatch(/^\{\n {2}"/);
+        const compact = (await cli(['schema', 'status', '--json'])).stdout;
+        expect(compact.trimEnd()).not.toContain('\n');
+        expect(JSON.parse(compact)).toHaveProperty('$id');
+        expect((await cli(['schema', 'status', '--json', '--pretty'])).stdout).toMatch(/^\{\n {2}"/);
     });
 
     it('refuses an unknown subject', async () => {

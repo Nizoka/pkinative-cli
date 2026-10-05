@@ -22,6 +22,13 @@ describe('readInput', () => {
         });
     });
 
+    it('reads an input of exactly the bound, from a file or stdin', async () => {
+        const dir = emptyDir();
+        writeFileSync(join(dir, 'eight'), '01234567');
+        await expect(readInput(memoryIo().io, join(dir, 'eight'), limits)).resolves.toHaveLength(8);
+        await expect(readInput(memoryIo({ stdin: ['0123', '4567'] }).io, '-', limits)).resolves.toHaveLength(8);
+    });
+
     it('maps a missing file and a directory to E_IO', async () => {
         const dir = emptyDir();
         await expect(readInput(memoryIo().io, join(dir, 'missing'), limits)).rejects.toMatchObject({ code: 'E_IO', message: expect.stringMatching(/ENOENT/) });
@@ -98,6 +105,12 @@ describe('writeOutput', () => {
         const dir = emptyDir();
         await expect(writeOutput(memoryIo().io, join(dir, 'no', 'such', 'dir'), 'x', { overwrite: false })).rejects.toMatchObject({ code: 'E_IO' });
         await expect(writeOutput(memoryIo().io, join(dir, 'no', 'dir'), 'x', { overwrite: true })).rejects.toMatchObject({ code: 'E_IO' });
+    });
+
+    it('never turns a missing directory into the overwrite refusal', async () => {
+        const err = await writeOutput(memoryIo().io, join(emptyDir(), 'no', 'out.pem'), 'x', { overwrite: false }).catch((e: unknown) => e);
+        expect(err).toMatchObject({ code: 'E_IO', remedy: undefined });
+        expect((err as Error).message).not.toMatch(/Refusing to overwrite/);
     });
 
     it('cleans the temp file when the rename fails', async () => {

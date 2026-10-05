@@ -23,7 +23,6 @@ function pick(value: unknown, segments: readonly string[]): unknown {
 
 function deepMerge(a: unknown, b: unknown): unknown {
     if (b === undefined) return a;
-    if (a === undefined) return b;
     if (Array.isArray(a) && Array.isArray(b)) {
         return Array.from({ length: Math.max(a.length, b.length) }, (_, i) => deepMerge(a[i], b[i]));
     }

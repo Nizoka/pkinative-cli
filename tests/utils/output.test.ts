@@ -104,6 +104,14 @@ describe('emitArtifact', () => {
         expect(hex.mem.stdout()).toBe('3000\n');
     });
 
+    it('records no output path for stdout, absent or "-"', async () => {
+        for (const argv of [[], ['-o', '-']]) {
+            const ctx = makeCtx(argv);
+            await emitArtifact(ctx, der, { label: 'X', defaultEncoding: 'pem' });
+            expect(Object.hasOwn(ctx.status, 'output'), argv.join(' ')).toBe(false);
+        }
+    });
+
     it('writes nothing under --dry-run', async () => {
         const ctx = makeCtx(['--dry-run']);
         await emitArtifact(ctx, der, { label: 'X', defaultEncoding: 'pem' });

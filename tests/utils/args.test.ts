@@ -44,6 +44,8 @@ describe('parseArgs', () => {
 
     it('refuses combined short flags, prototype names and empty names', () => {
         expect(() => parseArgs(['-qj'], bools)).toThrow(/Combined short flags.*-q -j/);
+        // The remedy spells each letter, never the leading dash as a flag of its own.
+        expect(() => parseArgs(['-qj'], bools)).toThrow(/\("-qj"\): write -q -j\.$/);
         for (const bad of ['--__proto__', '--constructor=x', '--prototype', '--=v']) {
             expect(() => parseArgs([bad], bools)).toThrow(CliError);
         }
@@ -65,6 +67,11 @@ describe('firstPositionalIndex', () => {
         expect(firstPositionalIndex(['--', 'cert'], bools)).toBe(1);
         expect(firstPositionalIndex(['--'], bools)).toBe(-1);
         expect(firstPositionalIndex([], bools)).toBe(-1);
+    });
+
+    it('takes a lone "-" as the first positional, and looks one token ahead for a flag value', () => {
+        expect(firstPositionalIndex(['-'], bools)).toBe(0);
+        expect(firstPositionalIndex(['--format', 'json', '--x'], bools)).toBe(-1);
     });
 });
 
@@ -107,6 +114,7 @@ describe('flag accessors', () => {
         expect(() => getIntFlag(flags, 'm')).toThrow(/expects a non-negative integer/);
         expect(() => getIntFlag(flags, 'n', 0, 10)).toThrow(/between 0 and 10/);
         expect(() => getIntFlag(flags, 'n', 50)).toThrow(/between 50/);
+        expect(getIntFlag(flags, 'n', 42, 42)).toBe(42);
     });
 
     it('assertKnownFlags refuses an undeclared flag', () => {

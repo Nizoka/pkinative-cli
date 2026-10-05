@@ -30,6 +30,25 @@ describe('loadConfig', () => {
         expect(loadConfig('chain', undefined, COMMANDS, undefined, dir).defaults['pretty']).toBe(false);
     });
 
+    it('ranks the layers by scope, never by their order in the file', () => {
+        const load = (body: object, sub?: string): unknown => loadConfig('cert', sub, COMMANDS, undefined, withConfig(JSON.stringify(body))).defaults['format'];
+        // A global key written after the command section still loses to it.
+        expect(load({ cert: { format: 'command' }, format: 'global' })).toBe('command');
+        // A command section written after the subcommand section still loses to it.
+        expect(load({ 'cert inspect': { format: 'sub' }, cert: { format: 'command' } }, 'inspect')).toBe('sub');
+    });
+
+    it('drops a number JSON reads as infinite', () => {
+        expect(loadConfig('cert', undefined, COMMANDS, undefined, withConfig('{"format":1e999,"encoding":-1e999}')).defaults).toEqual({});
+    });
+
+    it('accepts a file of exactly 1 MiB', () => {
+        const head = '{"fields":"a"';
+        const body = `${head}${' '.repeat(1024 * 1024 - head.length - 1)}}`;
+        expect(body).toHaveLength(1024 * 1024);
+        expect(loadConfig('cert', undefined, COMMANDS, undefined, withConfig(body)).defaults).toEqual({ fields: 'a' });
+    });
+
     it('drops values that cannot be flags', () => {
         const dir = withConfig(JSON.stringify({ json: null, pretty: { x: 1 }, fields: ['a', 1], encoding: Number.MAX_VALUE * 0, cert: { quiet: null } }));
         expect(loadConfig('cert', undefined, COMMANDS, undefined, dir).defaults).toEqual({ encoding: '0' });

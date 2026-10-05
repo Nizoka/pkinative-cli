@@ -14,6 +14,18 @@ describe('looksLikePem', () => {
         expect(looksLikePem(enc('  -----END X'))).toBe(false);
         expect(looksLikePem(fixtureBytes('leaf.crt.der'))).toBe(false);
         expect(looksLikePem(new Uint8Array())).toBe(false);
+        expect(looksLikePem(enc('-----BEGIN '))).toBe(true);
+        expect(looksLikePem(enc('   '))).toBe(false);
+    });
+
+    it('skips a BOM only when all three of its bytes are there', () => {
+        const begin = new TextEncoder().encode('-----BEGIN X');
+        const after = (prefix: number[]) => Uint8Array.from([...prefix, ...begin]);
+        expect(looksLikePem(after([0xef, 0xbb, 0xbf]))).toBe(true);
+        expect(looksLikePem(after([0xef, 0x00, 0x00]))).toBe(false);
+        expect(looksLikePem(after([0x00, 0xbb, 0xbf]))).toBe(false);
+        expect(looksLikePem(after([0x00, 0x00, 0xbf]))).toBe(false);
+        expect(looksLikePem(after([0xef, 0xbb, 0x00]))).toBe(false);
     });
 });
 

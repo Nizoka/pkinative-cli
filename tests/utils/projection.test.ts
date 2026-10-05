@@ -20,6 +20,14 @@ describe('projection', () => {
         expect(selectFields([[1]], ['x'])).toEqual([[undefined]]);
     });
 
+    it('never reaches an inherited property', () => {
+        expect(selectFields(doc, ['constructor', 'toString', 'b.hasOwnProperty'])).toEqual({});
+    });
+
+    it('ignores empty segments inside a path', () => {
+        expect(selectFields(doc, ['b..c', '.a', 's.'])).toEqual({ a: 1, b: { c: 2 }, s: 'x' });
+    });
+
     it('serialises compact or pretty', () => {
         expect(serializeJson({ a: 1 }, false)).toBe('{"a":1}');
         expect(serializeJson({ a: 1 }, true)).toBe('{\n  "a": 1\n}');

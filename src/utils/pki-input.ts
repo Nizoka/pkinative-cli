@@ -15,8 +15,9 @@ const BEGIN = new TextEncoder().encode('-----BEGIN ');
 /** True when the bytes are PEM text: optional UTF-8 BOM and whitespace, then `-----BEGIN `. */
 export function looksLikePem(bytes: Uint8Array): boolean {
     let i = bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf ? 3 : 0;
-    while (i < bytes.length && (bytes[i] === 0x20 || bytes[i] === 0x09 || bytes[i] === 0x0a || bytes[i] === 0x0d)) i++;
-    if (bytes.length - i < BEGIN.length) return false;
+    // Past the end a typed array reads `undefined`, which neither loop nor
+    // comparison accepts: no explicit bound is needed.
+    while (bytes[i] === 0x20 || bytes[i] === 0x09 || bytes[i] === 0x0a || bytes[i] === 0x0d) i++;
     return BEGIN.every((b, k) => bytes[i + k] === b);
 }
 

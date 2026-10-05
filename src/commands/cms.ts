@@ -101,15 +101,14 @@ async function sign(ctx: Ctx): Promise<void> {
         ...(time !== undefined ? { signingTime: time } : {}),
         signingCertificateV2: !hasFlag(ctx.args.flags, 'no-signing-certificate'),
         algorithmProtection: !hasFlag(ctx.args.flags, 'no-algorithm-protection'),
-        ...(signed.length > 0 ? { signedAttributes: signed } : {}),
-        ...(unsigned.length > 0 ? { unsignedAttributes: unsigned } : {}),
+        // pkinative reads an empty list as none.
+        signedAttributes: signed,
+        unsignedAttributes: unsigned,
     }, loaded.signer, { limits: ctx.opts.limits }));
     // A key that does not belong to --cert would yield a signature nobody verifies.
+    // createSignedData always writes signed attributes, so the signature covers them, never the content.
     const signerInfo = parse(ctx, der).signerInfos[0] as SignerInfo;
-    const ok = await guardAsync('Cannot verify the new signature', () => verifySignerInfoSignature(signerInfo, certificate, {
-        ...(content !== undefined ? { content } : {}),
-        allowSha1: ctx.opts.allowSha1,
-    }));
+    const ok = await guardAsync('Cannot verify the new signature', () => verifySignerInfoSignature(signerInfo, certificate, { allowSha1: ctx.opts.allowSha1 }));
     if (!ok) throw new CliError('The signing key does not belong to the signer certificate.', 1, ErrorCode.INPUT);
     ctx.status['detached'] = detached;
     await emitArtifact(ctx, der, { label: 'CMS', defaultEncoding: 'der' });
@@ -168,7 +167,8 @@ async function verify(ctx: Ctx): Promise<void> {
         ...(contentDigest !== undefined ? { contentDigest } : {}),
         certificates,
         trustAnchors,
-        ...(purposes.length > 0 ? { purposes } : {}),
+        // An empty list requires no purpose, as an absent one does.
+        purposes,
         crls,
         ocspResponses: ocsp,
         requireRevocation: hasFlag(ctx.args.flags, 'require-revocation'),

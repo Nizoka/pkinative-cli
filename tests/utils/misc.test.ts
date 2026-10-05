@@ -34,6 +34,14 @@ describe('secrets', () => {
         await expect(readPassword(memoryIo().io, args(['--password-file', join(dir, 'p')]), false)).resolves.toBe('secret');
     });
 
+    it('caps a password at exactly 64 KiB', async () => {
+        const dir = emptyDir();
+        writeFileSync(join(dir, 'max'), 'a'.repeat(64 * 1024));
+        writeFileSync(join(dir, 'over'), 'a'.repeat(64 * 1024 + 1));
+        await expect(readPassword(memoryIo().io, args(['--password-file', join(dir, 'max')]), false)).resolves.toHaveLength(64 * 1024);
+        await expect(readPassword(memoryIo().io, args(['--password-file', join(dir, 'over')]), false)).rejects.toMatchObject({ code: 'E_LIMIT', detail: { configured: 64 * 1024 } });
+    });
+
     it('reads the password from stdin, or a "-" password file', async () => {
         await expect(readPassword(memoryIo({ stdin: 'pw\n' }).io, args(['--password-stdin']), false)).resolves.toBe('pw');
         await expect(readPassword(memoryIo({ stdin: 'pw2' }).io, args(['--password-file', '-']), false)).resolves.toBe('pw2');

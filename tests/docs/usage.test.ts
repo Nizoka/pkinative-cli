@@ -85,6 +85,10 @@ describe('help text', () => {
         expect(problems).toEqual([]);
     });
 
+    it('gives no command exactly one subcommand (scripts/data/mutation-equivalents.json relies on it)', () => {
+        for (const c of COMMANDS) expect(c.subcommands.length, c.name).not.toBe(1);
+    });
+
     it('gives no repeatable flag an alias (repeatableFlags counts names only)', () => {
         for (const f of [...GLOBAL_FLAGS, ...COMMANDS.flatMap(allFlags)]) {
             if (f.repeatable === true) expect(f.alias, `--${f.name}`).toBeUndefined();

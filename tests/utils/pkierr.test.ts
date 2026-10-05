@@ -12,7 +12,7 @@ import {
     parseCertificate,
 } from 'pkinative';
 import { CliError, ERROR_CODES, ErrorCode, usageError } from '../../src/utils/error.js';
-import { PKI_ERROR_CODES, PKI_REMEDY, PKI_TO_CLI, guard, guardAsync, isFsError, mapPkiError, remedyFor } from '../../src/utils/pkierr.js';
+import { PKI_ERROR_CODES, PKI_REMEDY, PKI_TO_CLI, UNVERIFIED_INTEGRITY_REMEDY, guard, guardAsync, isFsError, mapPkiError, pkcs12Failure, remedyFor } from '../../src/utils/pkierr.js';
 
 const registry = JSON.parse(readFileSync('docs/data/pkinative/errors.json', 'utf8')) as { errors: { code: string }[] };
 
@@ -113,6 +113,18 @@ describe('mapPkiError', () => {
         expect(remedyFor(new CliError('x', 1, undefined, { pkiCode: 'PKI_ASN1_BOOLEAN_INVALID' }))).toMatch(/--ber/);
         expect(remedyFor(new CliError('x', 1, undefined, { pkiCode: 'PKI_INTERNAL' }))).toBeUndefined();
         expect(remedyFor(new CliError('x'))).toBeUndefined();
+        // An inherited name is not a registered code.
+        expect(remedyFor(new CliError('x', 1, undefined, { pkiCode: 'constructor' }))).toBeUndefined();
+    });
+});
+
+describe('pkcs12Failure', () => {
+    it('offers --allow-unverified-integrity only when the integrity reason is there', () => {
+        const unverified = pkcs12Failure({ integrity: 'none', reasons: [{ code: 'PKI_REASON_PKCS12_INTEGRITY_UNVERIFIED' }] });
+        expect(unverified).toMatchObject({ code: 'E_VERIFY_FAILED', remedy: UNVERIFIED_INTEGRITY_REMEDY });
+        const other = pkcs12Failure({ integrity: 'ok', reasons: [{ code: 'PKI_REASON_SOMETHING_ELSE' }] });
+        expect(other).toMatchObject({ code: 'E_VERIFY_FAILED', remedy: undefined, reasons: [{ code: 'PKI_REASON_SOMETHING_ELSE' }] });
+        expect(other.message).not.toMatch(/integrity/);
     });
 });
 

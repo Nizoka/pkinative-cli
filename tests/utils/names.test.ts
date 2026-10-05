@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { attributeType, parseIp, parseNameSpec } from '../../src/utils/names.js';
+import { attributeType, parseIp, parseNameAttribute, parseNameSpec } from '../../src/utils/names.js';
 
 describe('parseIp', () => {
     const hex = (b: Uint8Array) => Buffer.from(b).toString('hex');
@@ -16,11 +16,32 @@ describe('parseIp', () => {
     });
 });
 
+function thrown(fn: () => unknown): unknown {
+    try {
+        fn();
+    } catch (e) {
+        return e;
+    }
+    return undefined;
+}
+
 describe('names', () => {
     it('resolves attribute types', () => {
         expect(attributeType('cn', 'p')).toBe('2.5.4.3');
         expect(attributeType('1.2.3', 'p')).toBe('1.2.3');
         expect(attributeType('countryName', 'p')).toBe('2.5.4.6');
+    });
+
+    it('keeps a stated string type, omits an absent one, and refuses an unknown one', () => {
+        expect(parseNameAttribute({ type: 'C', value: 'FR', stringType: 'printable' }, 'n')).toStrictEqual({ type: '2.5.4.6', value: 'FR', stringType: 'printable' });
+        const plain = parseNameAttribute({ type: 'CN', value: 'a' }, 'n');
+        expect(plain).toStrictEqual({ type: '2.5.4.3', value: 'a' });
+        expect(Object.hasOwn(plain, 'stringType')).toBe(false);
+        expect(thrown(() => parseNameAttribute({ type: 'CN', value: 'a', stringType: 'bmp' }, 'n'))).toMatchObject({ code: 'E_INPUT', message: expect.stringMatching(/^n\.stringType:/) });
+    });
+
+    it('refuses an empty RDN', () => {
+        expect(thrown(() => parseNameSpec([[{ type: 'CN', value: 'a' }], []], 'n'))).toMatchObject({ code: 'E_INPUT', message: expect.stringMatching(/^n\[1\]: an RDN is a non-empty array/) });
     });
 
     it('parses multi-valued RDNs', () => {

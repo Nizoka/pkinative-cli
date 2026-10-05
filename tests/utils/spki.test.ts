@@ -1,9 +1,30 @@
 import { describe, expect, it } from 'vitest';
-import { readSpki } from '../../src/utils/spki.js';
+import { readFileSync } from 'node:fs';
+import { publicKeyOf, readSpki } from '../../src/utils/spki.js';
 import { makeCtx } from '../helpers/ctx.js';
+import { fixture, fixtureBytes } from '../helpers/io.js';
 
 const hex = (h: string) => Uint8Array.from(Buffer.from(h.replace(/\s/g, ''), 'hex'));
 const key32 = '00'.repeat(32);
+
+describe('publicKeyOf', () => {
+    const spkiDer = (): Uint8Array => {
+        const pem = readFileSync(fixture('leaf.pub.pem'), 'utf8');
+        return Uint8Array.from(Buffer.from(pem.replace(/-----[^-]+-----/g, '').replace(/\s/g, ''), 'base64'));
+    };
+
+    it('takes a bare DER SubjectPublicKeyInfo as an SPKI', () => {
+        const der = spkiDer();
+        const key = publicKeyOf(makeCtx(), { der, label: undefined, source: 'x.der' });
+        expect(key.from).toBe('spki');
+        expect(key.spki).toEqual(der);
+    });
+
+    it('never re-sniffs an object whose PEM label says certificate', () => {
+        expect(() => publicKeyOf(makeCtx(), { der: spkiDer(), label: 'CERTIFICATE', source: 'x.pem' })).toThrow(/Cannot read the certificate/);
+        expect(() => publicKeyOf(makeCtx(), { der: fixtureBytes('leaf.csr.der'), label: 'CERTIFICATE', source: 'x.pem' })).toThrow(/Cannot read the certificate/);
+    });
+});
 
 describe('readSpki', () => {
     it('reads Ed25519, Ed448, RSA and RSA-PSS key types', () => {
