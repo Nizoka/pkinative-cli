@@ -24,7 +24,7 @@ export interface FlagSpec {
 export interface OperandSpec {
     /** The most positionals accepted (Infinity for a list). */
     readonly max: number;
-    /** The flags a single operand stands for. */
+    /** The flags an operand cannot be given with: the flag it stands for (--input, --path), or one that excludes it (explain --list). */
     readonly for?: readonly string[];
 }
 
@@ -169,7 +169,7 @@ export const COMMANDS: readonly CommandSpec[] = [
         name: 'chain', group: 'Paths & revocation', summary: 'Verify, build and validate certification paths (RFC 5280)', flags: [], subcommands: [
             { name: 'verify', summary: 'One-call verdict: path, signatures, name, purpose, revocation', flags: [input, ...pathInputs, { name: 'untrusted', value: 'file', repeatable: true }, { name: 'host', value: 'name' }, { name: 'ip', value: 'address' }, { name: 'crl', value: 'file', repeatable: true }, { name: 'ocsp', value: 'file', repeatable: true }, { name: 'ocsp-nonce', value: 'hex' }, { name: 'require-ocsp-nonce' }, { name: 'require-revocation' }, format] },
             { name: 'build', summary: 'Find a path from the leaf to a trust anchor', flags: [input, ...pathInputs, { name: 'untrusted', value: 'file', repeatable: true }, format] },
-            { name: 'validate', summary: 'Validate a given path, leaf first, signatures included', flags: [{ name: 'path', value: 'file', repeatable: true }, ...pathInputs, { name: 'no-signatures' }, format], operands: LIST },
+            { name: 'validate', summary: 'Validate a given path, leaf first, signatures included', flags: [{ name: 'path', value: 'file', repeatable: true }, ...pathInputs, { name: 'no-signatures' }, format], operands: { ...LIST, for: ['path'] } },
         ],
     },
     {
@@ -222,7 +222,7 @@ export const COMMANDS: readonly CommandSpec[] = [
     },
     { name: 'doctor', group: 'Meta', summary: 'Offline preflight: Node.js floor, pkinative, Web Crypto', subcommands: [], flags: [format] },
     { name: 'limits', group: 'Meta', summary: 'The 22 pkinative security bounds: flags, defaults, effective', subcommands: [], flags: [format] },
-    { name: 'explain', group: 'Meta', summary: 'Explain any E_*, PKI_*, PKI_REASON_* or PKI_DIAG_* code', subcommands: [], flags: [{ name: 'list' }, { name: 'kind', value: 'error|reason|diagnostic|cli' }, format], operands: { max: 1 } },
+    { name: 'explain', group: 'Meta', summary: 'Explain any E_*, PKI_*, PKI_REASON_* or PKI_DIAG_* code', subcommands: [], flags: [{ name: 'list' }, { name: 'kind', value: 'error|reason|diagnostic|cli' }, format], operands: { max: 1, for: ['list'] } },
     { name: 'schema', group: 'Meta', summary: 'JSON Schemas, the capability manifest, the error catalogue', subcommands: [], flags: [], operands: { max: 3 } },
     { name: 'completion', group: 'Meta', summary: 'Shell completion script (bash, zsh, fish, powershell)', subcommands: [], flags: [], operands: { max: 1 } },
 ];

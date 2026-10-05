@@ -305,6 +305,10 @@ describe('run: the parser enforces the registry (audit A-08, A-10, A-11, A-19)',
         expect((await cli(['cert', 'inspect', fixture('leaf.crt.pem'), '--input', fixture('root.crt.pem')])).stderr).toMatch(/given --input and an argument/);
         expect((await cli(['doctor', 'extra'])).stderr).toMatch(/takes no arguments/);
         expect((await cli(['oid', 'name', '2.5.4.3', '2.5.4.6'])).code).toBe(0);
+        // An operand beside --path, or beside explain --list, is the same conflict (audit A2-12).
+        expect((await cli(['chain', 'validate', fixture('leaf.crt.pem'), '--path', fixture('inter.crt.pem')])).stderr).toMatch(/given --path and an argument; give one or the other/);
+        expect((await cli(['explain', '--list', 'E_IO'])).stderr).toMatch(/given --list and an argument/);
+        expect((await cli(['explain', '--list'])).code).toBe(0);
     });
 
     it('never echoes a value typed after --password-stdin', async () => {

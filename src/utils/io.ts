@@ -89,8 +89,16 @@ async function readRegularFile(path: string, options: ReadOptions): Promise<Uint
         }
         if (st.size > options.maxBytes) throw tooLarge(`${options.what} "${path}"`, st.size, options.maxBytes, options.limitFlag);
         const buf = new Uint8Array(st.size);
-        const { bytesRead } = await handle.read(buf, 0, st.size, 0);
-        return buf.subarray(0, bytesRead);
+        // One read call may return less than it was asked for (Linux caps a
+        // call just under 2 GiB): read until the size the descriptor reported,
+        // or until the file ends early (audit A2-05).
+        let total = 0;
+        for (;;) {
+            const { bytesRead } = await handle.read(buf, total, st.size - total, total);
+            total += bytesRead;
+            if (bytesRead === 0 || total === st.size) break;
+        }
+        return buf.subarray(0, total);
     } finally {
         await handle.close();
     }

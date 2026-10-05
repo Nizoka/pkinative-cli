@@ -232,7 +232,7 @@ export function assertOperands(args: ParsedArgs, rule: { readonly max: number; r
     }
     const flag = (rule.for ?? []).find((name) => args.flags[name] !== undefined);
     if (n > 0 && flag !== undefined) {
-        throw usageError(`"${command}" was given --${flag} and an argument for the same input; give it once.`);
+        throw usageError(`"${command}" was given --${flag} and an argument; give one or the other.`);
     }
 }
 
