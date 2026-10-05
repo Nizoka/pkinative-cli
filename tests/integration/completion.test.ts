@@ -41,17 +41,20 @@ describe.skipIf(!BASH)('bash completion', () => {
             expect(out, c.line).toEqual(expect.arrayContaining([...c.expect]));
             for (const n of c.not ?? []) expect(out, c.line).not.toContain(n);
         }
-    });
+    }, 120_000);
 });
 
 describe.skipIf(!PWSH)('PowerShell completion', () => {
     it('completes commands, subcommands after global flags, flags and enumerated values', async () => {
         const path = await script('powershell');
-        for (const c of CASES) {
-            const program = `. '${path}'; (TabExpansion2 -inputScript '${c.line}' -cursorColumn ${c.line.length}).CompletionMatches | ForEach-Object { $_.CompletionText }`;
-            const out = spawnSync('pwsh', ['-NoProfile', '-NonInteractive', '-Command', program], { encoding: 'utf8', windowsHide: true }).stdout.split(/\r?\n/);
+        // One pwsh process for every case: its start-up dominates the run.
+        const program = [`. '${path}'`, ...CASES.map((c) => `'#CASE'; (TabExpansion2 -inputScript '${c.line}' -cursorColumn ${c.line.length}).CompletionMatches | ForEach-Object { $_.CompletionText }`)].join('; ');
+        const blocks = spawnSync('pwsh', ['-NoProfile', '-NonInteractive', '-Command', program], { encoding: 'utf8', windowsHide: true }).stdout.split('#CASE').slice(1);
+        expect(blocks).toHaveLength(CASES.length);
+        CASES.forEach((c, i) => {
+            const out = (blocks[i] ?? '').split(/\r?\n/);
             expect(out, c.line).toEqual(expect.arrayContaining([...c.expect]));
             for (const n of c.not ?? []) expect(out, c.line).not.toContain(n);
-        }
-    });
+        });
+    }, 120_000);
 });

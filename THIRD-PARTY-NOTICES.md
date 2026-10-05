@@ -18,4 +18,6 @@ The build, type-check, lint and test toolchain (TypeScript, tsup and esbuild, ES
 
 `tests/fixtures/pki/` is a test-only PKI produced by OpenSSL 3.5.5 (Apache-2.0) running `scripts/fixtures/make-test-pki.sh`; the files are this project's output, released under its MIT licence, and described in [tests/fixtures/PROVENANCE.md](tests/fixtures/PROVENANCE.md). Every private key there is public test material.
 
+The certificate linters of `tests/interop/lint.test.ts` run in CI only, installed pinned: zlint v3.7.2 (Apache-2.0, by the SHA-256 of its release archive) and DigiCert pkilint with its dependencies (MIT and permissive licences, by version and file hash, `scripts/data/lint-python-requirements.txt`). `scripts/validators/pkilint-driver.py` is adapted from pkinative (MIT, same author).
+
 `docs/data/pkinative/` holds registries copied unmodified from pkinative's v1.0.0 tag (MIT, same author), so the CLI's tests can hold themselves to the engine version they target.

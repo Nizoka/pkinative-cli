@@ -112,6 +112,24 @@ repository:
         integration: { adhoc: false, ci: true, release: false }
         results: {}
         comment: Licence and copyright of every file (REUSE.toml) on every change (ci.yml, workflow lint).
+      - name: zlint
+        type: other
+        rulesets: [RFC5280, RFC5480, RFC5891, RFC3279, RFC8813, Community]
+        integration: { adhoc: false, ci: true, release: true }
+        results: {}
+        comment: Lints every certificate cert create writes, on every change (conformance.yml) and in the publish gate (publish.yml); pinned v3.7.2 by archive hash.
+      - name: pkilint
+        type: other
+        rulesets: [lint_pkix_cert, lint_pkix_signer_signee_cert_chain]
+        integration: { adhoc: false, ci: true, release: true }
+        results: {}
+        comment: DigiCert pkilint over the same certificates, pinned by version and file hash; warnings reviewed in scripts/data/lint-waivers.json.
+      - name: Mutation testing
+        type: other
+        rulesets: [default]
+        integration: { adhoc: true, ci: false, release: true }
+        results: {}
+        comment: npm run mutate (scripts/mutate.ts) before every release; every mutant killed or argued equivalent in scripts/data/mutation-equivalents.json.
       - name: OSV-Scanner
         type: SCA
         rulesets: [default]

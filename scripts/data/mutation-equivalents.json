@@ -1,0 +1,5 @@
+{
+  "$comment": "Reviewed equivalent mutants of scripts/mutate.ts: changes no test can distinguish, so no test is written for them. Each entry names the mutant by id (<file>:<line>:<column>:<operator>, as the runner prints it) and repeats its original and replacement text, so an entry whose source moved is reported STALE rather than silently matching something else; reason is the argument for equivalence, never the word TODO. An entry a test kills is reported REFUTED. Two kinds are admitted. Semantic: no input yields a different result, exit code, error class or envelope field. Message-only: the mutant changes nothing but the wording of a message that no contract fixes (the E_* class, exit code and envelope fields are unchanged). Empty is the goal; every entry is a claim a reviewer can check.",
+  "schema": 1,
+  "equivalents": []
+}

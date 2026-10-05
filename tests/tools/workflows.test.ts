@@ -234,6 +234,20 @@ describe('conformance.yml and sample-regression.yml', () => {
         expect(conformance.indexOf('run: npm run build')).toBeLessThan(conformance.indexOf('npx vitest run tests/interop tests/integration'));
     });
 
+    it('install both certificate linters pinned, in conformance and in the publish build, and require them', () => {
+        for (const [file, job] of [['conformance.yml', 'conformance'], ['publish.yml', 'build']] as const) {
+            const body = jobBody(readWorkflow(file), job);
+            expect(body, file).toMatch(/ZLINT_SHA256: [0-9a-f]{64}/);
+            expect(body.indexOf('sha256sum --check --strict'), file).toBeLessThan(body.indexOf('tar -xzf'));
+            expect(body, file).toContain('pip install --require-hashes --no-deps --only-binary :all: -r scripts/data/lint-python-requirements.txt');
+            expect(body, file).toMatch(/ZLINT: \$\{\{ runner\.temp \}\}\/zlint_3\.7\.2_Linux_x86_64\/zlint/);
+            expect(body, file).toMatch(/PKILINT_PYTHON: \$\{\{ runner\.temp \}\}\/lint-python\/bin\/python/);
+            expect(body, file).toMatch(/files\.pythonhosted\.org:443/);
+        }
+        expect(readWorkflow('conformance.yml')).toMatch(/REQUIRE_LINT: '1'/);
+        expect(readText('scripts', 'data', 'lint-python-requirements.txt')).toMatch(/^pkilint==\d+\.\d+\.\d+ \\$/m);
+    });
+
     it('verify the samples on the built CLI and hold a re-pin to a CHANGELOG change', () => {
         const samples = readWorkflow('sample-regression.yml');
         expect(samples.indexOf('run: npm run build')).toBeLessThan(samples.indexOf('run: npx tsx scripts/verify-samples.ts'));

@@ -67,10 +67,22 @@ describe('time', () => {
         expect(typeof parseInstant('now', 'at')).toBe('number');
         expect(parseInstant('2028-02-29T23:59:59.5z', 'at')).toBe(Date.UTC(2028, 1, 29, 23, 59, 59, 500));
         expect(parseInstant('2027-01-01T10:00', 'at')).toBe(Date.UTC(2027, 0, 1, 10));
+        // Every field boundary, both sides: the last valid value is accepted, the next refused.
+        expect(parseInstant('2027-12-31T23:59:59Z', 'at')).toBe(Date.UTC(2027, 11, 31, 23, 59, 59));
+        expect(parseInstant('2027-01-01T00:00:00-14:30', 'at')).toBe(Date.UTC(2027, 0, 1, 14, 30));
+        expect(parseInstant('2027-01-01T00:00:00+0130', 'at')).toBe(Date.UTC(2026, 11, 31, 22, 30));
+        expect(parseInstant('2027-01-01T00:00:00.123456789Z', 'at')).toBe(Date.UTC(2027, 0, 1, 0, 0, 0, 123));
+        expect(parseInstant('2027-01-01T00:00:00.999999999Z', 'at')).toBe(Date.UTC(2027, 0, 1, 0, 0, 0, 999));
+        expect(parseInstant('2027-01-02T00:00:00+23:59', 'at')).toBe(Date.UTC(2027, 0, 1, 0, 1));
+        for (const [date, days] of [['2027-04', 30], ['2027-06', 30], ['2027-09', 30], ['2027-11', 30], ['2027-01', 31], ['2027-03', 31], ['2027-02', 28], ['2028-02', 29], ['2100-02', 28], ['2000-02', 29]] as const) {
+            expect(parseInstant(`${date}-${days}`, 'at'), `${date}-${days}`).toBe(Date.parse(`${date}-${days}T00:00:00Z`));
+            expect(() => parseInstant(`${date}-${days + 1}`, 'at'), `${date}-${days + 1}`).toThrow(/--at expects/);
+        }
+        expect(parseInstant('0050-06-01', 'at')).toBe(Date.parse('0050-06-01T00:00:00Z'));
     });
 
     it('refuses anything else', () => {
-        for (const bad of ['tomorrow', '2027-13-45T99:00', '99999999999999999999', '', '2027-02-31T00:00:00Z', '2027-04-31', '2028-02-30', '2027-01-01T24:00:00Z', '2027-01-01T10:60:00', '2027-01-01T10:00:60Z', '2027-00-10', '2027-01-00', '2027-01-01 10:00', '2027-01-01T10']) {
+        for (const bad of ['tomorrow', '2027-13-45T99:00', '99999999999999999999', '', '2027-02-31T00:00:00Z', '2027-04-31', '2028-02-30', '2027-01-01T24:00:00Z', '2027-01-01T10:60:00', '2027-01-01T10:00:60Z', '2027-00-10', '2027-01-00', '2027-01-01 10:00', '2027-01-01T10', '2027-13-01', '2027-01-01T00:00:00+24:00', '2027-01-01T00:00:00+01:60']) {
             expect(() => parseInstant(bad, 'at')).toThrow(/--at expects/);
         }
         expect(formatInstant(0)).toBe('1970-01-01T00:00:00.000Z');

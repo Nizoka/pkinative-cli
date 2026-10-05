@@ -93,7 +93,7 @@ The version bump is mechanical; the judgement goes into the release note.
 1. Branch from `main`: `release/vX.Y.Z`.
 2. `npx tsx scripts/release-prepare.ts --version X.Y.Z` bumps `package.json`, the lockfile, `CITATION.cff`, `llms.txt` and the SECURITY.md table, and scaffolds `release-notes/vX.Y.Z.md` and `release-notes/draft/PR-vX.Y.Z.md`. `git diff --stat` must read as the bump and nothing else.
 3. Write the release note and the `CHANGELOG.md` entry (`## [X.Y.Z] – YYYY-MM-DD`).
-4. Run the pre-release audit (`/release-audit`: two auditors, an adversarial verifier, a GO/NO-GO ledger under `.audit/`). Fix what survives.
+4. Run the mutation campaign (`npm run mutate`, a few hours): every mutant killed, or recorded with its argument in `scripts/data/mutation-equivalents.json`. Then the pre-release audit (`/release-audit`: two auditors, an adversarial verifier, a GO/NO-GO ledger under `.audit/`). Fix what survives.
 5. `npx tsx scripts/gate.ts --publish --require-all`.
 6. Fill `release-notes/draft/PR-vX.Y.Z.md`: paste the figures the gate printed; anything not run is `not run`, never a guess. These bodies are committed: they are the auditable record of what each release claimed.
 7. Squash-merge with the title `release: vX.Y.Z — <headline>`.

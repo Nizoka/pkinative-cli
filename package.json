@@ -25,7 +25,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "test:interop": "vitest run tests/interop",
+    "test:interop": "vitest run tests/interop/openssl.test.ts",
+    "test:lint-certs": "vitest run tests/interop/lint.test.ts",
     "gate": "npx tsx scripts/gate.ts",
     "gate:fast": "npx tsx scripts/gate.ts --fast",
     "lint": "eslint src/ tests/",
@@ -46,7 +47,8 @@
     "check:package": "npx tsx scripts/package-files.ts",
     "smoke:install": "npx tsx scripts/smoke-install.ts",
     "check:npm-drift": "npx tsx scripts/check-npm-drift.ts",
-    "release:prepare": "npx tsx scripts/release-prepare.ts"
+    "release:prepare": "npx tsx scripts/release-prepare.ts",
+    "mutate": "npx tsx scripts/mutate.ts"
   },
   "keywords": [
     "pki",

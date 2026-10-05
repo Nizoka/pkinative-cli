@@ -31,7 +31,7 @@ CRL and OCSP, CMS SignedData, RFC 3161 time-stamps, PKCS#8 and PKCS#12 — with 
 |---|---|---|
 | Fast — before every commit | `npm run gate:fast` | typecheck:all, lint, test, verify:docs |
 | CI — the default | `npm run gate` | typecheck:all, lint, build, dist-check, smoke, bundle-size, bundle-check, node-floor, test:coverage (built-binary suites required), interop, verify:docs, verify:samples, check:package |
-| Publish — release branches | `npx tsx scripts/gate.ts --publish --require-all` | the CI steps and smoke:install (the packed tarball installed and run); `--require-all` fails a skip — OpenSSL missing, or Node.js below the floor |
+| Publish — release branches | `npx tsx scripts/gate.ts --publish --require-all` | the CI steps, lint:certs (zlint and pkilint over the certificates `cert create` writes) and smoke:install (the packed tarball installed and run); `--require-all` fails a skip — OpenSSL or a linter missing, or Node.js below the floor |
 
 PowerShell swallows a bare `--`, so pass flags by calling the script: `npx tsx scripts/gate.ts --fast`, `--only <step>`.
 One suite: `npx vitest run tests/<path>.test.ts` (dot reporter). Smoke-test the **built** CLI (`node dist/cli.cjs …`) before claiming a change works.

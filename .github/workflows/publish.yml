@@ -118,9 +118,11 @@ jobs:
     steps:
       # Every endpoint this job reaches: the checkout, the registry for
       # `npm ci` and for the install smoke test (which installs the packed
-      # tarball, and pkinative with it, into an empty project). OpenSSL, which
-      # the interop step requires, comes with the image. setup-node takes Node
-      # from the runner's tool cache; nodejs.org is its documented fallback.
+      # tarball, and pkinative with it, into an empty project), the zlint
+      # release archive and PyPI for the two certificate linters the publish
+      # gate requires. OpenSSL, which the interop step requires, comes with
+      # the image. setup-node takes Node from the runner's tool cache;
+      # nodejs.org is its documented fallback.
       - name: Harden the runner
         uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
         with:
@@ -130,6 +132,9 @@ jobs:
             api.github.com:443
             registry.npmjs.org:443
             nodejs.org:443
+            release-assets.githubusercontent.com:443
+            pypi.org:443
+            files.pythonhosted.org:443
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -164,11 +169,35 @@ jobs:
       - name: Install dependencies
         run: npm ci --ignore-scripts
 
+      # The certificate linters the publish gate's lint:certs step requires,
+      # pinned exactly as conformance.yml pins them.
+      - name: Install zlint (pinned, checksum-verified)
+        env:
+          ZLINT_VERSION: 3.7.2
+          ZLINT_SHA256: c2788575fc44da2648fcf9cfcdc1dae4d388d80a2b8edf9aafb215425cad4cc5
+        run: |
+          set -euo pipefail
+          ARCHIVE="zlint_${ZLINT_VERSION}_Linux_x86_64.tar.gz"
+          curl --fail --silent --show-error --location --proto '=https' \
+            --output "${RUNNER_TEMP}/${ARCHIVE}" \
+            "https://github.com/zmap/zlint/releases/download/v${ZLINT_VERSION}/${ARCHIVE}"
+          echo "${ZLINT_SHA256}  ${RUNNER_TEMP}/${ARCHIVE}" | sha256sum --check --strict
+          tar -xzf "${RUNNER_TEMP}/${ARCHIVE}" -C "${RUNNER_TEMP}"
+
+      - name: Install pkilint (pinned by hash)
+        run: |
+          set -euo pipefail
+          python3 -m venv "${RUNNER_TEMP}/lint-python"
+          "${RUNNER_TEMP}/lint-python/bin/python" -m pip install --require-hashes --no-deps --only-binary :all: -r scripts/data/lint-python-requirements.txt
+
       # Every gate step — typecheck, lint, build, smoke, bundle checks, the
       # Node.js floor, coverage with the built-binary suites required, OpenSSL
-      # interop, docs, samples, the tarball list and the install smoke test.
-      # --require-all: a missing tool fails the release instead of skipping.
+      # interop, certificate lint, docs, samples, the tarball list and the
+      # install smoke test. --require-all: a missing tool fails the release.
       - name: Run the quality gate (publish profile)
+        env:
+          ZLINT: ${{ runner.temp }}/zlint_3.7.2_Linux_x86_64/zlint
+          PKILINT_PYTHON: ${{ runner.temp }}/lint-python/bin/python
         run: npx tsx scripts/gate.ts --publish --require-all
 
       - name: Show the package contents

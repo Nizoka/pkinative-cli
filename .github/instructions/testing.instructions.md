@@ -9,7 +9,8 @@ applyTo: "tests/**,vitest.config.ts,scripts/**"
 - `tests/commands/` drive the CLI in-process with `cli(argv, { stdin, env, cwd })` from `tests/helpers/io.ts`: no process, no real stdout; assert on `code`, `stdout`, `stderr`, `envelope(stderr)`.
 - `tests/utils/` unit-test the helpers; `tests/docs/` hold the surface matrix, the help text and the fixtures to their sources.
 - `tests/parity/` compare the CLI's `--json` with pkinative's own result; `tests/fuzz/` are seeded (`tests/helpers/prng.ts`), so a failure reproduces from its seed.
-- `tests/integration/` run `dist/cli.cjs` (skipped without a build, required under `GATE_REQUIRE_ARTIFACTS=1`); `tests/interop/` run OpenSSL 3 (required under `REQUIRE_INTEROP=1`).
+- `tests/integration/` run `dist/cli.cjs` (skipped without a build, required under `GATE_REQUIRE_ARTIFACTS=1`); `tests/interop/` run OpenSSL 3 (required under `REQUIRE_INTEROP=1`) and lint what `cert create` writes with zlint and pkilint (`ZLINT`, `PKILINT_PYTHON`; required under `REQUIRE_LINT=1`; every warning reviewed in `scripts/data/lint-waivers.json`).
+- Mutation testing (`npm run mutate`, `scripts/mutate.ts`) runs before a release, outside the gate: every mutant of the targets killed, or recorded with its argument in `scripts/data/mutation-equivalents.json`.
 - `tests/regression/` pin the samples and map the engine's CHANGELOG bullets to tests or typed waivers.
 - `tests/tools/` hold the release tooling (gate, bundle probe, package files, npm drift, release-prepare, verify-docs), the workflows and rulesets, the agent guard hook and the issue-draft verifier to their invariants.
 

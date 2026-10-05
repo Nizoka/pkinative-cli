@@ -55,6 +55,15 @@ function opensslMissing(): string | null {
     return r.status === 0 ? null : 'openssl not on PATH';
 }
 
+/** zlint and a Python that imports pkilint, found the way tests/interop/lint.test.ts finds them. */
+function lintersMissing(): string | null {
+    const ok = (cmd: string, args: string[]): boolean => spawnSync(cmd, args, { encoding: 'utf8', windowsHide: true }).status === 0;
+    const zlint = ok(process.env['ZLINT'] ?? 'zlint', ['-list-lints-source']);
+    const pkilint = [process.env['PKILINT_PYTHON'], 'python3', 'python', 'py'].some((p) => p !== undefined && ok(p, ['-c', 'import pkilint.bin.lint_pkix_cert']));
+    const missing = [zlint ? null : 'zlint', pkilint ? null : 'pkilint'].filter((m): m is string => m !== null);
+    return missing.length === 0 ? null : `${missing.join(' and ')} not found (ZLINT, PKILINT_PYTHON)`;
+}
+
 function belowNodeFloor(): string | null {
     return satisfies(process.versions.node, NODE_RANGE) ? null : `Node.js ${process.versions.node} is below the security floor ${NODE_RANGE}`;
 }
@@ -158,6 +167,7 @@ export const STEPS: readonly Step[] = [
         env: { GATE: '1', GATE_REQUIRE_ARTIFACTS: '1' }, note: () => joinNotes(testCount(), coverageFigure()),
     },
     { id: 'interop', npmScript: 'test:interop', profiles: ['ci', 'publish'], skipWhen: opensslMissing, env: { REQUIRE_INTEROP: '1' } },
+    { id: 'lint:certs', npmScript: 'test:lint-certs', profiles: ['publish'], skipWhen: lintersMissing, env: { REQUIRE_LINT: '1' } },
     { id: 'verify:docs', npmScript: 'verify:docs', profiles: ['fast', 'ci', 'publish'] },
     { id: 'verify:samples', npmScript: 'verify:samples', profiles: ['ci', 'publish'], note: () => `${SAMPLES.length} samples` },
     { id: 'check:package', npmScript: 'check:package', profiles: ['ci', 'publish'] },

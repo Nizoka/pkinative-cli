@@ -38,6 +38,8 @@ The first release: the whole of [pkinative 1.0.0](https://github.com/Nizoka/pkin
 
 - **test(surface):** each of pkinative's 294 exports is traced to the command that reaches it (`docs/data/core-exports.json`); each of the 55 bullets of the engine's 1.0.0 CHANGELOG is mapped to a test or a typed waiver (`tests/regression/engine-surface.json`).
 - **test(proofs):** library parity for the JSON reports, the built binary driven end to end, seeded fuzzing of argv and hostile inputs, and OpenSSL 3 reading and verifying what the CLI writes.
+- **test(lint):** zlint v3.7.2 and DigiCert pkilint lint every certificate `cert create` writes — CA and leaf, ECDSA, RSA PKCS#1, RSA-PSS and Ed25519 — with no error and every warning reviewed (`scripts/data/lint-waivers.json`); required by `conformance.yml` and the publish gate.
+- **test(mutation):** `npm run mutate` (ported from pkinative) mutates every module of `src/` and requires each mutant killed or argued equivalent in `scripts/data/mutation-equivalents.json`.
 - **test(regression):** one pinned sample per subcommand (`doctor` excepted: it reports on the host), run against the built CLI (`samples/`, `.sh` and `.ps1`).
 - 100 % statement, branch, function and line coverage.
 
