@@ -95,6 +95,13 @@ describe('explain', () => {
 });
 
 describe('schema', () => {
+    it('documents the cert create defaults in the cert-spec schema (audit A-BX6)', async () => {
+        const spec = JSON.parse((await cli(['schema', 'cert-spec', '--json'])).stdout) as { properties: Record<string, { default?: unknown; description?: string }> };
+        expect(spec.properties['serialNumber']).toMatchObject({ default: 'random', description: expect.stringMatching(/127 random bits/) });
+        expect(spec.properties['notBefore']?.description).toMatch(/default: now/);
+        expect(spec.properties['validityDays']).toMatchObject({ default: 365 });
+    });
+
     it('lists the subjects', async () => {
         expect((await cli(['schema'])).stdout.split('\n')[0]).toMatch(/^manifest +document/);
         expect(JSON.parse((await cli(['schema', 'list', '--json'])).stdout).subjects).toHaveLength(SUBJECTS.length);

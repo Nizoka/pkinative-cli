@@ -71,7 +71,14 @@ function renderPath(path: readonly Certificate[]): string[] {
 }
 
 /** Print the report, then fail with `code` when the verdict is negative. */
-function finish(ctx: Ctx, report: ValidateCertificatePathReport, what: string, failing: readonly PkiReason[], extra: Record<string, unknown>): void {
+/** What each subcommand adds beside the engine report: named here so the generated summary schema lists them. */
+interface ChainExtra {
+    readonly explored?: number;
+    readonly signatureVerifications?: number;
+    readonly signaturesChecked?: boolean;
+}
+
+function finish(ctx: Ctx, report: ValidateCertificatePathReport, what: string, failing: readonly PkiReason[], extra: ChainExtra): void {
     emitReport(ctx, { ...report, ...extra }, () => [
         renderVerdict(ctx.color, failing.length === 0, what, report.reasons),
         // pkinative always returns at least the leaf, with the reason that stopped the walk.

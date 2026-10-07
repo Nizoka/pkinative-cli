@@ -117,7 +117,7 @@ export const COMMANDS: readonly CommandSpec[] = [
     {
         name: 'oid', group: 'Encodings', summary: 'Name, encode, decode, validate and list object identifiers', flags: [], subcommands: [
             { name: 'name', summary: 'The registered name of each OID', flags: [format], operands: LIST },
-            { name: 'encode', summary: 'Encode a dotted OID (content octets, or TLV)', flags: [{ name: 'tlv' }, { name: 'relative' }, ...artefact], operands: LIST },
+            { name: 'encode', summary: 'Encode a dotted OID (content octets, or TLV)', flags: [{ name: 'tlv' }, { name: 'relative' }, ...artefact, label], operands: LIST },
             { name: 'decode', summary: 'Decode OID bytes (hex argument or --input file)', flags: [input, { name: 'tlv' }, { name: 'relative' }, format] },
             { name: 'validate', summary: 'Check dotted OIDs; exit 1 when one is invalid', flags: [format], operands: LIST },
             { name: 'list', summary: 'The OID registry, optionally filtered', flags: [{ name: 'filter', value: 'text' }, format] },
@@ -140,7 +140,7 @@ export const COMMANDS: readonly CommandSpec[] = [
                 name: 'decode', summary: 'Print the ASN.1 tree, read one node, or re-encode it', flags: [
                     input, format, { name: 'sequence' }, { name: 'allow-trailing' }, { name: 'path', value: 'i.j.k' },
                     { name: 'read', value: 'type' }, { name: 'string-type', value: 'type' }, { name: 'time-type', value: 'UTCTime|GeneralizedTime' },
-                    { name: 'reencode' }, ...artefact,
+                    { name: 'reencode' }, ...artefact, label,
                 ],
             },
             { name: 'encode', summary: 'Encode a JSON node spec to DER', flags: [{ name: 'spec', value: 'file' }, ...artefact, label], operands: { max: 1, for: ['spec'] } },
@@ -150,7 +150,7 @@ export const COMMANDS: readonly CommandSpec[] = [
         name: 'cert', group: 'Certificates', summary: 'Inspect, create, encode, verify and check X.509 certificates', flags: [], subcommands: [
             { name: 'inspect', summary: 'Decode a certificate (one extension with --extension)', flags: [input, format, { name: 'raw-extensions' }, { name: 'extension', value: 'kind' }] },
             { name: 'create', summary: 'Issue a certificate from a JSON spec', flags: [{ name: 'spec', value: 'file' }, { name: 'issuer', value: 'file' }, { name: 'public-key', value: 'file' }, ...signing, ...artefact] },
-            { name: 'encode', summary: 'Encode one X.509 building block to DER', flags: [{ name: 'spec', value: 'file' }, ...signing, ...artefact], operands: { max: 1 } },
+            { name: 'encode', summary: 'Encode one X.509 building block to DER', flags: [{ name: 'spec', value: 'file' }, ...signing, ...artefact, label], operands: { max: 1 } },
             { name: 'decode-extension', summary: 'Decode an extension value by OID', flags: [{ name: 'oid', value: 'oid' }, { name: 'value', value: 'hex' }, input, { name: 'critical' }, format], operands: { max: 0 } },
             { name: 'verify-signature', summary: 'Verify a signature against its issuer (or itself)', flags: [input, { name: 'issuer', value: 'file' }, { name: 'allow-algorithm-mismatch' }, format] },
             { name: 'check-name', summary: 'Check a certificate against a host name or IP (RFC 6125)', flags: [input, { name: 'host', value: 'name' }, { name: 'ip', value: 'address' }, chainFlag, { name: 'allow-cn-fallback' }, { name: 'no-wildcards' }, format] },
@@ -182,8 +182,8 @@ export const COMMANDS: readonly CommandSpec[] = [
     },
     {
         name: 'ocsp', group: 'Paths & revocation', summary: 'Build OCSP requests and judge OCSP responses (RFC 6960)', flags: [], subcommands: [
-            { name: 'request', summary: 'Build an OCSP request for a certificate', flags: [{ name: 'cert', value: 'file' }, { name: 'issuer', value: 'file' }, { name: 'hash', value: 'SHA-1|SHA-256' }, { name: 'nonce', value: 'hex|random' }, ...artefact], operands: { max: 1, for: ['cert'] } },
-            { name: 'cert-id', summary: 'Encode the CertID of a certificate', flags: [{ name: 'cert', value: 'file' }, { name: 'issuer', value: 'file' }, { name: 'hash', value: 'SHA-1|SHA-256' }, ...artefact], operands: { max: 1, for: ['cert'] } },
+            { name: 'request', summary: 'Build an OCSP request for a certificate', flags: [{ name: 'cert', value: 'file' }, { name: 'issuer', value: 'file' }, { name: 'hash', value: 'SHA-1|SHA-256' }, { name: 'nonce', value: 'hex|random' }, ...artefact, label], operands: { max: 1, for: ['cert'] } },
+            { name: 'cert-id', summary: 'Encode the CertID of a certificate', flags: [{ name: 'cert', value: 'file' }, { name: 'issuer', value: 'file' }, { name: 'hash', value: 'SHA-1|SHA-256' }, ...artefact, label], operands: { max: 1, for: ['cert'] } },
             { name: 'inspect', summary: 'Decode an OCSP response', flags: [input, format] },
             { name: 'verify-signature', summary: 'Verify the responder signature', flags: [input, { name: 'responder', value: 'file' }, format] },
             { name: 'check', summary: 'Decide a certificate status from an OCSP response', flags: [input, { name: 'cert', value: 'file' }, { name: 'issuer', value: 'file' }, { name: 'responder', value: 'file' }, { name: 'responder-trusted' }, { name: 'hash', value: 'SHA-1|SHA-256' }, { name: 'nonce', value: 'hex' }, { name: 'require-nonce' }, { name: 'at', value: 'instant' }, { name: 'stale-tolerance', value: 'ms' }, { name: 'future-tolerance', value: 'ms' }, format] },
@@ -201,7 +201,7 @@ export const COMMANDS: readonly CommandSpec[] = [
     },
     {
         name: 'tsp', group: 'Signatures & time-stamps', summary: 'RFC 3161 time-stamp requests, tokens and verdicts', flags: [], subcommands: [
-            { name: 'request', summary: 'Build a time-stamp request', flags: [{ name: 'data', value: 'file' }, { name: 'digest', value: 'hex' }, { name: 'hash', value: 'SHA-256|SHA-384|SHA-512' }, { name: 'nonce', value: 'n|random' }, { name: 'policy', value: 'oid' }, { name: 'no-cert-req' }, ...artefact] },
+            { name: 'request', summary: 'Build a time-stamp request', flags: [{ name: 'data', value: 'file' }, { name: 'digest', value: 'hex' }, { name: 'hash', value: 'SHA-256|SHA-384|SHA-512' }, { name: 'nonce', value: 'n|random' }, { name: 'policy', value: 'oid' }, { name: 'no-cert-req' }, ...artefact, label] },
             { name: 'inspect', summary: 'Decode a response, a token or a TSTInfo', flags: [input, { name: 'as', value: 'response|token|tstinfo' }, format] },
             { name: 'verify', summary: 'Verify a time-stamp token or response', flags: [{ name: 'token', value: 'file' }, { name: 'response', value: 'file' }, { name: 'request', value: 'file' }, { name: 'data', value: 'file' }, { name: 'digest', value: 'hex' }, { name: 'trust', value: 'file', repeatable: true }, { name: 'untrusted', value: 'file', repeatable: true }, { name: 'crl', value: 'file', repeatable: true }, { name: 'ocsp', value: 'file', repeatable: true }, { name: 'require-revocation' }, { name: 'at', value: 'instant' }, { name: 'allow-noncritical-eku' }, format], operands: { max: 1, for: ['response', 'token'] } },
         ],

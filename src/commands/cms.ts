@@ -11,6 +11,7 @@ import {
     parseTimeStampResponse,
     verifySignedData,
     verifySignerInfoSignature,
+    verifyTimeStampToken,
     type Certificate,
     type SignedData,
     type SignerInfo,
@@ -227,7 +228,7 @@ async function addAttribute(ctx: Ctx): Promise<void> {
 
 async function addTimestamp(ctx: Ctx): Promise<void> {
     const der = await readSignedDataDer(ctx);
-    const { index } = signerAt(ctx, parse(ctx, der));
+    const { index, signerInfo } = signerAt(ctx, parse(ctx, der));
     const tokenPath = getStringFlag(ctx.args.flags, 'token');
     if (tokenPath === undefined) throw usageError('cms add-timestamp needs --token <file>: a TimeStampToken or a TimeStampResp.');
     let token = await readPkiBytes(ctx, tokenPath, 'time-stamp token');
@@ -238,6 +239,19 @@ async function addTimestamp(ctx: Ctx): Promise<void> {
         token = response.tokenDer;
     } catch (e) {
         if (e instanceof CliError) throw e;
+    }
+    // A counter time-stamp stamps the signer's signature value (RFC 3161 §4.1, RFC 5652 §11.4). The engine's
+    // addTimeStampToken attaches any token; a token over the content would be written and then fail cms verify,
+    // so the imprint is checked first (trust is cms verify's business: no anchors here, only the imprint reason).
+    const check = await guardAsync('Cannot check the time-stamp token', () => verifyTimeStampToken({
+        token, data: signerInfo.signature, trustAnchors: [], certificates: [], allowSha1: ctx.opts.allowSha1, limits: ctx.opts.limits,
+    }));
+    const mismatch = check.reasons.filter((r) => r.code === 'PKI_REASON_TSP_IMPRINT_MISMATCH');
+    if (mismatch.length > 0) {
+        throw new CliError(`The token does not stamp signer ${index}'s signature value: its imprint is over something else (PKI_REASON_TSP_IMPRINT_MISMATCH).`, 1, ErrorCode.INPUT, {
+            reasons: mismatch,
+            remedy: 'request the token over the signature value: cms inspect --fields signerInfos.signature, hash it, tsp request --digest <hex> --hash <alg>',
+        });
     }
     const out = guard('Cannot add the time-stamp', () => addTimeStampToken(der, index, token, { limits: ctx.opts.limits }));
     await emitArtifact(ctx, out, { label: 'CMS', defaultEncoding: 'der' });

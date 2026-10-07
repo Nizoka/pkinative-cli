@@ -108,12 +108,12 @@ function certSpec(): object {
     return {
         $schema: DIALECT, $id: ID('cert-spec'), title: 'cert create spec', type: 'object', required: ['subject'], additionalProperties: false,
         properties: {
-            serialNumber: { oneOf: [{ const: 'random' }, { type: 'integer', minimum: 1 }, { type: 'string', pattern: '^([1-9]\\d*|0x0*[1-9a-fA-F][0-9a-fA-F]*)$' }] },
+            serialNumber: { description: 'Positive serial number; omitted or "random": 127 random bits from the host CSPRNG', default: 'random', oneOf: [{ const: 'random' }, { type: 'integer', minimum: 1 }, { type: 'string', pattern: '^([1-9]\\d*|0x0*[1-9a-fA-F][0-9a-fA-F]*)$' }] },
             subject: { $ref: '#/$defs/name' },
             issuer: { $ref: '#/$defs/name' },
-            notBefore: instant,
-            notAfter: instant,
-            validityDays: { type: 'integer', minimum: 1 },
+            notBefore: { ...instant, description: 'Start of validity (default: now)' },
+            notAfter: { ...instant, description: 'End of validity; or validityDays' },
+            validityDays: { type: 'integer', minimum: 1, description: 'Days of validity from notBefore', default: 365 },
             extensions,
         },
         $defs: { name: nameSchema },

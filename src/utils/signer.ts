@@ -53,7 +53,7 @@ const PASSWORD_REMEDY = '--password-file <file> | --password-stdin | PKINATIVE_P
 function hashFlag(ctx: Ctx): SignatureHash | undefined {
     const hash = getChoiceFlag(ctx.args.flags, 'hash', HASHES);
     if (hash === 'SHA-1' && !ctx.opts.allowSha1) {
-        throw usageError('--hash SHA-1 produces a signature every current verifier refuses; pass --allow-sha1 to make one anyway.');
+        throw usageError('--hash SHA-1 produces a signature every current verifier refuses; pass --allow-sha1 to make one anyway.', '--allow-sha1');
     }
     return hash;
 }

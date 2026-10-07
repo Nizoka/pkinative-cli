@@ -461,6 +461,7 @@
       "via": [
         "chain build",
         "chain verify",
+        "cms add-timestamp",
         "cms verify",
         "tsp verify"
       ]
@@ -480,6 +481,7 @@
         "chain build",
         "chain validate",
         "chain verify",
+        "cms add-timestamp",
         "cms sign",
         "cms verify",
         "cms verify-signer",
@@ -960,6 +962,7 @@
         "chain build",
         "chain validate",
         "chain verify",
+        "cms add-timestamp",
         "cms sign",
         "cms verify",
         "cms verify-signer",
@@ -996,6 +999,7 @@
         "chain build",
         "chain validate",
         "chain verify",
+        "cms add-timestamp",
         "cms sign",
         "cms verify",
         "cms verify-signer",
@@ -1041,6 +1045,7 @@
         "key inspect",
         "ocsp check",
         "ocsp inspect",
+        "ocsp verify-signature",
         "oid decode",
         "p12 bags",
         "p12 inspect",
@@ -1827,7 +1832,8 @@
       "reach": "type-only",
       "via": [
         "ocsp check",
-        "ocsp inspect"
+        "ocsp inspect",
+        "ocsp verify-signature"
       ]
     },
     {
@@ -1836,7 +1842,8 @@
       "reach": "type-only",
       "via": [
         "ocsp check",
-        "ocsp inspect"
+        "ocsp inspect",
+        "ocsp verify-signature"
       ]
     },
     {
@@ -1864,6 +1871,7 @@
         "chain build",
         "chain validate",
         "chain verify",
+        "cms add-timestamp",
         "cms sign",
         "cms verify",
         "cms verify-signer",
@@ -2334,6 +2342,7 @@
         "key inspect",
         "ocsp check",
         "ocsp inspect",
+        "ocsp verify-signature",
         "oid decode",
         "p12 bags",
         "p12 inspect",
@@ -2496,6 +2505,7 @@
         "limits",
         "ocsp check",
         "ocsp inspect",
+        "ocsp verify-signature",
         "oid decode",
         "p12 bags",
         "p12 inspect",
@@ -2533,6 +2543,7 @@
         "key inspect",
         "ocsp check",
         "ocsp inspect",
+        "ocsp verify-signature",
         "oid decode",
         "p12 bags",
         "p12 inspect",
@@ -2553,6 +2564,7 @@
         "chain build",
         "chain validate",
         "chain verify",
+        "cms add-timestamp",
         "cms sign",
         "cms verify",
         "crl check",
@@ -2575,6 +2587,7 @@
         "chain build",
         "chain validate",
         "chain verify",
+        "cms add-timestamp",
         "cms sign",
         "cms verify",
         "crl check",
@@ -3039,6 +3052,7 @@
         "chain build",
         "chain validate",
         "chain verify",
+        "cms add-timestamp",
         "cms sign",
         "cms verify",
         "cms verify-signer",
@@ -3495,6 +3509,7 @@
         "chain build",
         "chain validate",
         "chain verify",
+        "cms add-timestamp",
         "cms sign",
         "cms verify",
         "cms verify-signer",
@@ -3795,6 +3810,7 @@
         "chain build",
         "chain validate",
         "chain verify",
+        "cms add-timestamp",
         "cms sign",
         "cms verify",
         "cms verify-signer",
@@ -3867,6 +3883,7 @@
         "chain build",
         "chain validate",
         "chain verify",
+        "cms add-timestamp",
         "cms verify",
         "tsp verify"
       ]
@@ -3886,6 +3903,7 @@
         "chain build",
         "chain validate",
         "chain verify",
+        "cms add-timestamp",
         "cms sign",
         "cms verify",
         "cms verify-signer",
@@ -3914,6 +3932,7 @@
       "reach": "type-only",
       "via": [
         "chain verify",
+        "cms add-timestamp",
         "cms verify",
         "tsp verify"
       ]
@@ -3979,6 +3998,7 @@
       "kind": "type",
       "reach": "type-only",
       "via": [
+        "cms add-timestamp",
         "tsp verify"
       ]
     },
@@ -3987,6 +4007,7 @@
       "kind": "type",
       "reach": "type-only",
       "via": [
+        "cms add-timestamp",
         "cms verify",
         "tsp verify"
       ]
@@ -4612,6 +4633,7 @@
       "reach": "capability",
       "via": [
         "cert create",
+        "csr create",
         "csr inspect",
         "fingerprint"
       ]
@@ -4630,7 +4652,8 @@
       "reach": "capability",
       "via": [
         "ocsp check",
-        "ocsp inspect"
+        "ocsp inspect",
+        "ocsp verify-signature"
       ]
     },
     {
@@ -4882,6 +4905,7 @@
       "kind": "function",
       "reach": "capability",
       "via": [
+        "cms add-timestamp",
         "tsp verify"
       ]
     }

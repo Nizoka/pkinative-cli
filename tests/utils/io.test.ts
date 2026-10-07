@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, readdirSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { clearInFlight, inFlightPaths, markInFlight, removeInFlight, SIGNAL_EXIT } from '../../src/utils/inflight.js';
@@ -99,6 +99,23 @@ describe('writeOutput', () => {
         }
         await expect(writeOutput(memoryIo().io, link, 'x', { overwrite: false })).rejects.toMatchObject({ code: 'E_IO' });
         expect(existsSync(join(dir, 'elsewhere'))).toBe(false);
+    });
+
+    it('replaces a symbolic link under --overwrite without following it (audit D-08)', async () => {
+        const dir = emptyDir();
+        const target = join(dir, 'target.txt');
+        const link = join(dir, 'link.txt');
+        writeFileSync(target, 'sentinel');
+        try {
+            symlinkSync(target, link);
+        } catch {
+            return; // symlinks need privileges on some Windows hosts
+        }
+        await expect(writeOutput(memoryIo().io, link, 'x', { overwrite: false })).rejects.toMatchObject({ code: 'E_IO' });
+        await writeOutput(memoryIo().io, link, 'replaced', { overwrite: true });
+        expect(readFileSync(target, 'utf8')).toBe('sentinel');
+        expect(lstatSync(link).isSymbolicLink()).toBe(false);
+        expect(readFileSync(link, 'utf8')).toBe('replaced');
     });
 
     it('maps an unwritable target to E_IO', async () => {

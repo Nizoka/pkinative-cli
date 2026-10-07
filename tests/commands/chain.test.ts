@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { INVOCATIONS } from '../../src/generated/report-schemas.js';
 import { AT, cli, emptyDir, envelope, fixture, fixtureBytes } from '../helpers/io.js';
 
 const TRUST = ['--trust', fixture('root.crt.pem')];
@@ -51,6 +52,11 @@ describe('chain verify', () => {
         const lost = await cli(['chain', 'verify', fixture('leaf.crt.pem'), ...TRUST, '--at', AT]);
         expect(lost.code).toBe(1);
         expect(lost.stdout).toMatch(/^chain: INVALID/);
+        expect(lost.stdout).toContain('PKI_REASON_NO_TRUST_ANCHOR');
+        // The members chain adds beside the engine report are in the generated summary schema (audit D-73).
+        const summaryKeys = Object.keys(JSON.parse(summary.stdout) as object);
+        const schema = INVOCATIONS['chain verify']?.summary as { properties?: Record<string, unknown> } | undefined;
+        for (const key of summaryKeys) expect(Object.keys(schema?.properties ?? {}), key).toContain(key);
     });
 
     it('requires revocation evidence when asked, and checks the OCSP nonce', async () => {

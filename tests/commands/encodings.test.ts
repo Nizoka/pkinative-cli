@@ -370,6 +370,21 @@ describe('asn1 encode', () => {
 });
 
 describe('text renderings and edge forms', () => {
+    it('refuses a missing base64 padding in both PEM modes, and says so (audit D-27)', async () => {
+        const dir = emptyDir();
+        const text = readFileSync(fixture('leaf.crt.pem'), 'utf8').replace(/=+\n-----END/, '\n-----END');
+        expect(text).not.toBe(readFileSync(fixture('leaf.crt.pem'), 'utf8'));
+        writeFileSync(join(dir, 'stripped.pem'), text);
+        for (const mode of ['strict', 'lax']) {
+            const r = await cli(['pem', 'decode', join(dir, 'stripped.pem'), '--pem-mode', mode, '--json']);
+            expect(r.code, mode).toBe(1);
+            const err = envelope(r.stderr).error as { code: string; remedy?: string };
+            expect(err.code, mode).toBe('E_PARSE');
+            expect(err.remedy ?? '', mode).toMatch(/padding must be restored/);
+            expect(err.remedy ?? '', mode).not.toMatch(/tolerates .*padding/);
+        }
+    });
+
     it('lists PEM headers under --pem-mode lax', async () => {
         const dir = emptyDir();
         writeFileSync(join(dir, 'h.pem'), '-----BEGIN THING-----\nProc-Type: 4,ENCRYPTED\nDEK-Info: AES-128-CBC,00\n\nBQA=\n-----END THING-----\n');

@@ -25,6 +25,28 @@ describe('run: help and version', () => {
         expect(json).toMatchObject({ name: 'pkinative-cli', version: CLI_VERSION });
         expect(json['pkinative']).toMatch(/^1\./);
         expect(JSON.parse((await cli(['-V'], { env: { PKINATIVE_JSON: '1' } })).stdout)).toHaveProperty('pkinative');
+        // AGENT_CONTRACT §6: --version --json and --help --json are the two invocations that write no envelope (audit C-39).
+        expect((await cli(['--version', '--json'])).stderr).toBe('');
+        expect((await cli(['--help', '--json'])).stderr).toBe('');
+    });
+
+    it('produces the PEM form wherever the help advertises --encoding pem (audit D-30)', async () => {
+        const dir = emptyDir();
+        writeFileSync(join(dir, 'name.json'), JSON.stringify({ CN: 'pem' }));
+        const invocations: ReadonlyArray<readonly string[]> = [
+            ['oid', 'encode', '1.2.840.113549.1.1.11', '--tlv'],
+            ['asn1', 'decode', fixture('leaf.crt.der'), '--reencode'],
+            ['cert', 'encode', 'name', '--spec', join(dir, 'name.json')],
+            ['ocsp', 'request', fixture('leaf.crt.pem'), '--issuer', fixture('inter.crt.pem')],
+            ['ocsp', 'cert-id', fixture('leaf.crt.pem'), '--issuer', fixture('inter.crt.pem')],
+            ['tsp', 'request', '--data', fixture('content.txt')],
+        ];
+        for (const argv of invocations) {
+            expect((await cli([...argv, '--encoding', 'pem'])).code, argv.join(' ')).toBe(2);
+            const r = await cli([...argv, '--encoding', 'pem', '--label', 'AUDIT']);
+            expect(r.code, argv.join(' ')).toBe(0);
+            expect(r.stdout, argv.join(' ')).toMatch(/^-----BEGIN AUDIT-----\n[A-Za-z0-9+/=\n]+-----END AUDIT-----\n$/);
+        }
     });
 
     it('prints a command help', async () => {

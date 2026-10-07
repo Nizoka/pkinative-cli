@@ -120,7 +120,9 @@ async function decodeExtension(ctx: Ctx): Promise<void> {
     } else {
         value = await readPkiBytes(ctx, path, 'extension value');
     }
-    const ext = guard('Cannot decode the extension', () => decodeExtensionValue(oid, value, { ...parseOptions(ctx), critical: hasFlag(ctx.args.flags, 'critical') }));
+    const ext = guard('Cannot decode the extension', () => decodeExtensionValue(oid, value, { ...parseOptions(ctx), critical: hasFlag(ctx.args.flags, 'critical') }), {
+        PKI_X509_EXTENSION_MALFORMED: 'the value is not a well-formed extension of that OID: check the hex, or decode it as plain ASN.1 with asn1 decode',
+    });
     emitReport(ctx, ext, () => extensionLine(ext));
 }
 

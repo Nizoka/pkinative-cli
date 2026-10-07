@@ -1,4 +1,5 @@
-import { readFileSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { encodeAttribute, encodeObjectIdentifier, parseSignedData } from 'pkinative';
@@ -147,11 +148,26 @@ describe('cms signer operations', () => {
         const withAttr = await cli(['cms', 'add-attribute', fixture('attached.p7s'), '--attribute', attr, '-o', join(dir, 'a.p7s')]);
         expect(withAttr.code).toBe(0);
         expect(parseSignedData(new Uint8Array(readFileSync(join(dir, 'a.p7s')))).signerInfos[0]?.unsignedAttributes).toHaveLength(1);
+        // The fixture token stamps content.txt, not the signature value: refused before anything is written (audit D-57).
         for (const token of ['content.tsr', 'content.tst']) {
-            const r = await cli(['cms', 'add-timestamp', fixture('attached.p7s'), '--token', fixture(token), '-o', join(dir, `${token}.p7s`)]);
-            expect(r.code, token).toBe(0);
-            expect(parseSignedData(new Uint8Array(readFileSync(join(dir, `${token}.p7s`)))).signerInfos[0]?.timeStampTokens).toHaveLength(1);
+            const r = await cli(['cms', 'add-timestamp', fixture('attached.p7s'), '--token', fixture(token), '-o', join(dir, `${token}.p7s`), '--json']);
+            expect(r.code, token).toBe(1);
+            expect(envelope(r.stderr)).toMatchObject({ error: { code: 'E_INPUT', message: expect.stringMatching(/signature value/), remedy: expect.stringMatching(/tsp request --digest/), reasons: [{ code: 'PKI_REASON_TSP_IMPRINT_MISMATCH' }] } });
+            expect(existsSync(join(dir, `${token}.p7s`)), token).toBe(false);
         }
+        // A token over the signature value is accepted: a TSTInfo built with asn1 encode and signed as id-ct-TSTInfo by the CLI itself.
+        const signature = parseSignedData(new Uint8Array(readFileSync(fixture('attached.p7s')))).signerInfos[0]?.signature ?? new Uint8Array();
+        const imprint = createHash('sha256').update(signature).digest('hex');
+        writeFileSync(join(dir, 'tstinfo.json'), JSON.stringify({ type: 'sequence', children: [
+            { type: 'integer', value: 1 }, { type: 'oid', value: '1.3.6.1.4.1.99999.1' },
+            { type: 'sequence', children: [{ type: 'sequence', children: [{ type: 'oid', value: '2.16.840.1.101.3.4.2.1' }, { type: 'null' }] }, { type: 'octet-string', hex: imprint }] },
+            { type: 'integer', value: 7 }, { type: 'time', timeType: 'GeneralizedTime', value: AT },
+        ] }));
+        expect((await cli(['asn1', 'encode', '--spec', join(dir, 'tstinfo.json'), '-o', join(dir, 'tstinfo.der')])).code).toBe(0);
+        expect((await cli(['cms', 'sign', '--content', join(dir, 'tstinfo.der'), '--content-type', '1.2.840.113549.1.9.16.1.4', '--key', fixture('leaf.key.pem'), '--cert', fixture('leaf.crt.pem'), '--signing-time', AT, '-o', join(dir, 'over-signature.tst')])).code).toBe(0);
+        const stamped = await cli(['cms', 'add-timestamp', fixture('attached.p7s'), '--token', join(dir, 'over-signature.tst'), '-o', join(dir, 'stamped.p7s')]);
+        expect(stamped.code).toBe(0);
+        expect(parseSignedData(new Uint8Array(readFileSync(join(dir, 'stamped.p7s')))).signerInfos[0]?.timeStampTokens).toHaveLength(1);
         expect((await cli(['cms', 'add-attribute', fixture('attached.p7s')])).code).toBe(2);
         expect((await cli(['cms', 'add-timestamp', fixture('attached.p7s')])).code).toBe(2);
     });

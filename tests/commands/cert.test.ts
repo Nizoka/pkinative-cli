@@ -88,6 +88,17 @@ describe('cert decode-extension', () => {
         writeFileSync(p, Buffer.from('300a06082b06010505070301', 'hex'));
         expect((await cli(['cert', 'decode-extension', '--oid', '2.5.29.37', '-i', p])).stdout).toBe('extKeyUsage: serverAuth\n');
         expect((await cli(['cert', 'decode-extension', '--oid', '1.2.3.4', '--value', '0500'])).stdout).toBe('1.2.3.4: 2 bytes\n');
+        // A malformed value gets a remedy of its own, not cert inspect's --raw-extensions (audit B-07).
+        const malformed = envelope((await cli(['cert', 'decode-extension', '--oid', '2.5.29.9', '--value', '300f300d0603550406310613024652', '--json'])).stderr);
+        expect(malformed).toMatchObject({ error: { code: 'E_PARSE', pkiCode: 'PKI_X509_EXTENSION_MALFORMED', remedy: expect.stringMatching(/asn1 decode/) } });
+        expect(JSON.stringify(malformed)).not.toContain('--raw-extensions');
+    });
+
+    it('decodes a subjectDirectoryAttributes value', async () => {
+        // SubjectDirectoryAttributes ::= SEQUENCE OF Attribute { type 2.5.4.6, values SET { PrintableString "FR" } } (RFC 5280 §4.2.1.8).
+        const r = await cli(['cert', 'decode-extension', '--oid', '2.5.29.9', '--value', '300d300b0603550406310413024652', '--json']);
+        expect(r.code).toBe(0);
+        expect(JSON.parse(r.stdout)).toMatchObject({ kind: 'subjectDirectoryAttributes' });
     });
 
     it('refuses missing or ambiguous input', async () => {
@@ -316,6 +327,7 @@ describe('cert create', () => {
         expect((await cli([...base, '--key', fixture('leaf.key.enc.pem')], { env: { PKINATIVE_PASSWORD: PASSWORD } })).stderr).toMatch(/needs its type/);
         expect((await cli([...base, '--key', fixture('leaf.key.enc.pem'), '--key-type', 'ec-p256', '--public-key', fixture('leaf.pub.pem')], { env: { PKINATIVE_PASSWORD: 'wrong' } })).stderr).toMatch(/E_PASSWORD/);
         expect((await cli([...base, '--key', fixture('leaf.key.pem'), '--hash', 'SHA-1'])).stderr).toMatch(/--allow-sha1/);
+        expect(envelope((await cli([...base, '--key', fixture('leaf.key.pem'), '--hash', 'SHA-1', '--json'])).stderr)).toMatchObject({ error: { code: 'E_USAGE', remedy: '--allow-sha1' } });
         expect((await cli([...base, '--key', fixture('leaf.key.pem'), '--hash', 'SHA-1', '--allow-sha1'])).code).toBe(0);
         expect((await cli([...base, '--key', fixture('ed25519.key.pem'), '--hash', 'SHA-256'])).stderr).toMatch(/does not apply to Ed25519/);
         expect((await cli([...base, '--key', fixture('leaf.key.pem'), '--rsa-scheme', 'pss'])).stderr).toMatch(/RSA keys only/);

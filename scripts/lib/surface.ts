@@ -97,7 +97,7 @@ export const RUNTIME_VIA: Readonly<Record<string, readonly string[]>> = {
     encodeValidity: ['cert encode'],
     KEY_USAGE_BITS: ['cert create', 'cert encode'],
     // x509-csr
-    parseCertificationRequest: ['csr inspect', 'fingerprint', 'cert create'],
+    parseCertificationRequest: ['csr inspect', 'fingerprint', 'cert create', 'csr create'],
     verifyCertificationRequest: ['csr verify', 'csr create'],
     // paths
     verifyCertificateChain: ['chain verify'],
@@ -117,7 +117,7 @@ export const RUNTIME_VIA: Readonly<Record<string, readonly string[]>> = {
     // ocsp
     createOcspRequest: ['ocsp request'],
     encodeOcspCertId: ['ocsp cert-id', 'ocsp check'],
-    parseOcspResponse: ['ocsp inspect', 'ocsp check'],
+    parseOcspResponse: ['ocsp inspect', 'ocsp check', 'ocsp verify-signature'],
     verifyOcspSignature: ['ocsp verify-signature', 'ocsp check'],
     checkOcspStatus: ['ocsp check'],
     OCSP_NONCE_OID: ['ocsp inspect'],
@@ -132,7 +132,7 @@ export const RUNTIME_VIA: Readonly<Record<string, readonly string[]>> = {
     parseTimeStampResponse: ['tsp inspect', 'cms add-timestamp'],
     parseTimeStampToken: ['tsp inspect'],
     parseTstInfo: ['tsp inspect'],
-    verifyTimeStampToken: ['tsp verify'],
+    verifyTimeStampToken: ['tsp verify', 'cms add-timestamp'],
     addTimeStampToken: ['cms add-timestamp'],
     // keys
     parsePrivateKeyInfo: ['key inspect', 'cert create'],

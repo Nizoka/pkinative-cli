@@ -131,7 +131,7 @@ export const PKI_REMEDY = {
     PKI_ASN1_CONSTRUCTED_STRING_FORBIDDEN: '--ber (constructed strings are BER)',
     PKI_ASN1_BOOLEAN_INVALID: '--ber (a non-0xFF TRUE is BER)',
     PKI_ASN1_TRAILING_DATA: 'pass exactly one object; asn1 decode --sequence for concatenated objects; --allow-trailing (asn1 decode, cms inspect, cms verify) when the container defines what follows',
-    PKI_PEM_BASE64_INVALID: '--pem-mode lax (tolerates whitespace and missing padding)',
+    PKI_PEM_BASE64_INVALID: '--pem-mode lax (whitespace, line length, headers); a missing "=" padding must be restored first',
     PKI_PEM_UNEXPECTED_LABEL: 'pkinative pem decode <file> (lists the labels present)',
     PKI_STRICT_DIAGNOSTIC: 'drop --strict, or fix the producer the diagnostic names',
     PKI_CRYPTO_ALGORITHM_REFUSED: '--allow-sha1 (only for legacy material you already trust)',

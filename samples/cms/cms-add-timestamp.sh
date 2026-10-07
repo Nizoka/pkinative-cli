@@ -1,6 +1,6 @@
 #!/bin/sh
-# Add a counter time-stamp
-# Run from the repository root after `npm run build`. Expected exit: 0.
+# Refuse a token that stamps the content, not the signature value
+# Run from the repository root after `npm run build`. Expected exit: 1.
 set -u
 F=tests/fixtures/pki S=samples/inputs O=test-output/samples
 mkdir -p "$O"

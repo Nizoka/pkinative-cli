@@ -203,8 +203,12 @@
       "id": 20,
       "section": "Added",
       "bullet": "`subjectDirectoryAttributes` decoded (RFC 5280 §4.2.1.8), with `SubjectDirectoryAttributesExtension`",
-      "waiver": "LIB",
-      "note": "reached by cert inspect --extension subjectDirectoryAttributes; no fixture carries one"
+      "tests": [
+        {
+          "file": "tests/commands/cert.test.ts",
+          "name": "decodes a subjectDirectoryAttributes value"
+        }
+      ]
     },
     {
       "id": 21,

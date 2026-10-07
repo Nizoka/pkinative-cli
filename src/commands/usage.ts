@@ -109,7 +109,8 @@ encode options:
   --label <LABEL>           The block label, e.g. CERTIFICATE (required)
   --output, -o <file>       Write the PEM text to a file (default: stdout)
 
---pem-mode lax tolerates whitespace and missing padding (global option).
+--pem-mode lax (global) tolerates whitespace, line length and RFC 1421 headers;
+a missing base64 padding ("=") is refused in both modes: restore it first.
 `;
 
 const OID_USAGE = `\
@@ -128,6 +129,7 @@ encode:
                             than the content octets
   --relative                RELATIVE-OID (X.690 §8.20); needs --tlv
   --encoding <pem|der|hex>  Output encoding (default hex)
+  --label <LABEL>           PEM label with --encoding pem
   --output, -o <file>       Write to a file (default: stdout)
 
 decode:
@@ -191,6 +193,7 @@ decode options:
   --sequence                Decode concatenated top-level objects
   --allow-trailing          Ignore bytes after the first object
   --encoding <pem|der|hex>  --reencode output encoding (default der)
+  --label <LABEL>           PEM label with --encoding pem
   --output, -o <file>       --reencode output file (default: stdout)
   --format, -f <text|json>  Report format (json under --json)
 
@@ -231,6 +234,7 @@ Usage:
   pkinative cert create --spec <spec.json> --key <key> [--issuer <ca.pem>]
                         [--public-key <file>] [-o <file>]
   pkinative cert encode <structure> --spec <spec.json>
+  pkinative cert encode signature-algorithm --key <key> [--rsa-scheme <s>]
   pkinative cert decode-extension --oid <oid> --value <hex> [--critical]
   pkinative cert verify-signature [<file>] [--issuer <file>]
   pkinative cert check-name [<file>] --host <name> | --ip <address>
@@ -245,7 +249,8 @@ inspect:
   --format, -f <text|json>  Report format (json under --json)
 
 create (the spec: subject, issuer, serialNumber, notBefore, notAfter or
-validityDays, extensions; see: pkinative schema cert-spec):
+validityDays, extensions; see: pkinative schema cert-spec; defaults when
+omitted: a random 127-bit serialNumber, notBefore now, validityDays 365):
   --spec <file>             JSON spec ("-" = stdin)
   --issuer <file>           Issuer certificate; omitted = self-signed
   --public-key <file>       Subject key: a certificate, request or PUBLIC KEY
@@ -263,6 +268,7 @@ encode <structure>: name, name-attribute, validity, spki,
   Members of each spec: pkinative schema cert-encode-spec ($defs/<structure>)
   --spec <file>             JSON value of the structure ("-" = stdin)
   --output, -o <file>       Output file      --encoding <pem|der|hex> (hex)
+  --label <LABEL>           PEM label with --encoding pem
 
 decode-extension:
   --oid <oid>               The extension OID
@@ -337,7 +343,9 @@ Usage:
 
 verify is the one-call verdict: path building, every signature, RFC 5280
 validation, the server name (RFC 6125), the purposes and, with CRLs or OCSP
-responses, revocation. build finds a path without checking signatures.
+responses, revocation. build finds a path without checking signatures: its
+verdict is the path, so valid is false with PKI_REASON_SIGNATURE_NOT_CHECKED
+and the envelope says signaturesChecked: false.
 validate takes the path in order and verifies each link's signature first.
 A negative verdict prints the report, then exits 1 (E_VERIFY_FAILED).
 
@@ -417,6 +425,7 @@ request / cert-id:
   --hash <SHA-1|SHA-256>    CertID hash (default SHA-1, as responders expect)
   --output, -o <file>       Output file (default: stdout)
   --encoding <pem|der|hex>  Output encoding (request: der, cert-id: hex)
+  --label <LABEL>           PEM label with --encoding pem
 
 request:
   --nonce <hex|random>      A nonce extension of 1 to 32 octets (RFC 8954),
@@ -501,7 +510,12 @@ add-attribute:
   --attribute <file>        One Attribute, DER
 
 add-timestamp:
-  --token <file>            A TimeStampToken or TimeStampResp
+  --token <file>            A TimeStampToken or TimeStampResp that stamps the
+                            signer's SIGNATURE VALUE (cms inspect --fields
+                            signerInfos.signature, hash it, request the
+                            time-stamp over that digest); a token over the
+                            content is refused before anything is written
+                            (E_INPUT, PKI_REASON_TSP_IMPRINT_MISMATCH)
 
 add-attribute / add-timestamp:
   --output, -o <file>       Output file (default: stdout)
@@ -533,6 +547,7 @@ request:
   --policy <oid>            Requested TSA policy
   --no-cert-req             Do not ask the TSA to embed its certificate
   --output, -o <file>       Output file      --encoding <pem|der|hex> (der)
+  --label <LABEL>           PEM label with --encoding pem
 
 inspect:
   --input, -i <file>        The object (default: the positional)

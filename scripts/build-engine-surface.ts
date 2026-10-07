@@ -39,7 +39,7 @@ const MAP: Readonly<Record<number, Item>> = {
     17: { tests: [['tests/utils/pkierr.test.ts', 'maps exactly the 57 codes of the pinned registry'], ['tests/docs/surface.test.ts', 'reaches every one of the 294 exports']] },
     18: { tests: [['tests/utils/wire.test.ts', 'converts bigint, bytes, numbers and omits absent members']] },
     19: { tests: [['tests/docs/surface.test.ts', 'imports pkinative through core-bridge only']] },
-    20: { waiver: 'LIB', note: 'reached by cert inspect --extension subjectDirectoryAttributes; no fixture carries one' },
+    20: { tests: [[CERT, 'decodes a subjectDirectoryAttributes value']] },
     21: { tests: [[CERT, 'inspects a request'], [CERT, 'verifies a request, and fails on a tampered one']] },
     22: { tests: [[ENC, 'reads null, enumerated, relative-oid and refuses a wrong type'], [ENC, 'encodes content octets, TLV and relative OIDs']] },
     23: { tests: [[ENC, 'computes SHAKE256 of any length']] },
