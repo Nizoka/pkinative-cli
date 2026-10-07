@@ -148,9 +148,11 @@ Shell completion for bash, zsh, fish and PowerShell.
 
 | Option | Effect |
 |---|---|
+| `--help`, `-h`; `--version`, `-V` | Help (per command too) and the CLI and engine versions, on stdout |
 | `--json` | Compact JSON report on stdout, one envelope on stderr (also `PKINATIVE_JSON=1`) |
 | `--fields a,b.c`, `--summary`, `--pretty` | Shrink or indent JSON reports |
-| `--quiet`, `-q` | No notes or diagnostics on stderr (errors still print) |
+| `--quiet`, `-q` | No notes or diagnostics on stderr (errors still print; also `PKINATIVE_QUIET=1`) |
+| `--no-color` | Plain text; colour is also off under `NO_COLOR`, `TERM=dumb` or a pipe, and forced by `FORCE_COLOR` |
 | `--dry-run` | Validate everything, write nothing |
 | `--strict` | Escalate the first engine warning to `E_CHECK_FAILED` |
 | `--ber` | Accept BER as well as DER |
@@ -159,6 +161,8 @@ Shell completion for bash, zsh, fish and PowerShell.
 | `--overwrite` | Replace an existing output file, atomically |
 | `--max-<limit> <n>`, `--max-content-size <size>` | Raise or lower a bound (`pkinative limits`) |
 | `--config <file>`, `--no-config` | `.pkinativerc.json` presentation defaults only (`json`, `pretty`, `quiet`, `no-color`, `format`, `encoding`, `fields`, `summary`, `strict`) |
+
+`PKINATIVE_DEBUG=1` adds the stack of an unexpected `E_RUNTIME` to stderr; `PKINATIVE_PASSWORD` is the third password source (README §Security).
 
 ## Driving pkinative-cli from scripts and AI agents
 
@@ -190,7 +194,7 @@ Every release is published from CI with npm provenance, a Sigstore attestation a
 
 - [docs/KNOWLEDGE_BASE.md](docs/KNOWLEDGE_BASE.md) — architecture, every command in depth, the engine mapping.
 - [docs/AGENT_CONTRACT.md](docs/AGENT_CONTRACT.md) — the process contract for automation.
-- [docs/adr/](docs/adr/) — the decisions behind the CLI.
+- [docs/adr/README.md](docs/adr/README.md) — the decisions behind the CLI, indexed.
 - [CHANGELOG.md](CHANGELOG.md), [ROADMAP.md](ROADMAP.md), [CONTRIBUTING.md](CONTRIBUTING.md), [SUPPORT.md](SUPPORT.md).
 
 ## Related projects

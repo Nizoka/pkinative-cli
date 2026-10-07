@@ -13,8 +13,10 @@ Acknowledgement within 48 hours; a fix for a critical issue is the priority of t
 
 | Version | Supported |
 |---|---|
-| 1.0.x | ✅ |
-| < 1.0 | ❌ (never published) |
+| 1.0.x | ✅ Supported: security fixes land on the latest 1.x minor |
+| < 1.0 | ❌ Not supported (never published) |
+
+The 1.x line is supported for as long as the engine's 1.x line is (pkinative ADR 0017); dropping a line is announced one minor release ahead in CHANGELOG.md, and only the latest minor of a line receives fixes.
 
 ## Security model
 
@@ -29,11 +31,11 @@ There is therefore no SSRF surface, no DNS dependency, and no verdict that chang
 
 ### Secrets
 
-- **No password on argv.** `--password`, `--pass`, `--passin` and `--key-password` are refused (exit 2) before any command runs: argv is readable by other users (`ps`, `/proc/<pid>/cmdline`) and lands in shell history.
+- **No password on argv** ([ADR 0003](docs/adr/0003-secrets-never-on-argv-never-in-output.md)). `--password`, `--pass`, `--passin` and `--key-password` are refused (exit 2) before any command runs: argv is readable by other users (`ps`, `/proc/<pid>/cmdline`) and lands in shell history.
   The sources are `--password-file <file>` (first line), `--password-stdin`, and `PKINATIVE_PASSWORD`; giving two is a usage error.
 - **No key byte in any output.** Private keys are imported by pkinative into non-extractable Web Crypto keys. `key` and `p12` reports are built field by field from an allow-list (`src/utils/key-views.ts`) instead of serialising the engine objects, because `PrivateKeyInfo.der`, PKCS#12 keyBag and secretBag values and the authenticated safe hold plaintext.
   A test over a PKCS#12 holding an *unencrypted* keyBag proves that no key byte, scalar or JWK form reaches stdout or stderr in any mode.
-- The CLI derives a public key from an unencrypted PKCS#8 with `node:crypto` only to name the subject key of a certificate or request; it never exports a private key and has no key-writing command.
+- The CLI derives a public key from an unencrypted PKCS#8 with `node:crypto` only to name the subject key of a certificate or request; it never exports a private key and has no key-writing command ([ADR 0004](docs/adr/0004-offline-and-inherited-refusals.md) lists every host primitive the CLI uses).
 - Passwords never appear in messages, envelopes or diagnostics; a wrong password is `E_PASSWORD` with the engine's fixed message.
 
 ### Inputs
@@ -71,7 +73,7 @@ Coverage is 100 % on statements, branches, functions and lines; a seeded fuzz su
 
 ## Release integrity
 
-Releases are published only by `.github/workflows/publish.yml`, on a published GitHub Release, in four jobs:
+Releases are published only by `.github/workflows/publish.yml`, on a published GitHub Release, in four jobs ([ADR 0005](docs/adr/0005-release-integrity.md)):
 
 1. **guard** — the tag must equal `package.json`'s version; no token.
 2. **build** — the full publish gate (`--publish --require-all`, OpenSSL interop required), `npm pack` once, SHA-256 and SHA-512 of the tarball passed on; no `id-token`.

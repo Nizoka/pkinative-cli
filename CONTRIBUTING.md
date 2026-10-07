@@ -83,7 +83,7 @@ Never paste a real key, password or certificate chain into an issue. Report vuln
 
 ## Commit messages
 
-Conventional Commits with a scope: `feat(cert): …`, `fix(io): …`, `test(fuzz): …`, `docs: …`, `ci: …`, `chore(deps): …`. The subject says what changes for a user; the body says why.
+Conventional Commits with a scope: `feat(cert): …`, `fix(io): …`, `test(fuzz): …`, `docs: …`, `ci: …`, `chore(deps): …`; a release pull request is squash-merged as `release: vX.Y.Z — …`. The subject says what changes for a user; the body says why.
 No `Co-Authored-By` trailer — for people or tools.
 
 ## Release
