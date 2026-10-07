@@ -9,7 +9,7 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, normalize, relative, resolve } from 'node:path';
-import { COMMANDS } from '../src/commands/registry.ts';
+import { COMMANDS, GLOBAL_FLAGS } from '../src/commands/registry.ts';
 import { SUBJECTS } from '../src/commands/schema.ts';
 import { ERROR_CODES } from '../src/utils/error.ts';
 import { LIMIT_FLAG_NAMES } from '../src/utils/limits.ts';
@@ -148,7 +148,24 @@ function commands(): string[] {
             if (!usage.includes(` ${s.name} `) && !usage.includes(` ${s.name}\n`)) out.push(`src/commands/usage.ts does not describe ${c.name} ${s.name}`);
         }
     }
+    const start = readme.indexOf('\n## Global options');
+    const globals = readme.slice(start, readme.indexOf('\n## ', start + 1));
+    for (const flag of GLOBAL_FLAGS) {
+        if ((LIMIT_FLAG_NAMES as readonly string[]).includes(flag.name)) continue;
+        if (!globals.includes(`\`--${flag.name}`)) out.push(`README.md §Global options does not describe --${flag.name}`);
+    }
+    const contract = read('docs/AGENT_CONTRACT.md');
+    for (const name of new Set(sourceFiles('src').flatMap((f) => read(f).match(/PKINATIVE_[A-Z_]+/g) ?? []))) {
+        if (!readme.includes(name) && !contract.includes(name)) out.push(`${name} is read in src/ but documented neither in README.md nor in docs/AGENT_CONTRACT.md`);
+    }
     return out;
+}
+
+function sourceFiles(dir: string): string[] {
+    return readdirSync(join(ROOT, dir)).flatMap((name) => {
+        const path = `${dir}/${name}`;
+        return statSync(join(ROOT, path)).isDirectory() ? sourceFiles(path) : path.endsWith('.ts') ? [path] : [];
+    });
 }
 
 function samples(): string[] {
@@ -184,6 +201,7 @@ function versions(): string[] {
     else if (!citation.includes(`date-released: ${entry[1] ?? ''}`)) out.push(`CITATION.cff: date-released is not the CHANGELOG date ${entry[1] ?? ''}`);
     if (!changelog.includes(`[${v}]: https://github.com/Nizoka/pkinative-cli/`)) out.push(`CHANGELOG.md: no link definition for [${v}]`);
     if (!existsSync(join(ROOT, `release-notes/v${v}.md`))) out.push(`release-notes/v${v}.md is missing`);
+    else if (entry !== null && !read(`release-notes/v${v}.md`).includes(`_Released ${entry[1] ?? ''}`)) out.push(`release-notes/v${v}.md: "_Released <date>" is not the CHANGELOG date ${entry[1] ?? ''}`);
     if (!read('llms.txt').includes(`Version ${v}`)) out.push(`llms.txt does not say "Version ${v}"`);
     if (!read('SECURITY.md').includes(`| ${minor}.x |`)) out.push(`SECURITY.md: the supported-versions table has no ${minor}.x row`);
     for (const m of read('SECURITY.md').matchAll(/pkinative-cli[@-](\d+\.\d+\.\d+)/g)) {
@@ -238,6 +256,11 @@ function links(): string[] {
                 out.push(`${file}: link ${target} — ${resolved} has no heading #${anchor}`);
             }
         }
+    }
+    // Every decision is reachable from the documentation that rests on it, not only from the index.
+    const outside = markdownFiles().filter((f) => !f.startsWith('docs/adr/')).map((f) => read(f)).join('\n');
+    for (const adr of readdirSync(join(ROOT, 'docs/adr')).filter((f) => /^\d{4}-/.test(f))) {
+        if (!outside.includes(`adr/${adr}`)) out.push(`docs/adr/${adr}: no document outside docs/adr/ links to it`);
     }
     return out;
 }
