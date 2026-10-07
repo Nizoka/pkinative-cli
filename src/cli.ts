@@ -144,13 +144,14 @@ export const REDACTED = '<the argument after --password-stdin>';
  * a flag), and a failure that names it would print it. That argument is never
  * echoed — unless it is a flag the CLI declares, or a path that exists (the
  * input written after the switch). Only the argument as a whole word is
- * replaced, never a substring of another (audit A2-03, N-1, N-2).
+ * replaced, never a substring of another; a full stop after it does not
+ * protect it, an extension (.p12) does (audit A2-03, N-1, N-2).
  */
 export function redactMistypedPassword(argv: readonly string[], e: unknown, cwd: string): unknown {
     const i = argv.indexOf('--password-stdin');
     const next = i === -1 ? undefined : argv[i + 1];
     if (!(e instanceof Error) || next === undefined || next === '-' || next === '--' || KNOWN_SPELLINGS.has(next.replace(/=.*$/s, '')) || existsSync(resolve(cwd, next))) return e;
-    const word = new RegExp(`(?<![\\w.-])${next.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\w.-])`, 'g');
+    const word = new RegExp(`(?<![\\w.-])${next.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\w-]|\\.\\w)`, 'g');
     e.message = e.message.replace(word, REDACTED);
     return e;
 }

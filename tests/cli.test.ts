@@ -2,7 +2,7 @@ import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { COMMANDS, GLOBAL_FLAGS, commandFlags } from '../src/commands/registry.js';
-import { REDACTED } from '../src/cli.js';
+import { REDACTED, redactMistypedPassword } from '../src/cli.js';
 import { CONFIG_FILENAME } from '../src/utils/config.js';
 import { CLI_VERSION } from '../src/utils/version.js';
 import { AT, cli, emptyDir, envelope, fixture } from './helpers/io.js';
@@ -342,5 +342,32 @@ describe('run: the parser enforces the registry (audit A-08, A-10, A-11, A-19)',
         const r = await cli(['cms', 'sign', '--content', '-', '--password-stdin', '--key', fixture('leaf.key.enc.pem'), '--cert', fixture('leaf.crt.pem')], { stdin: 'hello' });
         expect(r.code).toBe(2);
         expect(r.stderr).toMatch(/cannot come from stdin/);
+    });
+});
+
+describe('redactMistypedPassword', () => {
+    const cwd = emptyDir();
+    const redact = (argv: string[], message: string): unknown => redactMistypedPassword(argv, new Error(message), cwd);
+    const text = (argv: string[], message: string): string => (redact(argv, message) as Error).message;
+
+    it('replaces the whole argument after --password-stdin, never a part of another word', () => {
+        expect(text(['p12', '--password-stdin', 'Zq9'], 'x Zq9 "Zq9" xZq9 Zq9x Zq9.p12 -Zq9')).toBe(`x ${REDACTED} "${REDACTED}" xZq9 Zq9x Zq9.p12 -Zq9`);
+        // Regular-expression characters in the argument are literal.
+        expect(text(['--password-stdin', 'a.b'], 'axb a.b')).toBe(`axb ${REDACTED}`);
+        expect(text(['--password-stdin', '-Zq9'], 'flag -Zq9.')).toBe(`flag ${REDACTED}.`);
+    });
+
+    it('keeps a known flag (either spelling, = form included), stdin, the end of options, an existing path', () => {
+        const file = join(cwd, 'in.p12');
+        writeFileSync(file, '');
+        for (const next of ['-i', '--input', '--format=json', '-', '--', 'in.p12', file]) {
+            expect(text(['p12', '--password-stdin', next], `got ${next} here`), next).toBe(`got ${next} here`);
+        }
+    });
+
+    it('changes nothing without the switch, without an argument after it, or for a value that is not an Error', () => {
+        expect(text(['p12', 'Zq9'], 'Zq9')).toBe('Zq9');
+        expect(text(['p12', '--password-stdin'], 'Zq9')).toBe('Zq9');
+        expect(redactMistypedPassword(['--password-stdin', 'Zq9'], 'Zq9', cwd)).toBe('Zq9');
     });
 });
