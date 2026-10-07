@@ -11,20 +11,8 @@
   },
   "permissions": {
     "allow": [
-      "Bash(npm run build)",
-      "Bash(npm run test)",
-      "Bash(npm run test *)",
+      "Bash(npm run *)",
       "Bash(npm test*)",
-      "Bash(npm run test:coverage*)",
-      "Bash(npm run lint*)",
-      "Bash(npm run typecheck:all)",
-      "Bash(npm run gate)",
-      "Bash(npm run gate:fast)",
-      "Bash(npm run verify:docs*)",
-      "Bash(npm run verify:samples*)",
-      "Bash(npm run samples:generate*)",
-      "Bash(npm run surface:build)",
-      "Bash(npm run agents:rules)",
       "Bash(npx vitest *)",
       "Bash(npx tsx scripts/*)",
       "Bash(npx tsc *)",
@@ -41,20 +29,16 @@
       "Bash(git worktree list*)",
       "Bash(git describe*)",
       "Bash(git branch --list*)",
-      "PowerShell(npm run build)",
-      "PowerShell(npm run test)",
-      "PowerShell(npm run test *)",
+      "Bash(node dist/cli.cjs *)",
+      "Bash(git grep *)",
+      "Bash(git branch --show-current)",
+      "Bash(ls *)",
+      "Bash(wc *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(sed -n *)",
+      "PowerShell(npm run *)",
       "PowerShell(npm test*)",
-      "PowerShell(npm run test:coverage*)",
-      "PowerShell(npm run lint*)",
-      "PowerShell(npm run typecheck:all)",
-      "PowerShell(npm run gate)",
-      "PowerShell(npm run gate:fast)",
-      "PowerShell(npm run verify:docs*)",
-      "PowerShell(npm run verify:samples*)",
-      "PowerShell(npm run samples:generate*)",
-      "PowerShell(npm run surface:build)",
-      "PowerShell(npm run agents:rules)",
       "PowerShell(npx vitest *)",
       "PowerShell(npx tsx scripts/*)",
       "PowerShell(npx tsc *)",
@@ -70,7 +54,15 @@
       "PowerShell(git merge-base *)",
       "PowerShell(git worktree list*)",
       "PowerShell(git describe*)",
-      "PowerShell(git branch --list*)"
+      "PowerShell(git branch --list*)",
+      "PowerShell(node dist/cli.cjs *)",
+      "PowerShell(git grep *)",
+      "PowerShell(git branch --show-current)",
+      "PowerShell(ls *)",
+      "PowerShell(wc *)",
+      "PowerShell(head *)",
+      "PowerShell(tail *)",
+      "PowerShell(sed -n *)"
     ],
     "deny": [
       "Read(package-lock.json)",
@@ -146,21 +138,11 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Bash",
+        "matcher": "Bash|PowerShell",
         "hooks": [
           {
             "type": "command",
-            "command": "node .claude/hooks/guard.mjs",
-            "timeout": 5
-          }
-        ]
-      },
-      {
-        "matcher": "PowerShell",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node .claude/hooks/guard.mjs",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard.mjs\"",
             "timeout": 5
           }
         ]
