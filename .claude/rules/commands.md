@@ -22,10 +22,7 @@ paths:
 
 ## Adding a subcommand
 
-1. The handler, its flags in `registry.ts`, its help in `usage.ts`, its `loadCommand` case in `src/cli.ts`.
-2. `RUNTIME_VIA` in `scripts/lib/surface.ts` for each engine export it reaches; `npm run surface:build`.
-3. Tests at 100 %; a sample in `scripts/lib/sample-plan.ts`; `npm run samples:generate`; re-pin with a reason.
-4. README, `docs/KNOWLEDGE_BASE.md`, `llms.txt`; `npm run verify:docs`.
+The four steps of AGENTS.md §Architecture, in order (handler, registry, help and `loadCommand`; `RUNTIME_VIA` and `surface:build`; tests, sample and re-pin with a reason; README, knowledge base, `llms.txt` and `verify:docs`); the tests named there fail on a missed step.
 
 ## Doctrine inherited from pkinative
 

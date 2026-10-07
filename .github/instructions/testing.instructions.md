@@ -18,7 +18,7 @@ applyTo: "tests/**,vitest.config.ts,scripts/**"
 
 - Coverage is 100 % on all four axes, never lowered; `src/bin.ts` is the only exclusion (the built-binary suite runs it).
 - Time is pinned: `--at 2027-01-01T00:00:00Z` (`AT` in the helpers) inside the fixtures' 2026–2046 validity; `TZ=UTC` in vitest.
-- Fixtures under `tests/fixtures/pki/` come from OpenSSL (`scripts/fixtures/make-test-pki.sh`), are TEST-ONLY, LF, and pinned in `SHA256SUMS` with a `PROVENANCE.md` row. A test never calls OpenSSL to make a fixture.
+- Fixtures under `tests/fixtures/pki/` come from OpenSSL (`scripts/fixtures/make-test-pki.sh`), are TEST-ONLY, LF, and pinned in `tests/fixtures/SHA256SUMS` with a `tests/fixtures/PROVENANCE.md` row. A test never calls OpenSSL to make a fixture.
 - Outputs go to `emptyDir()` temp directories, never the repository.
 - A sample change re-pins `tests/regression/baselines/samples.sha256.json` only with the reason in the release note.
 

@@ -50,7 +50,7 @@ Before proposing a feature, check that pkinative provides it and does not refuse
 
 ## Fixtures
 
-`tests/fixtures/pki/` is a TEST-ONLY PKI produced by OpenSSL with `scripts/fixtures/make-test-pki.sh`, pinned in `SHA256SUMS` and described in `PROVENANCE.md`.
+`tests/fixtures/pki/` is a TEST-ONLY PKI produced by OpenSSL with `scripts/fixtures/make-test-pki.sh`, pinned in `tests/fixtures/SHA256SUMS` and described in `tests/fixtures/PROVENANCE.md`.
 Add a fixture by extending the script, generating the one new file, adding its checksum and its row; never regenerate the existing files in place.
 
 ## Security
