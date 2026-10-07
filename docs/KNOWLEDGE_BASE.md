@@ -69,6 +69,7 @@ run() ─► success envelope | failure envelope ─► exit code      bin.ts: E
 ### Signing keys
 
 `cert create`, `csr create`, `cert encode signature-algorithm` and `cms sign` take `--key <pkcs8>` (plain or encrypted) or `--p12 <file>`.
+A `cert create` spec that omits them gets a random 127-bit `serialNumber` (host CSPRNG), `notBefore` now and `validityDays` 365 (`pkinative schema cert-spec` carries the defaults).
 The algorithm follows the key: ECDSA on the key's curve with the curve's hash (or `--hash`), Ed25519 and Ed448 without a hash, RSA only with `--rsa-scheme pkcs1|pss`.
 An encrypted key reveals its type only once decrypted, and pkinative decrypts into a key for one algorithm, so the type comes from the issuer certificate, `--cert`, `--public-key`, or `--key-type`.
 
@@ -197,9 +198,9 @@ The 177 type exports are reached through the inputs and reports of these calls; 
 | `openSafeContents` | function | `p12 bags` |
 | `parseCertificate` | function | *, `cert inspect` |
 | `parseCertificateList` | function | `crl check`, `crl inspect` |
-| `parseCertificationRequest` | function | `cert create`, `csr inspect`, `fingerprint` |
+| `parseCertificationRequest` | function | `cert create`, `csr create`, `csr inspect`, `fingerprint` |
 | `parseEncryptedPrivateKeyInfo` | function | `key inspect` |
-| `parseOcspResponse` | function | `ocsp check`, `ocsp inspect` |
+| `parseOcspResponse` | function | `ocsp check`, `ocsp inspect`, `ocsp verify-signature` |
 | `parsePkcs12` | function | `p12 bags`, `p12 inspect`, `p12 verify-mac` |
 | `parsePrivateKeyInfo` | function | `cert create`, `key inspect` |
 | `parseSignedData` | function | `cms add-attribute`, `cms add-timestamp`, `cms inspect`, `cms sign`, `cms verify-signer` |
@@ -228,7 +229,7 @@ The 177 type exports are reached through the inputs and reports of these calls; 
 | `verifySelfSignature` | function | `cert create`, `cert verify-signature` |
 | `verifySignedData` | function | `cms verify` |
 | `verifySignerInfoSignature` | function | `cms sign`, `cms verify-signer` |
-| `verifyTimeStampToken` | function | `tsp verify` |
+| `verifyTimeStampToken` | function | `cms add-timestamp`, `tsp verify` |
 <!-- END GENERATED: api-mapping -->
 
 ## 9. Security model

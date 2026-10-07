@@ -71,7 +71,7 @@ The CLI inherits pkinative's doctrine; each refusal is deliberate and recorded i
 
 ### `pkinative pem`
 
-`decode` lists the blocks of an RFC 7468 text (or extracts one with `--index`); `encode` wraps DER bytes. `--pem-mode lax` tolerates whitespace and missing padding.
+`decode` lists the blocks of an RFC 7468 text (or extracts one with `--index`); `encode` wraps DER bytes. `--pem-mode lax` tolerates whitespace, line length and RFC 1421 headers; a missing base64 padding is refused in both modes.
 
 ### `pkinative oid`
 
@@ -97,7 +97,7 @@ SHA-1/256/384/512 fingerprints (pure TypeScript, or `--webcrypto`), the RFC 5280
 ### `pkinative chain`
 
 `verify` is the one-call verdict: path building, every signature, RFC 5280 validation, server name, purposes, policy inputs and — with `--crl` / `--ocsp` — revocation.
-`build` finds a path; `validate` validates a path you ordered, verifying each link's signature first. Time is `--at` (ISO 8601, UTC unless zoned).
+`build` finds a path without checking signatures, so its `valid` is false with `PKI_REASON_SIGNATURE_NOT_CHECKED` and the envelope says `signaturesChecked: false`; `validate` validates a path you ordered, verifying each link's signature first. Time is `--at` (ISO 8601, UTC unless zoned).
 
 ### `pkinative crl`
 
@@ -110,7 +110,7 @@ SHA-1/256/384/512 fingerprints (pure TypeScript, or `--webcrypto`), the RFC 5280
 ### `pkinative cms`
 
 `sign` (attached, `--detached`, or a precomputed `--content-digest`; ESS signing-certificate-v2 and CMS algorithm protection by default), `verify` (signatures, chains, time-stamps, revocation),
-`inspect`, `verify-signer`, `add-attribute` and `add-timestamp`.
+`inspect`, `verify-signer`, `add-attribute` and `add-timestamp` (the token must stamp the signer's signature value: `cms inspect --fields signerInfos.signature`, hash it, `tsp request --digest`; a token over the content is refused before anything is written).
 
 ### `pkinative tsp`
 
@@ -148,7 +148,7 @@ Shell completion for bash, zsh, fish and PowerShell.
 
 | Option | Effect |
 |---|---|
-| `--help`, `-h`; `--version`, `-V` | Help (per command too) and the CLI and engine versions, on stdout |
+| `--help`, `-h`; `--version`, `-V` | Help (per command too) and the CLI version, on stdout (the engine's too under `--json`) |
 | `--json` | Compact JSON report on stdout, one envelope on stderr (also `PKINATIVE_JSON=1`) |
 | `--fields a,b.c`, `--summary`, `--pretty` | Shrink or indent JSON reports |
 | `--quiet`, `-q` | No notes or diagnostics on stderr (errors still print; also `PKINATIVE_QUIET=1`) |

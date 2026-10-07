@@ -16,7 +16,8 @@ The CLI is offline: it never fetches a CRL, an OCSP answer, a time-stamp or an i
 - [Error catalogue](https://github.com/Nizoka/pkinative-cli/blob/main/docs/data/errors.json): every PKI_* code with its CLI class and remedy (also `pkinative schema errors`, `pkinative explain <code>`)
 - [Surface matrix](https://github.com/Nizoka/pkinative-cli/blob/main/docs/data/core-exports.json): each pkinative export and the command that reaches it
 - [Samples](https://github.com/Nizoka/pkinative-cli/tree/main/samples): one runnable example per subcommand (doctor excepted), .sh and .ps1
-- [Threat model](https://github.com/Nizoka/pkinative-cli/blob/main/docs/THREAT_MODEL.md) and [SECURITY.md](https://github.com/Nizoka/pkinative-cli/blob/main/SECURITY.md)
+- [Threat model](https://github.com/Nizoka/pkinative-cli/blob/main/docs/THREAT_MODEL.md): assets, actors, STRIDE table and residual risks
+- [SECURITY.md](https://github.com/Nizoka/pkinative-cli/blob/main/SECURITY.md): reporting, the security model, release integrity and how to verify a release
 
 ## Engine
 

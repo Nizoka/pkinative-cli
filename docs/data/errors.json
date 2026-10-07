@@ -218,7 +218,7 @@
       "pkiCode": "PKI_PEM_BASE64_INVALID",
       "cliCode": "E_PARSE",
       "exitCode": 1,
-      "remedy": "--pem-mode lax (tolerates whitespace and missing padding)"
+      "remedy": "--pem-mode lax (whitespace, line length, headers); a missing \"=\" padding must be restored first"
     },
     {
       "pkiCode": "PKI_PEM_HEADERS_FORBIDDEN",

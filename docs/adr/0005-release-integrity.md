@@ -22,3 +22,4 @@ The job that holds `id-token` never runs the development toolchain. This is SLSA
 
 - Good: a consumer can verify provenance and the SBOM of the exact tarball they installed.
 - Bad: a release needs the npm `pkinative-cli` package configured for Trusted Publishing and a protected environment, set once by the maintainer.
+- Bad: GitHub Release immutability stays off (CONTRIBUTING.md §Branch protection), because the attest job uploads its files to a Release that is already published. The compensation: the npm version is immutable, and `gh attestation verify --bundle` checks a downloaded asset against the attestation store, so a swapped asset is detected, not trusted.

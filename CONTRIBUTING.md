@@ -126,4 +126,4 @@ Settings outside the rulesets, set once:
 
 ## License
 
-By contributing, you agree that your contributions are licensed under the [MIT License](LICENSE).
+By contributing, you agree that your contributions are licensed under the [MIT License](LICENSE). No contributor licence agreement and no `Signed-off-by` (DCO) line is required: that inbound = outbound rule is the whole agreement.
