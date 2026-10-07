@@ -387,7 +387,9 @@ describe('cert encode', () => {
         }
         // Each refusal is E_INPUT naming the member, and the schema refuses the same spec.
         const refused: [string, unknown, string][] = [
-            ['extension', { oid: '1.2.3', critical: 'true', value: '0500' }, 'critical: expected a boolean'],
+            // The path names the member exactly: top level, and nested (mutation testing).
+            ['extension', { oid: '1.2.3', critical: 'true', value: '0500' }, 'spec critical: expected a boolean'],
+            ['extensions', { keyUsage: { usages: ['digitalSignature'], critical: 'true' } }, 'spec extensions.keyUsage.critical: expected a boolean'],
             ['extension', { oid: '1.2.3', value: '0500', critcal: true }, 'critcal: unknown member'],
             ['validity', { notBefore: '2027-01-01T00:00:00Z', notafter: '2028-01-01T00:00:00Z' }, 'notafter: unknown member'],
             ['spki', { algorithm: '1.3.101.112', publicKey: '00', curve: 'x' }, 'curve: unknown member'],
