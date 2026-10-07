@@ -16,7 +16,7 @@ pkinative's 1.0.0 publish needed three runs: the workflow first ran on a tag pus
 **guard** (the tag equals the version), **build** (the full publish gate with `--require-all`, OpenSSL installed; `npm pack` once; digests out),
 **publish** (the `npm-publish` environment, a maintainer's approval, digests re-checked, an integrity-pinned npm client, provenance through Trusted Publishing)
 and **attest** (the registry's bytes compared, `npm audit signatures`, SBOMs, a Sigstore attestation, all attached to the Release).
-The job that holds `id-token` never runs the development toolchain. This is SLSA Build Level 2, as in pkinative's ADR 0019.
+The job that holds `id-token` never runs the development toolchain. This is SLSA Build Level 2, as in pkinative's ADR 0019. Level 3 — a build and provenance the project's own workflow cannot influence, through a trusted reusable builder — is not pursued at 1.0 (ROADMAP.md §Later).
 
 ### Consequences
 

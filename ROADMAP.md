@@ -21,6 +21,7 @@ pkinative-cli follows its engine. A pkinative minor that adds exports, codes or 
 
 - Anything pkinative adds in its own minors.
 - Coverage-guided fuzzing of the CLI's own parsers, should they grow ([ADR 0006](docs/adr/0006-seeded-fuzzing-not-coverage-guided.md)).
+- SLSA Build Level 3: the build and its provenance moved to a trusted reusable builder the project's own workflow cannot influence ([ADR 0005](docs/adr/0005-release-integrity.md) stops at Level 2).
 
 ## Never
 

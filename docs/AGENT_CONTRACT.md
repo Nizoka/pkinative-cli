@@ -61,7 +61,7 @@ Command-specific success fields (`valid`, `pathLength`, `output`, `bytes` — th
 
 ## 4. The wire form
 
-JSON reports are the engine's own results under pkinative's ADR 0018 convention: `bigint` → decimal string, `Uint8Array` → lowercase hex, `epochMilliseconds` stays a number, absent optional members are omitted, member names are unchanged.
+JSON reports are the engine's own results under pkinative's ADR 0018 convention ([ADR 0002](adr/0002-json-wire-form.md)): `bigint` → decimal string, `Uint8Array` → lowercase hex, `epochMilliseconds` stays a number, absent optional members are omitted, member names are unchanged.
 The CLI adds nothing to an engine result except where it is a CLI view: `key` and `p12` reports are allow-list views that never carry key bytes, and command-level wrappers (`{ blocks }`, `{ oids }`, `{ valid, reasons }`) are documented per command.
 
 ## 5. Token economy
