@@ -398,5 +398,7 @@ describe('dependency review, audit and defaults', () => {
         for (const field of ['peerDependencies', 'optionalDependencies', 'bundleDependencies', 'bundledDependencies']) expect(pkg[field], field).toBeUndefined();
         expect(pkg['publishConfig']).toEqual({ access: 'public', provenance: true });
         expect(pkg['bin']).toEqual({ pkinative: './dist/cli.cjs' });
+        // A command-line tool with no programmatic entry point: require('pkinative-cli') must fail, not run the CLI.
+        for (const field of ['main', 'module', 'exports', 'types']) expect(pkg[field], field).toBeUndefined();
     });
 });

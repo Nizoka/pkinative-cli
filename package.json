@@ -6,7 +6,6 @@
   "bin": {
     "pkinative": "./dist/cli.cjs"
   },
-  "main": "./dist/cli.cjs",
   "files": [
     "dist",
     "LICENSE",
@@ -44,7 +43,7 @@
     "schemas:build": "npx tsx scripts/build-report-schemas.ts",
     "agents:rules": "npx tsx scripts/build-claude-rules.ts",
     "verify:docs": "npx tsx scripts/verify-docs.ts",
-    "check:package": "npx tsx scripts/package-files.ts",
+    "check:package": "npx tsx scripts/package-files.ts && publint",
     "smoke:install": "npx tsx scripts/smoke-install.ts",
     "check:npm-drift": "npx tsx scripts/check-npm-drift.ts",
     "release:prepare": "npx tsx scripts/release-prepare.ts",

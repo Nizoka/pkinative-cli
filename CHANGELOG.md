@@ -43,6 +43,7 @@ The first release: the whole of [pkinative 1.0.0](https://github.com/Nizoka/pkin
 - **test(mutation):** `npm run mutate` (ported from pkinative) mutates every module of `src/` and requires each mutant killed or argued equivalent in `scripts/data/mutation-equivalents.json`.
 - **test(regression):** one pinned sample per subcommand (`doctor` excepted: it reports on the host), run against the built CLI (`samples/`, `.sh` and `.ps1`).
 - 100 % statement, branch, function and line coverage.
+- **chore(package):** the package declares a `bin` and no `main`, so `require('pkinative-cli')` fails instead of running the CLI; `publint` runs in `check:package`.
 
 ### Documentation
 

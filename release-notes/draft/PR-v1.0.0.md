@@ -9,7 +9,7 @@
 The first release of pkinative-cli: every export of pkinative 1.0.0 reached by a command, offline, with pkinative as the one runtime dependency and one process contract (stdout artefact or report, one JSON envelope on stderr, exit 0/1/2, 130/143 on a signal).
 Passwords never on argv and key material never in output; outputs created exclusively or replaced atomically; every engine bound behind a `--max-*` flag; a configuration file that sets presentation only ([ADR 0007](../../docs/adr/0007-configuration-is-presentation-only.md)); a parser that holds every invocation to the registry, aliases included.
 
-Counts: 18 commands · 47 subcommands (53 invocations) · 294/294 engine exports reached (117 runtime, 177 types) · 55/55 engine CHANGELOG bullets mapped · 688 tests across 50 files · 100 % statements, branches, functions and lines · every mutant of `src/` killed or argued equivalent · 57 samples · 12 `schema` subjects, including the `--json` report and `--summary` shape of every invocation.
+Counts: 18 commands · 47 subcommands (53 invocations) · 294/294 engine exports reached (117 runtime, 177 types) · 55/55 engine CHANGELOG bullets mapped (22 held by a test, 33 typed waivers: 17 library-only, 12 tooling, 4 docs) · 688 tests across 50 files · 100 % statements, branches, functions and lines · every mutant of `src/` killed or argued equivalent · 57 samples · 12 `schema` subjects, including the `--json` report and `--summary` shape of every invocation.
 
 ## Changes
 
