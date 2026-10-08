@@ -5,6 +5,7 @@ import { compareEntries, listFindings, manifestEntries, manifestShapeFindings, r
 import { decideNpmDrift, parseNpmView } from '../../scripts/check-npm-drift.ts';
 import { planRelease, parseArgs as releaseArgs } from '../../scripts/release-prepare.ts';
 import { parseArgs, selectSteps, STEPS } from '../../scripts/gate.ts';
+import { crlfTextFiles, parseLsFilesEol } from '../../scripts/lib/agent-config.ts';
 import { anchorsOf, FIGURES, RULES } from '../../scripts/verify-docs.ts';
 
 // The release tooling is code the release depends on: each script's pure core
@@ -156,5 +157,21 @@ describe('verify-docs', () => {
             expect(fig?.phrases.some((p) => new RegExp(p.source).test(readme)), what).toBe(true);
         }
         expect(RULES.map((r) => r.id)).toContain('links');
+        expect(RULES.map((r) => r.id)).toContain('eol-lf');
+    });
+
+    it('reads the ls-files --eol table and keeps only CRLF or mixed text blobs', () => {
+        const table = [
+            'i/lf    w/lf    attr/text=auto eol=lf     	src/cli.ts',
+            'i/crlf  w/crlf  attr/text=auto eol=lf     	CHANGELOG.md',
+            'i/mixed w/mixed attr/text=auto eol=lf     	docs/x.md',
+            'i/crlf  w/crlf  attr/-text linguist-vendored=true	scripts/data/Blocks.txt',
+            'i/-text w/-text attr/-text -diff -merge   	tests/fixtures/pki/leaf.crt.der',
+            'i/crlf  w/crlf  attr/binary                	weird.bin',
+            'i/none  w/none  attr/text=auto eol=lf     	empty.txt',
+        ].join('\n');
+        expect(parseLsFilesEol(table)).toHaveLength(7);
+        expect(crlfTextFiles(parseLsFilesEol(table)).map((e) => e.path)).toEqual(['CHANGELOG.md', 'docs/x.md']);
+        expect(parseLsFilesEol(table.replace(/\n/g, '\r\n'))).toHaveLength(7);
     });
 });

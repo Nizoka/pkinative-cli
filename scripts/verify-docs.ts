@@ -14,6 +14,7 @@ import { SUBJECTS } from '../src/commands/schema.ts';
 import { ERROR_CODES } from '../src/utils/error.ts';
 import { LIMIT_FLAG_NAMES } from '../src/utils/limits.ts';
 import { expectedRules, RULES_DIR } from './build-claude-rules.ts';
+import { crlfTextFiles, parseLsFilesEol } from './lib/agent-config.ts';
 import { generatedDocs } from './lib/docs.ts';
 import { BUDGETS, LEGAL_FILES, listFindings, manifestShapeFindings, PACKAGE_FILES_MANIFEST, sha256, type PackageFilesManifest } from './lib/package-files.ts';
 import { SAMPLES } from './lib/sample-plan.ts';
@@ -323,6 +324,24 @@ function adrs(): string[] {
     return out;
 }
 
+// ── Line endings ────────────────────────────────────────────────────
+
+/**
+ * Every tracked text blob is LF. `.gitattributes` says `* text=auto eol=lf`, the opt-in
+ * pre-commit hook refuses a staged CRLF file and tests/docs/fixtures.test.ts holds the
+ * pem/txt fixtures; this rule is the always-on, repository-wide check, read from the
+ * index (`git ls-files --eol`) so an autocrlf working tree cannot fake a finding.
+ */
+function eolLf(): string[] {
+    const git = (...args: string[]) => spawnSync('git', ['-C', ROOT, ...args], { encoding: 'utf8', windowsHide: true });
+    const top = git('rev-parse', '--show-toplevel');
+    // Not a checkout (an unpacked tarball): there is no index to hold.
+    if (top.status !== 0 || resolve(top.stdout.trim()).toLowerCase() !== ROOT.toLowerCase()) return [];
+    const ls = git('ls-files', '--eol');
+    if (ls.status !== 0) return [`git ls-files --eol failed: ${ls.stderr.trim()}`];
+    return crlfTextFiles(parseLsFilesEol(ls.stdout)).map((e) => `${e.path}: the blob in the index is ${e.index.slice(2).toUpperCase()} — .gitattributes says eol=lf; convert the file to LF and stage it again`);
+}
+
 export const RULES: readonly Rule[] = [
     { id: 'generated', holds: 'errors.json, the knowledge-base tables, core-exports.json, engine-surface.json, the report schemas and .claude/rules equal their generators', check: generated },
     { id: 'commands', holds: 'README headings and table, knowledge base, usage text and samples cover every registry command and subcommand', check: commands },
@@ -334,6 +353,7 @@ export const RULES: readonly Rule[] = [
     { id: 'agents', holds: 'CLAUDE.md imports AGENTS.md; attribution is off; the agent deny list holds; no attribution trailer', check: agents },
     { id: 'package-files', holds: 'the pinned tarball list obeys the packing rules and the legal texts are unchanged', check: packageFiles },
     { id: 'adr', holds: 'ADRs are numbered without gaps and carry a status', check: adrs },
+    { id: 'eol-lf', holds: 'every tracked text blob is LF (git ls-files --eol; -text and binary paths exempt)', check: eolLf },
 ];
 
 function main(argv: readonly string[]): number {
