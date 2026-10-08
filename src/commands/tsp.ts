@@ -20,7 +20,7 @@ import { parseOptions, type Ctx } from '../context.js';
 import { getChoiceFlag, getStringFlag, getStringFlagAll, hasFlag } from '../utils/args.js';
 import { CliError, ErrorCode, usageError } from '../utils/error.js';
 import { emitArtifact, emitReport } from '../utils/output.js';
-import { guard, guardAsync, mapPkiError } from '../utils/pkierr.js';
+import { guard, guardAsync, isPkiCode, mapPkiError } from '../utils/pkierr.js';
 import { LABELS, readContentBytes, readPkiBundle, readPkiBytes } from '../utils/pki-input.js';
 import { dn, generalName, renderVerdict } from '../utils/render.js';
 import { formatInstant, parseInstant } from '../utils/time.js';
@@ -118,6 +118,8 @@ async function inspect(ctx: Ctx): Promise<void> {
                 result = parseAs(ctx, der, as);
                 break;
             } catch (e) {
+                // A strict refusal is the answer, not a detection failure to try past (audit F-27).
+                if (isPkiCode(e, 'PKI_STRICT_DIAGNOSTIC')) throw mapPkiError(e, `Cannot read the input as a ${as}`);
                 first ??= e;
             }
         }

@@ -239,6 +239,11 @@ export function mapPkiError(err: unknown, context: string, remedies: Readonly<Re
     return new CliError(`${context}: ${message}`, 1, ErrorCode.RUNTIME);
 }
 
+/** True when `err` is the engine's error carrying `code`. */
+export function isPkiCode(err: unknown, code: string): boolean {
+    return err instanceof PkiError && err.code === code;
+}
+
 /** Run a synchronous engine call, translating any failure. */
 export function guard<T>(context: string, fn: () => T, remedies?: Readonly<Record<string, string>>): T {
     try {

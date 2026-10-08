@@ -153,6 +153,8 @@ export function renderReport(ctx: Ctx, report: VerifySignedDataReport): string {
 
 async function verify(ctx: Ctx): Promise<void> {
     const der = await readSignedDataDer(ctx);
+    // verifySignedData has no diagnostic sink (pkinative 1.0.0): parsing once first lets the warnings reach --strict (audit F-26).
+    parse(ctx, der);
     const { content, contentDigest } = await contentInputs(ctx);
     const trustPaths = getStringFlagAll(ctx.args.flags, 'trust');
     if (trustPaths.length === 0) throw usageError('cms verify needs --trust <file> (repeatable): the trust anchors.');

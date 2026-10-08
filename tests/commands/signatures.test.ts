@@ -181,6 +181,37 @@ describe('cms signer operations', () => {
     });
 });
 
+describe('tsp --strict', () => {
+    // content.tsr and content.tst carry a CMS SET that is not DER-sorted: a warning the engine reports through onDiagnostic.
+    it('escalates a warning a verify report collects, not only one raised while parsing (audit F-25)', async () => {
+        const base = ['tsp', 'verify', '--response', fixture('content.tsr'), '--data', fixture('content.txt'), '--trust', fixture('root.crt.pem'), '--untrusted', fixture('tsa.crt.pem'), '--at', AT, '--json'];
+        const lenient = await cli(base);
+        expect(lenient.code).toBe(0);
+        expect(envelope(lenient.stderr).diagnostics).toEqual(expect.arrayContaining([expect.objectContaining({ severity: 'warning' })]));
+        const strict = await cli([...base, '--strict']);
+        expect(strict.code).toBe(1);
+        expect(strict.stdout).toBe('');
+        expect(envelope(strict.stderr)).toMatchObject({ error: { code: 'E_CHECK_FAILED', pkiCode: 'PKI_STRICT_DIAGNOSTIC', message: expect.stringMatching(/--strict: the engine warned PKI_DIAG_/), remedy: expect.stringMatching(/drop --strict/) } });
+    });
+
+    it('surfaces the strict refusal through the auto-detection of tsp inspect (audit F-27)', async () => {
+        const r = await cli(['tsp', 'inspect', fixture('content.tst'), '--strict', '--json']);
+        expect(envelope(r.stderr)).toMatchObject({ error: { code: 'E_CHECK_FAILED', pkiCode: 'PKI_STRICT_DIAGNOSTIC' } });
+        expect((await cli(['tsp', 'inspect', fixture('content.tst'), '--as', 'token', '--strict', '--json'])).code).toBe(1);
+        expect((await cli(['tsp', 'inspect', fixture('content.tst'), '--json'])).code).toBe(0);
+    });
+
+    it('escalates the warning of a SignedData under cms verify (audit F-26: verifySignedData has no sink, the CLI parses first)', async () => {
+        const r = await cli(['cms', 'verify', fixture('content.tst'), '--trust', fixture('root.crt.pem'), '--untrusted', fixture('tsa.crt.pem'), '--at', AT, '--strict', '--json']);
+        expect(r.code).toBe(1);
+        expect(envelope(r.stderr)).toMatchObject({ error: { code: 'E_CHECK_FAILED', pkiCode: 'PKI_STRICT_DIAGNOSTIC' } });
+    });
+
+    it('does not escalate a report without a warning', async () => {
+        expect((await cli(['cms', 'verify', fixture('attached.p7s'), '--trust', fixture('root.crt.pem'), '--at', AT, '--strict'])).code).toBe(0);
+    });
+});
+
 describe('tsp', () => {
     it('builds requests from data or a digest', async () => {
         const r = await cli(['tsp', 'request', '--data', fixture('content.txt'), '--encoding', 'hex']);

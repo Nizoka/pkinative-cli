@@ -6,9 +6,9 @@
 import { encodePem } from '../core-bridge/index.js';
 import type { Ctx } from '../context.js';
 import { getChoiceFlag, getStringFlag } from './args.js';
-import { usageError } from './error.js';
+import { CliError, ErrorCode, usageError } from './error.js';
 import { writeOutput } from './io.js';
-import { guard } from './pkierr.js';
+import { guard, PKI_REMEDY } from './pkierr.js';
 import { selectFields, serializeJson } from './projection.js';
 import { toHex, toWire } from './wire.js';
 
@@ -23,7 +23,20 @@ export function reportFormat(ctx: Ctx): ReportFormat {
  * Emit a report. JSON honours --summary (when the command supplies one) and
  * --fields; text calls the command's renderer.
  */
+/**
+ * `--strict` escalates the first engine warning to E_CHECK_FAILED. The engine itself escalates only while
+ * parsing (PkiParseOptions.strict); a verify or check report collects its warnings through onDiagnostic,
+ * so the escalation happens here, before anything is written (audit F-25).
+ */
+export function escalateStrict(ctx: Ctx): void {
+    if (!ctx.opts.strict) return;
+    const warning = ctx.diagnostics.find((d) => d.severity === 'warning');
+    if (warning === undefined) return;
+    throw new CliError(`--strict: the engine warned ${warning.code} at ${warning.path}: ${warning.message}`, 1, ErrorCode.CHECK_FAILED, { pkiCode: 'PKI_STRICT_DIAGNOSTIC', remedy: PKI_REMEDY.PKI_STRICT_DIAGNOSTIC });
+}
+
 export function emitReport(ctx: Ctx, value: unknown, text: () => string, summary?: () => unknown): void {
+    escalateStrict(ctx);
     if (reportFormat(ctx) === 'json') {
         let out: unknown = toWire(value);
         if (summary !== undefined && ctx.opts.summary) out = toWire(summary());
@@ -60,6 +73,7 @@ export async function emitArtifact(ctx: Ctx, der: Uint8Array, options: ArtifactO
     const encoding = getChoiceFlag(ctx.args.flags, 'encoding', ['pem', 'der', 'hex'] as const, options.defaultEncoding);
     const path = getStringFlag(ctx.args.flags, 'output');
     const label = getStringFlag(ctx.args.flags, 'label') ?? options.label;
+    escalateStrict(ctx);
     const data = renderArtifact(der, encoding, label);
     if (encoding === 'der' && (path === undefined || path === '-') && ctx.io.stdout.isTTY === true) {
         throw usageError('Refusing to write binary DER to a terminal: pass --output <file>, or --encoding pem|hex.');
