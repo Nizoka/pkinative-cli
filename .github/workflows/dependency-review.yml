@@ -10,7 +10,11 @@ name: Dependency Review
 # The allow-list is the permissive licences the toolchain uses
 # (THIRD-PARTY-NOTICES.md). lightningcss is MPL-2.0: Vitest's bundler pulls
 # it in, it runs unmodified at test time and never ships, so it is named
-# package by package rather than allowing MPL-2.0 for everything.
+# package by package rather than allowing MPL-2.0 for everything. The same
+# rule covers the Python linter of conformance.yml and the publish gate
+# (scripts/data/lint-python-requirements.txt): pkilint and its dependencies
+# run unmodified in CI over the certificates the CLI creates and never ship
+# (MIT-0, MPL-2.0 and public-domain files among them), so each is named.
 #
 # Needs the repository's Dependency graph enabled (Settings → Code security).
 
@@ -68,5 +72,9 @@ jobs:
             pkg:npm/lightningcss-linux-x64-gnu,
             pkg:npm/lightningcss-linux-x64-musl,
             pkg:npm/lightningcss-win32-arm64-msvc,
-            pkg:npm/lightningcss-win32-x64-msvc
+            pkg:npm/lightningcss-win32-x64-msvc,
+            pkg:pypi/pkilint,
+            pkg:pypi/cffi,
+            pkg:pypi/iso4217,
+            pkg:pypi/publicsuffixlist
           comment-summary-in-pr: on-failure

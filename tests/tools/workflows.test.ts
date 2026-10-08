@@ -400,6 +400,12 @@ describe('dependency review, audit and defaults', () => {
         expect(review).toMatch(/fail-on-severity:\s*high/);
         expect(review).toMatch(/allow-licenses:\s*MIT, ISC, BSD-2-Clause, BSD-3-Clause, Apache-2.0, 0BSD, CC0-1.0, Unlicense, BlueOak-1.0.0, Python-2.0\s*$/m);
         expect(review).not.toMatch(/allow-licenses:.*MPL/);
+        // Every per-package exemption is either Vitest's bundler (npm) or a pinned line of the CI-only Python linter (pypi): nothing that ships.
+        const pinned = readText('scripts', 'data', 'lint-python-requirements.txt');
+        for (const m of review.matchAll(/pkg:(npm|pypi)\/([a-z0-9-]+)/g)) {
+            if (m[1] === 'npm') expect(m[2], m[0]).toMatch(/^lightningcss/);
+            else expect(pinned, m[0]).toMatch(new RegExp(`^${m[2] ?? ''}==`, 'mi'));
+        }
         expect([...review.matchAll(/pkg:npm\/(lightningcss[a-z0-9-]*)/g)].map((m) => m[1]).every((p) => (p ?? '').startsWith('lightningcss'))).toBe(true);
     });
 
