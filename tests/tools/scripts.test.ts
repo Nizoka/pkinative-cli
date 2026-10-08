@@ -5,7 +5,8 @@ import { compareEntries, listFindings, manifestEntries, manifestShapeFindings, r
 import { decideNpmDrift, parseNpmView } from '../../scripts/check-npm-drift.ts';
 import { planRelease, parseArgs as releaseArgs } from '../../scripts/release-prepare.ts';
 import { parseArgs, selectSteps, STEPS } from '../../scripts/gate.ts';
-import { crlfTextFiles, parseLsFilesEol } from '../../scripts/lib/agent-config.ts';
+import { checkAgentBudgets, checkAgentConfig, claudeImports, crlfTextFiles, parseLsFilesEol, ruleHasPaths } from '../../scripts/lib/agent-config.ts';
+import { classifyLine, findNonEnglishProse } from '../../scripts/lib/prose-language.ts';
 import { anchorsOf, FIGURES, RULES } from '../../scripts/verify-docs.ts';
 
 // The release tooling is code the release depends on: each script's pure core
@@ -173,5 +174,83 @@ describe('verify-docs', () => {
         expect(parseLsFilesEol(table)).toHaveLength(7);
         expect(crlfTextFiles(parseLsFilesEol(table)).map((e) => e.path)).toEqual(['CHANGELOG.md', 'docs/x.md']);
         expect(parseLsFilesEol(table.replace(/\n/g, '\r\n'))).toHaveLength(7);
+    });
+});
+
+describe('agent-config', () => {
+    const SETTINGS = {
+        attribution: { commit: '', pr: '' },
+        permissions: {
+            deny: [
+                'Read(package-lock.json)', 'Read(coverage/**)', 'Read(dist/**)', 'Read(test-output/**)', 'Read(node_modules/**)', 'Read(docs/data/pkinative/api.frozen.json)',
+                ...['Bash', 'PowerShell'].flatMap((t) => [`${t}(npm publish*)`, `${t}(git push *)`, `${t}(gh pr create*)`, `${t}(gh issue create*)`, `${t}(gh release *)`]),
+            ],
+        },
+        hooks: { PreToolUse: [{ matcher: 'Bash|PowerShell', hooks: [{ type: 'command', command: 'node "$CLAUDE_PROJECT_DIR/.claude/hooks/guard.mjs"' }] }] },
+        env: { NO_COLOR: '1' },
+    };
+    const GOVERNANCE = {
+        capability_manifest: {
+            claude_code: {
+                settings: '.claude/settings.json',
+                hooks: [{ matcher: 'Bash|PowerShell — one matcher', command: 'node "$CLAUDE_PROJECT_DIR/.claude/hooks/guard.mjs" — absolute' }],
+                attribution: { commit: '', pr: '' },
+                env_limits: { NO_COLOR: '1' },
+                skills: [{ path: '.claude/skills/release-audit/SKILL.md' }],
+            },
+        },
+    };
+    const CLAUDE_MD = '@AGENTS.md\n\n- Never read `coverage/`, `dist/`, `test-output/`, `node_modules/`, `package-lock.json` and `docs/data/pkinative/api.frozen.json`.\n';
+    const HOOK_OK: { exists: boolean; checkStatus: number | null; checkStderr: string } = { exists: true, checkStatus: 0, checkStderr: '' };
+    const input = (settings: object = SETTINGS, governance: object = GOVERNANCE, hook = HOOK_OK) => ({
+        settingsText: JSON.stringify(settings), governanceText: JSON.stringify(governance), claudeMd: CLAUDE_MD, hook, fileExists: () => true,
+    });
+    const withDeny = (deny: string[]) => ({ ...SETTINGS, permissions: { deny } });
+
+    it('passes when settings, hook and governance agree', () => {
+        expect(checkAgentConfig(input())).toEqual([]);
+    });
+
+    it('refuses a family denied for one shell tool only, a single-tool matcher, a relative hook path and a broken hook', () => {
+        expect(checkAgentConfig(input(withDeny(SETTINGS.permissions.deny.filter((d) => d !== 'PowerShell(git push *)'))))).toEqual([expect.stringContaining('PowerShell(git push…)')]);
+        expect(checkAgentConfig(input({ ...SETTINGS, hooks: { PreToolUse: [{ matcher: 'Bash', hooks: [{ command: 'node "$CLAUDE_PROJECT_DIR/.claude/hooks/guard.mjs"' }] }] } }))).toEqual([expect.stringContaining('no PowerShell matcher')]);
+        expect(checkAgentConfig(input({ ...SETTINGS, hooks: { PreToolUse: [{ matcher: 'Bash|PowerShell', hooks: [{ command: 'node .claude/hooks/guard.mjs' }] }] } }))).toEqual([expect.stringContaining('$CLAUDE_PROJECT_DIR'), expect.stringContaining('claude_code.hooks[0].command')]);
+        expect(checkAgentConfig(input(SETTINGS, GOVERNANCE, { exists: true, checkStatus: 1, checkStderr: 'SyntaxError: x\n' }))).toEqual([expect.stringContaining('node --check fails (exit 1)')]);
+        expect(checkAgentConfig(input(SETTINGS, GOVERNANCE, { exists: false, checkStatus: null, checkStderr: '' }))).toEqual([expect.stringContaining('missing')]);
+    });
+
+    it('refuses attribution, a missing Read deny, a governance drift and bad JSON', () => {
+        expect(checkAgentConfig(input({ ...SETTINGS, attribution: { commit: 'x', pr: '' } }))).toEqual([expect.stringContaining('attribution.commit and attribution.pr'), expect.stringContaining('claude_code.attribution')]);
+        expect(checkAgentConfig(input(withDeny(SETTINGS.permissions.deny.filter((d) => d !== 'Read(dist/**)'))))).toEqual([expect.stringContaining('deny lacks Read(dist/**)')]);
+        expect(checkAgentConfig(input(SETTINGS, { capability_manifest: { claude_code: { ...GOVERNANCE.capability_manifest.claude_code, env_limits: {} } } }))).toEqual([expect.stringContaining('env_limits')]);
+        expect(checkAgentConfig(input(SETTINGS, {}))).toEqual([expect.stringContaining('no claude_code manifest')]);
+        expect(checkAgentConfig({ ...input(), settingsText: '{' })).toEqual([expect.stringContaining('not valid JSON')]);
+        expect(checkAgentConfig({ ...input(), settingsText: null })).toEqual([expect.stringContaining('missing')]);
+        expect(checkAgentConfig({ ...input(), governanceText: null })).toEqual([expect.stringContaining('.github/ai-governance.json: missing')]);
+    });
+
+    it('budgets what every session loads and requires every rule to be scoped', () => {
+        const rule = '---\npaths:\n  - "src/**"\n---\n# Rule\n';
+        const ok = { claudeMd: '@AGENTS.md\n\n- one line\n', resolveImport: (n: string) => (n === 'AGENTS.md' ? '# Agents\n' : null), copilot: 'x', rules: { 'a.md': rule } };
+        expect(checkAgentBudgets(ok)).toEqual([]);
+        expect(claudeImports('@AGENTS.md\n@docs/X.md\nnot @an import\n')).toEqual(['AGENTS.md', 'docs/X.md']);
+        expect(ruleHasPaths(rule)).toBe(true);
+        expect(ruleHasPaths('---\npaths:\n---\n# none\n')).toBe(false);
+        expect(ruleHasPaths('# no frontmatter\n')).toBe(false);
+        expect(checkAgentBudgets({ ...ok, rules: { 'a.md': '# unscoped\n' } })).toEqual([expect.stringContaining('no paths: scope')]);
+        expect(checkAgentBudgets({ ...ok, claudeMd: `@AGENTS.md\n${'- x\n'.repeat(120)}` })).toEqual([expect.stringContaining('121 lines')]);
+        expect(checkAgentBudgets({ ...ok, claudeMd: '# no import first\n@AGENTS.md\n' })).toEqual([expect.stringContaining('first line must be @AGENTS.md')]);
+        expect(checkAgentBudgets({ ...ok, resolveImport: () => null })).toEqual([expect.stringContaining('does not exist')]);
+        expect(checkAgentBudgets({ ...ok, resolveImport: () => 'x'.repeat(17 * 1024) })).toEqual([expect.stringContaining('bytes always loaded')]);
+        expect(checkAgentBudgets({ ...ok, copilot: 'x'.repeat(17 * 1024) })).toEqual([expect.stringContaining('copilot-instructions.md')]);
+        expect(checkAgentBudgets({ ...ok, rules: { 'a.md': `${rule}${'x'.repeat(33 * 1024)}` } })).toEqual([expect.stringContaining('a scoped rule over')]);
+    });
+
+    it('holds the docs to English', () => {
+        expect(classifyLine('le fichier est dans la liste des sorties')).toMatch(/French/);
+        expect(classifyLine('el archivo está en la lista')).toMatch(/Spanish/);
+        expect(classifyLine('a dash â€” decoded as Latin-1')).toMatch(/mojibake/);
+        expect(classifyLine('the DER bytes are shipped under the MIT licence, der and mit are not words here')).toBeNull();
+        expect(findNonEnglishProse('# Title\n\nle fichier est dans la liste\n\n<!-- verify-docs:allow prose-language -->\nle fichier est dans la liste\n', 'x.md', { suppress: 'verify-docs:allow prose-language' })).toEqual([expect.objectContaining({ line: 3 })]);
     });
 });

@@ -14,8 +14,9 @@ import { SUBJECTS } from '../src/commands/schema.ts';
 import { ERROR_CODES } from '../src/utils/error.ts';
 import { LIMIT_FLAG_NAMES } from '../src/utils/limits.ts';
 import { expectedRules, RULES_DIR } from './build-claude-rules.ts';
-import { crlfTextFiles, parseLsFilesEol } from './lib/agent-config.ts';
+import { checkAgentBudgets, checkAgentConfig, crlfTextFiles, parseLsFilesEol } from './lib/agent-config.ts';
 import { generatedDocs } from './lib/docs.ts';
+import { findNonEnglishProse } from './lib/prose-language.ts';
 import { BUDGETS, LEGAL_FILES, listFindings, manifestShapeFindings, PACKAGE_FILES_MANIFEST, sha256, type PackageFilesManifest } from './lib/package-files.ts';
 import { SAMPLES } from './lib/sample-plan.ts';
 import { ps1Script, samplePath, shScript } from './lib/samples.ts';
@@ -285,15 +286,18 @@ function prTemplate(): string[] {
     return out;
 }
 
+/** settings.json, the guard hook and ai-governance.json agree; the hook loads; no attribution trailer anywhere. */
 function agents(): string[] {
-    const out: string[] = [];
-    if (!read('CLAUDE.md').startsWith('@AGENTS.md')) out.push('CLAUDE.md must start with @AGENTS.md');
-    const settings = readJson<{ attribution?: { commit?: string; pr?: string }; permissions?: { deny?: string[] } }>('.claude/settings.json');
-    if (settings.attribution?.commit !== '' || settings.attribution.pr !== '') out.push('.claude/settings.json: attribution.commit and attribution.pr must both be ""');
-    for (const forbidden of ['Bash(npm publish*)', 'Bash(git push *)', 'Bash(gh pr create*)', 'Bash(gh release *)', 'PowerShell(npm publish*)', 'PowerShell(git push *)']) {
-        if (!(settings.permissions?.deny ?? []).includes(forbidden)) out.push(`.claude/settings.json: deny lacks ${forbidden}`);
-    }
-    readJson<unknown>('.github/ai-governance.json');
+    const hookPath = join(ROOT, '.claude/hooks/guard.mjs');
+    const check = existsSync(hookPath) ? spawnSync(process.execPath, ['--check', hookPath], { encoding: 'utf8', windowsHide: true }) : null;
+    const optional = (file: string): string | null => (existsSync(join(ROOT, file)) ? read(file) : null);
+    const out = checkAgentConfig({
+        settingsText: optional('.claude/settings.json'),
+        governanceText: optional('.github/ai-governance.json'),
+        claudeMd: read('CLAUDE.md'),
+        hook: { exists: check !== null, checkStatus: check?.status ?? null, checkStderr: check?.stderr ?? '' },
+        fileExists: (file) => existsSync(join(ROOT, file)),
+    });
     for (const file of markdownFiles()) {
         if (file === '.github/AGENT_RULES.md') continue;
         for (const line of read(file).split('\n')) {
@@ -301,6 +305,21 @@ function agents(): string[] {
         }
     }
     return out;
+}
+
+/** What every session loads stays within budget, and every rule is scoped by paths. */
+function agentBudget(): string[] {
+    const rules: Record<string, string> = {};
+    if (existsSync(join(ROOT, RULES_DIR))) for (const name of readdirSync(join(ROOT, RULES_DIR))) rules[name] = read(`${RULES_DIR}/${name}`);
+    const optional = (file: string): string | null => (existsSync(join(ROOT, file)) ? read(file) : null);
+    return checkAgentBudgets({ claudeMd: read('CLAUDE.md'), resolveImport: optional, copilot: optional('.github/copilot-instructions.md'), rules });
+}
+
+/** The docs are English (AGENTS.md §Mission): no line of another Latin-script language, no mojibake. */
+function proseLanguage(): string[] {
+    return [...markdownFiles(), 'llms.txt'].filter((file) => existsSync(join(ROOT, file))).flatMap((file) =>
+        findNonEnglishProse(read(file), file, { suppress: 'verify-docs:allow prose-language' }).map((f) => `${file}:${f.line}: ${f.reason}: "${f.snippet}"`),
+    );
 }
 
 function packageFiles(): string[] {
@@ -350,9 +369,11 @@ export const RULES: readonly Rule[] = [
     { id: 'versions', holds: 'package.json version, CHANGELOG, CITATION, llms.txt, SECURITY.md, the release note and the Node.js and engine ranges agree', check: versions },
     { id: 'links', holds: 'every relative Markdown link and heading anchor resolves', check: links },
     { id: 'pr-template', holds: 'the PR template and CONTRIBUTING.md carry the same checklist', check: prTemplate },
-    { id: 'agents', holds: 'CLAUDE.md imports AGENTS.md; attribution is off; the agent deny list holds; no attribution trailer', check: agents },
+    { id: 'agents', holds: 'settings.json, the guard hook (node --check) and ai-governance.json agree: attribution off, every HITL family denied per shell tool, the hook wired for Bash and PowerShell through $CLAUDE_PROJECT_DIR; no attribution trailer', check: agents },
+    { id: 'agent-budget', holds: 'CLAUDE.md starts with @AGENTS.md; CLAUDE.md and AGENTS.md ≤ 120 lines; what every session loads ≤ 16 KiB; every rule is scoped by paths', check: agentBudget },
     { id: 'package-files', holds: 'the pinned tarball list obeys the packing rules and the legal texts are unchanged', check: packageFiles },
     { id: 'adr', holds: 'ADRs are numbered without gaps and carry a status', check: adrs },
+    { id: 'prose-language', holds: 'the Markdown docs and llms.txt are English: no line of another Latin-script language, no mojibake', check: proseLanguage },
     { id: 'eol-lf', holds: 'every tracked text blob is LF (git ls-files --eol; -text and binary paths exempt)', check: eolLf },
 ];
 
