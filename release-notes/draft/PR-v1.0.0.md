@@ -87,7 +87,7 @@ Node.js 26 as a blocking line (LTS on 2026-10-28: `node-current.yml` tracks it),
 4. Wait for the first run of every workflow; then import `.github/rulesets/main.json` and `tags.json` (Settings → Rules → Rulesets).
 5. On npmjs.com, configure Trusted Publishing for `pkinative-cli`: repository `Nizoka/pkinative-cli`, workflow `publish.yml`, environment `npm-publish`.
 6. Run `/release-audit release-notes/v1.0.0.md`; fix what it confirms.
-7. On the publish day, set the date (currently 2026-10-04) in `CHANGELOG.md` `[1.0.0]`, `release-notes/v1.0.0.md` and `CITATION.cff` `date-released`; commit on the branch.
+7. The release date is 2026-10-08 in `CHANGELOG.md` `[1.0.0]`, `release-notes/v1.0.0.md`, `CITATION.cff` `date-released` and `.github/SECURITY-INSIGHTS.yml`; if the publish day slips, change those four (and `docs/.well-known/security.txt` `Expires`, one year after) and commit on the branch.
 8. Squash-merge with the title `release: v1.0.0 — the whole engine, offline`, once the required checks are green.
 9. Publish the GitHub Release `v1.0.0 — the whole engine, offline` (body = `release-notes/v1.0.0.md`, new tag `v1.0.0` on the merge commit, created by the Release itself: nobody pushes a tag); `publish.yml` runs on `release: published`; approve `npm-publish`. Afterwards `npm view pkinative-cli version` names 1.0.0 and `npx tsx scripts/check-npm-drift.ts` is clean.
 10. Require 2FA and disallow tokens on the npm package; deprecate the `0.0.1` name reservation.

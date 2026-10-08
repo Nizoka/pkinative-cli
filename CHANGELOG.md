@@ -7,7 +7,7 @@ The `0.0.1` on npm is an empty name reservation, never a release.
 
 ## [Unreleased]
 
-## [1.0.0] – 2026-10-04
+## [1.0.0] – 2026-10-08
 
 The first release: the whole of [pkinative 1.0.0](https://github.com/Nizoka/pkinative/releases/tag/v1.0.0) on the command line, offline, under one `--json` contract.
 

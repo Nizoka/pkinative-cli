@@ -19,7 +19,7 @@ repository-code: "https://github.com/Nizoka/pkinative-cli"
 url: "https://github.com/Nizoka/pkinative-cli"
 license: MIT
 version: 1.0.0
-date-released: 2026-10-04
+date-released: 2026-10-08
 keywords:
   - pki
   - x509
