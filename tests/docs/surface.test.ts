@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { COMMANDS } from '../../src/commands/registry.js';
@@ -9,9 +9,9 @@ const runtime = frozen.exports.filter((e) => e.kind !== 'type').map((e) => e.nam
 
 function sources(dir: string): Record<string, string> {
     const out: Record<string, string> = {};
-    for (const f of readdirSync(dir)) {
-        const p = join(dir, f);
-        if (statSync(p).isDirectory()) Object.assign(out, sources(p));
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const p = join(dir, entry.name);
+        if (entry.isDirectory()) Object.assign(out, sources(p));
         else if (p.endsWith('.ts')) out[p.replace(/\\/g, '/')] = readFileSync(p, 'utf8');
     }
     return out;

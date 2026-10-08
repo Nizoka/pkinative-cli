@@ -7,7 +7,7 @@
 // Exit: 0 clean; 1 a finding; 2 usage.
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, normalize, relative, resolve } from 'node:path';
 import { COMMANDS, GLOBAL_FLAGS } from '../src/commands/registry.ts';
 import { SUBJECTS } from '../src/commands/schema.ts';
@@ -25,6 +25,8 @@ import { surfaceDocument } from './lib/surface.ts';
 const ROOT = resolve(import.meta.dirname, '..');
 const read = (path: string): string => readFileSync(join(ROOT, path), 'utf8').replace(/\r\n/g, '\n');
 const readJson = <T>(path: string): T => JSON.parse(read(path)) as T;
+/** A literal for `new RegExp`: every metacharacter, the backslash included. */
+const escapeRegExp = (value: string): string => value.replace(/[\\^$.*+?()[\]{}|]/g, '\\$&');
 
 interface Rule {
     readonly id: string;
@@ -40,11 +42,11 @@ const SKIP_DIRS = new Set(['node_modules', 'dist', 'coverage', 'test-output', '.
 function markdownFiles(): string[] {
     const out: string[] = [];
     const walk = (dir: string): void => {
-        for (const entry of readdirSync(join(ROOT, dir))) {
-            const path = dir === '' ? entry : `${dir}/${entry}`;
-            if (SKIP_DIRS.has(entry) || path === 'docs/data/pkinative') continue;
-            if (statSync(join(ROOT, path)).isDirectory()) walk(path);
-            else if (entry.endsWith('.md')) out.push(path);
+        for (const entry of readdirSync(join(ROOT, dir), { withFileTypes: true })) {
+            const path = dir === '' ? entry.name : `${dir}/${entry.name}`;
+            if (SKIP_DIRS.has(entry.name) || path === 'docs/data/pkinative') continue;
+            if (entry.isDirectory()) walk(path);
+            else if (entry.name.endsWith('.md')) out.push(path);
         }
     };
     walk('');
@@ -141,9 +143,9 @@ function commands(): string[] {
     const headings = [...readme.matchAll(/^### `pkinative ([a-z0-9-]+)`$/gm)].map((m) => m[1]);
     if (headings.join() !== COMMANDS.map((c) => c.name).join()) out.push(`README.md: the command headings (${headings.join(', ')}) are not the registry's, in order`);
     for (const c of COMMANDS) {
-        const row = new RegExp(String.raw`^\| ${c.group.replace(/[&]/g, '\\&')} \|.*\`${c.name}\``, 'm');
+        const row = new RegExp(String.raw`^\| ${escapeRegExp(c.group)} \|.*\`${escapeRegExp(c.name)}\``, 'm');
         if (!row.test(readme)) out.push(`README.md: the Commands table does not list ${c.name} under ${c.group}`);
-        if (!new RegExp(String.raw`^\|.*\`${c.name}[\` ]`, 'm').test(kb)) out.push(`docs/KNOWLEDGE_BASE.md §5: no row describes ${c.name}`);
+        if (!new RegExp(String.raw`^\|.*\`${escapeRegExp(c.name)}[\` ]`, 'm').test(kb)) out.push(`docs/KNOWLEDGE_BASE.md §5: no row describes ${c.name}`);
         if (c.name !== 'doctor' && !existsSync(join(ROOT, 'samples', c.name))) out.push(`samples/${c.name}/ is missing`);
         for (const s of c.subcommands) {
             if (!SAMPLES.some((p) => p.argv[0] === c.name && p.argv[1] === s.name)) out.push(`${c.name} ${s.name} has no sample in scripts/lib/sample-plan.ts`);
@@ -164,9 +166,9 @@ function commands(): string[] {
 }
 
 function sourceFiles(dir: string): string[] {
-    return readdirSync(join(ROOT, dir)).flatMap((name) => {
-        const path = `${dir}/${name}`;
-        return statSync(join(ROOT, path)).isDirectory() ? sourceFiles(path) : path.endsWith('.ts') ? [path] : [];
+    return readdirSync(join(ROOT, dir), { withFileTypes: true }).flatMap((entry) => {
+        const path = `${dir}/${entry.name}`;
+        return entry.isDirectory() ? sourceFiles(path) : path.endsWith('.ts') ? [path] : [];
     });
 }
 
@@ -197,8 +199,8 @@ function versions(): string[] {
     const minor = v.split('.').slice(0, 2).join('.');
     const citation = read('CITATION.cff');
     const changelog = read('CHANGELOG.md');
-    const entry = new RegExp(String.raw`^## \[${v.replace(/\./g, '\\.')}\] – (\d{4}-\d{2}-\d{2})$`, 'm').exec(changelog);
-    if (!new RegExp(String.raw`^version: ${v.replace(/\./g, '\\.')}$`, 'm').test(citation)) out.push(`CITATION.cff: version is not ${v}`);
+    const entry = new RegExp(String.raw`^## \[${escapeRegExp(v)}\] – (\d{4}-\d{2}-\d{2})$`, 'm').exec(changelog);
+    if (!new RegExp(String.raw`^version: ${escapeRegExp(v)}$`, 'm').test(citation)) out.push(`CITATION.cff: version is not ${v}`);
     if (entry === null) out.push(`CHANGELOG.md: no "## [${v}] – YYYY-MM-DD" entry`);
     else if (!citation.includes(`date-released: ${entry[1] ?? ''}`)) out.push(`CITATION.cff: date-released is not the CHANGELOG date ${entry[1] ?? ''}`);
     if (!changelog.includes(`[${v}]: https://github.com/Nizoka/pkinative-cli/`)) out.push(`CHANGELOG.md: no link definition for [${v}]`);

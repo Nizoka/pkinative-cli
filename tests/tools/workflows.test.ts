@@ -203,7 +203,7 @@ describe('ci.yml', () => {
     });
 
     it('requires the PowerShell completion suite on every leg (REQUIRE_PWSH)', () => {
-        for (const leg of ['ci (22)', 'ci (24)', 'windows', 'macos']) expect(ci, leg).toMatch(new RegExp(`name: '?${leg.replace(/[()]/g, '\\$&')}'?,[^\n]*pwsh: '1'`));
+        for (const leg of ['ci (22)', 'ci (24)', 'windows', 'macos']) expect(ci, leg).toMatch(new RegExp(`name: '?${leg.replace(/[\\^$.*+?()[\]{}|]/g, '\\$&')}'?,[^\n]*pwsh: '1'`));
         expect(jobBody(ci, 'ci')).toMatch(/REQUIRE_PWSH: \$\{\{ matrix\.pwsh \}\}\s*\n\s+run: npx tsx scripts\/gate\.ts --ci --require-all/);
         expect(readWorkflow('conformance.yml')).toMatch(/REQUIRE_PWSH: '1'/);
     });
@@ -269,7 +269,7 @@ describe('conformance.yml and sample-regression.yml', () => {
             expect(body, file).toContain('pip install --require-hashes --no-deps --only-binary :all: -r scripts/data/lint-python-requirements.txt');
             expect(body, file).toMatch(/ZLINT: \$\{\{ runner\.temp \}\}\/zlint_3\.7\.2_Linux_x86_64\/zlint/);
             expect(body, file).toMatch(/PKILINT_PYTHON: \$\{\{ runner\.temp \}\}\/lint-python\/bin\/python/);
-            expect(body, file).toMatch(/files\.pythonhosted\.org:443/);
+            expect(body, file).toMatch(/^\s*files\.pythonhosted\.org:443\s*$/m);
         }
         expect(readWorkflow('conformance.yml')).toMatch(/REQUIRE_LINT: '1'/);
         expect(readText('scripts', 'data', 'lint-python-requirements.txt')).toMatch(/^pkilint==\d+\.\d+\.\d+ \\$/m);
@@ -334,7 +334,7 @@ describe('publish.yml', () => {
 
     it('refuses a branch, a mismatched tag and a 0.x version before any approval', () => {
         const guard = jobBody(publish, 'guard');
-        expect(guard).not.toMatch(/^\s*environment:|npm (ci|install|publish)|id-token/m);
+        expect(guard).not.toMatch(/(?:^\s*environment:|npm (?:ci|install|publish)|id-token)/m);
         expect(guard).toMatch(/if \[ "\$\{GITHUB_REF_TYPE\}" != "tag" \]; then[\s\S]*exit 1/);
         expect(guard).toContain('does not match package.json version');
         expect(guard).toMatch(/\[ "\$\{VERSION%%\.\*\}" = "0" \][\s\S]*no version below 1\.0\.0 is released/);

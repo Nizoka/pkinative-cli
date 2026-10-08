@@ -114,8 +114,8 @@ describe('writeOutput', () => {
         await expect(writeOutput(memoryIo().io, link, 'x', { overwrite: false })).rejects.toMatchObject({ code: 'E_IO' });
         await writeOutput(memoryIo().io, link, 'replaced', { overwrite: true });
         expect(readFileSync(target, 'utf8')).toBe('sentinel');
-        expect(lstatSync(link).isSymbolicLink()).toBe(false);
         expect(readFileSync(link, 'utf8')).toBe('replaced');
+        expect(lstatSync(link).isSymbolicLink()).toBe(false);
     });
 
     it('maps an unwritable target to E_IO', async () => {
