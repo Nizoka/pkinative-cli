@@ -46,10 +46,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: 'ci (22)', os: ubuntu-latest, node-version: 22, slug: linux-node22, audit: true }
-          - { name: 'ci (24)', os: ubuntu-latest, node-version: 24, slug: linux-node24, audit: false }
-          - { name: windows, os: windows-latest, node-version: 22, slug: windows, audit: false }
-          - { name: macos, os: macos-latest, node-version: 22, slug: macos, audit: false }
+          # pwsh: '1' on every leg — the GitHub-hosted images ship PowerShell 7 on Linux, Windows and macOS,
+          # so the PowerShell completion suite must run, not skip (REQUIRE_PWSH).
+          - { name: 'ci (22)', os: ubuntu-latest, node-version: 22, slug: linux-node22, audit: true, pwsh: '1' }
+          - { name: 'ci (24)', os: ubuntu-latest, node-version: 24, slug: linux-node24, audit: false, pwsh: '1' }
+          - { name: windows, os: windows-latest, node-version: 22, slug: windows, audit: false, pwsh: '1' }
+          - { name: macos, os: macos-latest, node-version: 22, slug: macos, audit: false, pwsh: '1' }
 
     steps:
       # One step serves all four legs, so the policy is the one the Windows
@@ -96,6 +98,8 @@ jobs:
         run: npm audit --audit-level=high
 
       - name: Run the quality gate (CI profile)
+        env:
+          REQUIRE_PWSH: ${{ matrix.pwsh }}
         run: npx tsx scripts/gate.ts --ci --require-all
 
       - name: Upload the gate logs on failure

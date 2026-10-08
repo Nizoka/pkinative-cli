@@ -202,6 +202,12 @@ describe('ci.yml', () => {
         expect(ci).toMatch(new RegExp(`name: 'ci \\(${pinned}\\)', os: ubuntu-latest, node-version: ${pinned},`));
     });
 
+    it('requires the PowerShell completion suite on every leg (REQUIRE_PWSH)', () => {
+        for (const leg of ['ci (22)', 'ci (24)', 'windows', 'macos']) expect(ci, leg).toMatch(new RegExp(`name: '?${leg.replace(/[()]/g, '\\$&')}'?,[^\n]*pwsh: '1'`));
+        expect(jobBody(ci, 'ci')).toMatch(/REQUIRE_PWSH: \$\{\{ matrix\.pwsh \}\}\s*\n\s+run: npx tsx scripts\/gate\.ts --ci --require-all/);
+        expect(readWorkflow('conformance.yml')).toMatch(/REQUIRE_PWSH: '1'/);
+    });
+
     it('runs the gate once per leg with --require-all, audits once, and lists no gate step by hand', () => {
         expect([...ci.matchAll(/run: npx tsx scripts\/gate\.ts --ci --require-all/g)]).toHaveLength(1);
         expect(ci).toMatch(/if: matrix\.audit\s*\n\s+run: npm audit --audit-level=high/);
@@ -223,6 +229,27 @@ describe('ci.yml', () => {
         expect(job.indexOf('sha256sum --check --strict')).toBeLessThan(job.indexOf('/actionlint" -color'));
         expect(job).toMatch(/REUSE_VERSION: \d+\.\d+\.\d+/);
         expect(job).toContain('reuse lint');
+    });
+});
+
+describe('README badges', () => {
+    const readme = readText('README.md');
+    it('name workflows that exist, this package, and this repository', () => {
+        const badges = [...readme.matchAll(/actions\/workflows\/([a-z-]+\.yml)\/badge\.svg/g)].map((m) => m[1] ?? '');
+        expect(badges.length).toBeGreaterThan(0);
+        for (const file of badges) expect(workflowFiles, file).toContain(file);
+        const pkg = JSON.parse(readText('package.json')) as { name: string };
+        for (const m of readme.matchAll(/img\.shields\.io\/(?:npm|node)\/v\/([a-z-]+)/g)) expect(m[1]).toBe(pkg.name);
+        for (const m of readme.matchAll(/securityscorecards\.dev[^)]*/g)) expect(m[0]).toContain('Nizoka/pkinative-cli');
+        expect(readme).not.toMatch(/bestpractices\.dev\/projects\/<ID>/);
+    });
+});
+
+describe('CONTRIBUTING.md', () => {
+    it('states the deliberate divergences from pdfnative-cli', () => {
+        const contributing = readText('CONTRIBUTING.md');
+        expect(contributing).toContain('## Conformity with pdfnative-cli');
+        for (const area of ['Package entry', '`govern`, `batch` commands', 'Coverage floors', 'harden-runner']) expect(contributing, area).toContain(`| ${area}`);
     });
 });
 

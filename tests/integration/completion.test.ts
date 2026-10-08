@@ -12,6 +12,8 @@ import { cli, emptyDir } from '../helpers/io.js';
 const has = (cmd: string, args: string[]): boolean => spawnSync(cmd, args, { encoding: 'utf8', windowsHide: true }).status === 0;
 const BASH = process.platform !== 'win32' && has('bash', ['-c', 'true']);
 const PWSH = has('pwsh', ['-NoProfile', '-Command', '$true']);
+// CI sets REQUIRE_PWSH=1: a missing pwsh is then a failure, never a silent skip (the GitHub images ship pwsh 7 on every OS).
+const PWSH_REQUIRED = process.env['REQUIRE_PWSH'] === '1';
 
 /** The cases audit B-11 found broken, and the value completion of G-09. */
 const CASES: ReadonlyArray<{ line: string; expect: readonly string[]; not?: readonly string[] }> = [
@@ -35,6 +37,12 @@ async function script(shell: string): Promise<string> {
     writeFileSync(path, (await cli(['completion', shell])).stdout);
     return path;
 }
+
+describe('completion shells', () => {
+    it('has pwsh when REQUIRE_PWSH=1', () => {
+        if (PWSH_REQUIRED) expect(PWSH, 'pwsh is required (REQUIRE_PWSH=1) and was not found').toBe(true);
+    });
+});
 
 describe.skipIf(!BASH)('bash completion', () => {
     it('completes commands, subcommands after global flags, flags and enumerated values', async () => {
