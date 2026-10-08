@@ -1,5 +1,14 @@
 # pkinative-cli
 
+[![CI](https://github.com/Nizoka/pkinative-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/Nizoka/pkinative-cli/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/Nizoka/pkinative-cli/actions/workflows/codeql.yml/badge.svg)](https://github.com/Nizoka/pkinative-cli/actions/workflows/codeql.yml)
+[![OpenSSF Scorecard](https://api.securityscorecards.dev/projects/github.com/Nizoka/pkinative-cli/badge)](https://securityscorecards.dev/viewer/?uri=github.com/Nizoka/pkinative-cli)
+[![npm version](https://img.shields.io/npm/v/pkinative-cli)](https://www.npmjs.com/package/pkinative-cli)
+[![npm provenance](https://img.shields.io/badge/provenance-signed-blueviolet)](https://docs.npmjs.com/generating-provenance-statements)
+[![one runtime dependency](https://img.shields.io/badge/runtime%20dependency-pkinative%20only-brightgreen)](https://www.npmjs.com/package/pkinative)
+[![Node.js](https://img.shields.io/node/v/pkinative-cli)](https://nodejs.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 The official command line for [pkinative](https://github.com/Nizoka/pkinative), the zero-dependency PKI engine.
 Inspect and verify X.509 certificates, requests, CRLs, OCSP responses, CMS signatures and RFC 3161 time-stamps;
 build and validate certification paths; issue certificates and requests; sign CMS; open PKCS#8 and PKCS#12;
@@ -97,7 +106,7 @@ SHA-1/256/384/512 fingerprints (pure TypeScript, or `--webcrypto`), the RFC 5280
 ### `pkinative chain`
 
 `verify` is the one-call verdict: path building, every signature, RFC 5280 validation, server name, purposes, policy inputs and — with `--crl` / `--ocsp` — revocation.
-`build` finds a path without checking signatures, so its `valid` is false with `PKI_REASON_SIGNATURE_NOT_CHECKED` and the envelope says `signaturesChecked: false`; `validate` validates a path you ordered, verifying each link's signature first. Time is `--at` (ISO 8601, UTC unless zoned).
+`build` finds a path without checking signatures, so its `valid` is false with `PKI_REASON_SIGNATURE_NOT_CHECKED` and the envelope says `signaturesChecked: false` (a found path exits 0; only no path exits 1); `validate` validates a path you ordered, verifying each link's signature first. Time is `--at` (ISO 8601, UTC unless zoned).
 
 ### `pkinative crl`
 

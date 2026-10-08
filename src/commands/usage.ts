@@ -347,7 +347,8 @@ responses, revocation. build finds a path without checking signatures: its
 verdict is the path, so valid is false with PKI_REASON_SIGNATURE_NOT_CHECKED
 and the envelope says signaturesChecked: false.
 validate takes the path in order and verifies each link's signature first.
-A negative verdict prints the report, then exits 1 (E_VERIFY_FAILED).
+A negative verdict prints the report, then exits 1 (E_VERIFY_FAILED); build
+exits 0 whenever a path is found (valid is false there), 1 when none is.
 
 Inputs:
   --input, -i <file>        verify, build: the leaf (default: the positional)

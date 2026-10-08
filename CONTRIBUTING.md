@@ -124,6 +124,23 @@ Settings outside the rulesets, set once:
 - Environment `npm-publish`: the maintainer as required reviewer, deployments limited to tags matching `v*`.
 - Actions → General: workflow permissions read-only; Actions may not create or approve pull requests.
 
+## Conformity with pdfnative-cli
+
+[pdfnative-cli](https://github.com/Nizoka/pdfnative-cli) is the model for this repository's tooling and norms, and [pdfnative-mcp](https://github.com/Nizoka/pdfnative-mcp) for its three-platform CI. Where this repository differs on purpose:
+
+| Area | pdfnative-cli | pkinative-cli | Why |
+|---|---|---|---|
+| Package entry | `main`, `module`, `types` beside `bin` | `bin` only; `require('pkinative-cli')` fails | The engine is the API; the CLI has no second surface to version |
+| `sideEffects: false` | set | absent | A tree-shaking hint for importers; a bin-only package has none |
+| `govern`, `batch` commands | present | absent | The governance files are the source and `verify:docs` reads them; the CLI mirrors the engine, which has no batch |
+| Coverage floors | 82 / 71 / 86 / 82 % | 100 % on all four axes, never lowered | AGENTS.md §Counts and versions |
+| Figures in the docs | `docs/assets/ecosystem.json` manifest | derived from the source constants (`verify-docs` rule `figures`) | Nothing to re-stamp at a release |
+| Instruction line length | 240 characters per line | no limit (lines and bytes are budgeted, rule `agent-budget`) | One bullet per line; a line limit has no token cost |
+| harden-runner on macOS and Windows | pdfnative-mcp skips macOS | runs in audit mode on both | The action's matrix: Linux full, Windows and macOS audit only |
+| `.github/prompts/` | two Copilot prompt files | none | The release-audit skill and `.github/copilot-instructions.md` already carry that content |
+| `eol-lf` | a warning | an error | Every blob was LF from the first commit |
+| `scripts/README.md` | present | none; each script documents its flags in its header, AGENTS.md §Where is what names them | Planned for 1.0.x with the tooling self-tests |
+
 ## License
 
 By contributing, you agree that your contributions are licensed under the [MIT License](LICENSE). No contributor licence agreement and no `Signed-off-by` (DCO) line is required: that inbound = outbound rule is the whole agreement.
