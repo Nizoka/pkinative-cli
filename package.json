@@ -47,7 +47,8 @@
     "smoke:install": "npx tsx scripts/smoke-install.ts",
     "check:npm-drift": "npx tsx scripts/check-npm-drift.ts",
     "release:prepare": "npx tsx scripts/release-prepare.ts",
-    "mutate": "npx tsx scripts/mutate.ts"
+    "mutate": "npx tsx scripts/mutate.ts",
+    "verify:issue": "node scripts/verify-issue.mjs"
   },
   "keywords": [
     "pki",

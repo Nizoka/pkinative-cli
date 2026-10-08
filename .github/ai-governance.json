@@ -91,6 +91,11 @@
       ]
     }
   },
+  "verification": {
+    "command": "npm run verify:issue -- .github/drafts/<draft>.md",
+    "blocks_submission_on_failure": true,
+    "$comment": "Necessary, never sufficient: the human review gate of AGENT_RULES.md §5 always applies."
+  },
   "references": {
     "agent_rules": ".github/AGENT_RULES.md",
     "issue_templates": [".github/ISSUE_TEMPLATE"],

@@ -92,6 +92,16 @@ A draft must contain the reproduction as a code block and must not propose an
 external dependency. Meeting both is **necessary but not sufficient** — the
 human review gate above always applies.
 
+## Validate a draft before presenting it
+
+```bash
+npm run verify:issue -- .github/drafts/my-issue.md
+```
+
+The verifier fails when the draft proposes an external runtime dependency or
+omits a reproduction code block. A passing check is **necessary but not
+sufficient** — the human review gate above always applies.
+
 ## What agents must NOT do
 
 - Add a runtime dependency besides `pkinative`.
