@@ -1,0 +1,102 @@
+# release: v1.0.0 — the whole engine, offline
+
+> **Branch:** `release/v1.0.0` → `main`
+> **Type:** Major release (the first; `main` holds only the initial commit)
+> **Engine:** pkinative ^1.0.0
+
+## Summary
+
+The first release of pkinative-cli: every export of pkinative 1.0.0 reached by a command, offline, with pkinative as the one runtime dependency and one process contract (stdout artefact or report, one JSON envelope on stderr, exit 0/1/2, 130/143 on a signal).
+Passwords never on argv and key material never in output; outputs created exclusively or replaced atomically; every engine bound behind a `--max-*` flag; a configuration file that sets presentation only ([ADR 0007](../../docs/adr/0007-configuration-is-presentation-only.md)); a parser that holds every invocation to the registry, aliases included.
+
+Counts: 18 commands · 47 subcommands (53 invocations) · 294/294 engine exports reached (117 runtime, 177 types) · 55/55 engine CHANGELOG bullets mapped (23 held by a test, 32 typed waivers: 16 library-only, 12 tooling, 4 docs) · 707 tests across 50 files · 100 % statements, branches, functions and lines · every mutant of `src/` killed or argued equivalent · 57 samples · 12 `schema` subjects, including the `--json` report and `--summary` shape of every invocation.
+
+## Changes
+
+### Commands and flags
+
+`pem`, `oid`, `fingerprint`, `asn1`; `cert`, `csr`; `chain`, `crl`, `ocsp`; `cms`, `tsp`; `key`, `p12`; `doctor`, `limits`, `explain`, `schema`, `completion` — README §Commands and `release-notes/v1.0.0.md`.
+
+### Engine surface
+
+pkinative `^1.0.0`; `docs/data/core-exports.json` traces each export to its command, `tests/regression/engine-surface.json` each bullet of the engine's 1.0.0 CHANGELOG to a test or a typed waiver. The registries of the engine's v1.0.0 tag are vendored under `docs/data/pkinative/`.
+
+### Tooling (scripts/)
+
+`gate.ts` (fast, ci and publish profiles, `--require-all`; `lint:certs` in the publish profile), `verify-docs.ts` (13 rules: generated files, commands, samples, figures, versions, links, PR template, agent settings and hook, context budgets, package files, ADRs, English prose, LF line endings), `mutate.ts` and `lib/mutation.ts` (ported from pkinative; reviewed equivalents in `data/mutation-equivalents.json`), `build-report-schemas.ts` (the report schemas, from the types), `validators/pkilint-driver.py`, `package-files.ts`, `smoke-install.ts`, `release-prepare.ts`, `check-npm-drift.ts`, the surface and engine-surface builders, the sample plan and verifier, `build-docs.ts`, `build-claude-rules.ts`, `verify-issue.mjs`.
+
+### CI and repository (.github/, root)
+
+Ten workflows, every action SHA-pinned and every job behind harden-runner: `ci.yml` (Linux Node 22 and 24, Windows, macOS, runtimes, workflow lint with zizmor, actionlint and reuse), `conformance.yml` (OpenSSL interop, zlint v3.7.2 and pkilint 0.13.3 over every certificate the CLI creates), `sample-regression.yml`, `codeql.yml`, `dependency-review.yml`, `audit.yml`, `scorecard.yml`, `docs.yml`, `node-current.yml`, and `publish.yml` in four jobs on `release: published`. Rulesets for `main` and `v*` tags under `.github/rulesets/`. The package ships a `bin` and no `main` (`require('pkinative-cli')` is refused) and `publint` runs in `check:package`.
+
+### Agent layer (.claude/, AGENTS.md, governance)
+
+`AGENTS.md` as the single source, `CLAUDE.md` importing it (each fact once; the area rules load by path and are never opened twice), `.github/instructions/` compiled to `.claude/rules/`, the PreToolUse guard over one `Bash|PowerShell` matcher through `$CLAUDE_PROJECT_DIR` (it keeps refusing from any working directory), attribution off, the release-audit skill, `AGENT_RULES.md`, `ai-governance.json`, issue drafts under `.github/drafts/`.
+
+### Tests
+
+Unit, in-process command, library-parity, built-binary (PowerShell completion run in pwsh), seeded fuzz, OpenSSL interop, zlint and pkilint over created certificates, report schemas validated against every sample, surface and engine-surface matrices, sample regression, mutation testing, and the tooling, workflow and guard invariants.
+
+### Documentation
+
+README, `docs/KNOWLEDGE_BASE.md`, `docs/AGENT_CONTRACT.md`, `docs/THREAT_MODEL.md`, ADRs 0001–0007, SECURITY.md with §Release integrity, CONTRIBUTING.md, CHANGELOG.md, ROADMAP.md, CITATION.cff, llms.txt, THIRD-PARTY-NOTICES.md.
+
+## Independent audit
+
+Agent-run, before the maintainer's `/release-audit`: five rounds. Rounds 1–3: two independent auditors (A: claims against code; B: help, matrices, release pipeline, gaps) and an adversarial verifier that confirmed or refuted every finding on the built binary. Round 4 (2026-10-08, the ledger persisted under `.audit/1.0.0/`, git-ignored): four auditors — A and B as before, C (standards and governance 2026: OpenSSF Scorecard, OSPS Baseline 2026-02-19, SLSA v1.1, npm, EU CRA, NIST SSDF, REUSE, Keep a Changelog, Conventional Commits, clig.dev, llms.txt, the native doctrine) and D (autonomy: every feature of this note driven from the published surfaces alone, `src/` never opened) — and two adversarial verifiers. Round 5 (2026-10-08, `.audit/1.0.0/round-5/`): two auditors — E (conformity with pdfnative-cli and pdfnative-mcp: tooling, norms, CI on three platforms, governance, agent layer) and F (exhaustiveness over the engine, perimeter — no certificate modified, nothing beyond the engine —, factual documentation, 2026 standards since round 4) — and a third verifier that stamped every finding before anything was implemented.
+
+| Round | Verdict | Confirmed | Resolution |
+|---|---|---|---|
+| 1 | NO-GO | 2 blockers, 6 majors, ~15 minors | all fixed (config allow-list, parser enforcement, PKCS#12 flow, generated report schemas, remedies) |
+| 2 | NO-GO | 1 blocker (an alias bypassed the operand check), 3 majors (`-f` ignored; `cert encode` SKI of nothing; specs not closed), 16 minors, 3 nits, 3 notes; 1 rejected | all fixed in e4c3eb8..4b9422e, one regression test per finding |
+| 3 | **GO** | every round-2 finding re-verified fixed on the built binary (119 alias/long-form pairs over the 53 invocations, ~80 spec probes, planted configs); 0 blockers, 0 majors; 2 minors (the argument after `--password-stdin` echoed when it starts with `-`, over-redacted when it is a substring) and 4 nits | all fixed in e292123 and d152225 |
+| 4 | **GO** | 207 rows over four reports; 19 confirmed, 2 downgraded, 0 rejected: 0 blockers, 4 majors (`cms add-timestamp` accepted a token over the content and wrote a SignedData that failed `cms verify`; `--encoding pem` advertised by six help blocks without `--label`; `--pem-mode lax` described as tolerating a missing padding, which the engine refuses; the symbolic-link claim overstated), 15 minors, 2 notes; OSPS Baseline Level 1 in every family, Level 2 held back by LE-01.01 alone | all fixed in bbdc5e6 and 2149357, one regression test per finding; the DCO/CLA sentence added |
+| 5 | **GO** | 51 rows over two reports; 14 confirmed, 8 downgraded, 0 rejected: 1 blocker (`--strict` did not escalate a warning a verify or check report collects: the engine escalates at parse only), 1 major (`tsp inspect --strict` hid the strict refusal behind its auto-detection message), 10 minors (2 of them the engine's: issue drafts), 8 notes (parity items with pdfnative-cli) | blocker and major fixed in beff4d5, 9c9af23, dfdfdfb with their tests; the parity items that touch only scripts, tests, CI and docs implemented (dbb7f62, f2648e6, a3452ba, 2504381): `agents` parity, context budgets, English prose, `REQUIRE_PWSH`, badges, the conformity table, `verify:issue`; deferred to 1.0.x with the reason in CONTRIBUTING §Conformity: Copilot prompts, `scripts/README.md`, tooling self-tests, the 22-bound table |
+
+Ledger: `.audit/1.0.0/` (local, git-ignored) — `auditor-a.md`, `auditor-b.md`, `auditor-c.md`, `auditor-d.md`, `verifier-1.md`, `verifier-2.md`, `ledger.md`, `verdict.md`; round 5 under `round-5/` (`brief-e.md`, `brief-f.md`, `auditor-e.md`, `auditor-f.md`, `verifier-3.md`, `ledger.md`, `verdict.md`). Left for a POSIX host: one real SIGINT/SIGTERM against the built binary (exit 130/143, the half-written file removed), which Windows cannot deliver; the command is in `verifier-1.md`.
+
+`/release-audit release-notes/v1.0.0.md` — PENDING: the skill is the maintainer's to run (`disable-model-invocation`).
+
+## Validation (what actually ran, on Windows 11, Node 22.23.2)
+
+| Command | Result |
+|---|---|
+| `npx tsx scripts/gate.ts --publish --require-all` (with `ZLINT`, `PKILINT_PYTHON`) | `gate: 15 passed, 0 skipped` — typecheck, lint, build, dist-check, smoke, bundle-size (456 KiB), bundle-check, node-floor, test:coverage, interop, lint:certs (zlint 3.7.2, pkilint), verify:docs, verify:samples, check:package (package-files and publint), smoke:install |
+| `npm run test:coverage` | 707 tests across 50 files (1 skipped: bash completion on Windows; the PowerShell completion suite required through `REQUIRE_PWSH=1`); 100 / 100 / 100 / 100 % statements / branches / functions / lines |
+| `npx tsx scripts/mutate.ts --files <the 21 modules this loop touched>` | 1 626 mutants: every one killed, timed out, refused by the compiler or a reviewed equivalent (8, in `scripts/data/mutation-equivalents.json`); the 4 survivors of the first run were killed by d152225 and 2a8bfec, and the re-run of `src/cli.ts` and `src/utils/x509-spec.ts` scores 100 %. The full campaign over the 45 modules of `src/` at 629d6a9: 2 518 mutants, 0 survived. Round 4 (`--files` over the six modules bbdc5e6 touched: cms, cert, chain, schema, signer, pkierr): 611 mutants, 0 survived, 100 % on each. Round 5 (the four modules the `--strict` fix touched: output, tsp, pkierr, cms): 363 mutants, 0 survived, 100 % on each |
+| `npm run verify:docs` | 13 rules, 0 findings |
+| `npx tsx scripts/verify-samples.ts` | 57 samples match their baseline |
+| `npx tsx scripts/package-files.ts` | 11 files, exactly the `docs/data/package-files.json` list |
+| `npx tsx scripts/smoke-install.ts` | the packed tarball installs; the installed bin answers `--version`, `doctor` and `cert inspect`; `node_modules` holds pkinative and pkinative-cli |
+| `npm pack --dry-run` | 11 files, 126.8 kB packed, 537.0 kB unpacked |
+| `npm ls --omit=dev --all` | `pkinative@1.0.0` alone |
+| actionlint 1.7.12, zizmor 1.30.1 (`--offline`) | no finding (shellcheck not run locally) |
+
+## Backward compatibility
+
+None to keep: the first release. From here on, commands, flags, exit codes, `E_*` classes and JSON members are the API (`release-notes/TEMPLATE.md` §Conventions).
+
+## Out of scope (tracked in ROADMAP.md)
+
+Node.js 26 as a blocking line (LTS on 2026-10-28: `node-current.yml` tracks it), coverage-guided fuzzing (ADR 0006). A network layer is never in scope (ADR 0004; ROADMAP §Never).
+
+## Human-in-the-loop — steps for the maintainer
+
+1. Push `main` (the initial commit). In Settings, enable the Dependency graph and private vulnerability reporting (`dependency-review.yml` fails on a pull request without the graph), and set the repository settings of CONTRIBUTING.md §Branch protection.
+2. Create the environment `npm-publish` (the maintainer as required reviewer, deployments limited to tags matching `v*`: CONTRIBUTING.md §Branch protection).
+3. Push `release/v1.0.0`; open this pull request.
+4. Wait for the first run of every workflow; then import `.github/rulesets/main.json` and `tags.json` (Settings → Rules → Rulesets).
+5. On npmjs.com, configure Trusted Publishing for `pkinative-cli`: repository `Nizoka/pkinative-cli`, workflow `publish.yml`, environment `npm-publish`.
+6. Run `/release-audit release-notes/v1.0.0.md`; fix what it confirms.
+7. The release date is 2026-10-08 in `CHANGELOG.md` `[1.0.0]`, `release-notes/v1.0.0.md`, `CITATION.cff` `date-released` and `.github/SECURITY-INSIGHTS.yml`; if the publish day slips, change those four (and `docs/.well-known/security.txt` `Expires`, one year after) and commit on the branch.
+8. Squash-merge with the title `release: v1.0.0 — the whole engine, offline`, once the required checks are green.
+9. Publish the GitHub Release `v1.0.0 — the whole engine, offline` (body = `release-notes/v1.0.0.md`, new tag `v1.0.0` on the merge commit, created by the Release itself: nobody pushes a tag); `publish.yml` runs on `release: published`; approve `npm-publish`. Afterwards `npm view pkinative-cli version` names 1.0.0 and `npx tsx scripts/check-npm-drift.ts` is clean.
+10. Require 2FA and disallow tokens on the npm package; deprecate the `0.0.1` name reservation.
+
+## Self-review checklist
+
+- [x] Every count above was produced by a command on this branch, not typed from memory.
+- [x] The release note and the CHANGELOG entry describe the same release, section by section; the CHANGELOG is the per-line record.
+- [x] No `Co-Authored-By` trailer and no "generated with" footer anywhere on the branch.
+- [x] The agent audit is summarised above: five rounds, final verdict GO, every confirmed finding fixed with its regression test.
+- [ ] `/release-audit release-notes/v1.0.0.md`, run by the maintainer — PENDING: this PR is not ready to merge until it is.

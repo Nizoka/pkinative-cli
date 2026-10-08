@@ -1,0 +1,29 @@
+node_modules/
+dist/
+coverage/
+*.log
+.DS_Store
+Thumbs.db
+.env
+.env.*
+
+# .vscode/settings.json carries the token-economy and determinism settings an
+# agent session depends on; everything else under .vscode/ is personal.
+.vscode/*
+!.vscode/settings.json
+
+# Generated outputs: gate logs, sample outputs, audit ledgers.
+test-output/
+.audit/
+
+# AI-agent issue drafts (HITL staging; keep README + TEMPLATE, ignore the rest)
+.github/drafts/*.md
+!.github/drafts/README.md
+!.github/drafts/TEMPLATE.md
+
+# release-notes/draft/PR-vX.Y.Z.md is deliberately NOT ignored: the body of a
+# release pull request is the auditable record of what that release claimed.
+
+# Claude Code per-machine settings (the shared ones are .claude/settings.json)
+.claude/settings.local.json
+.claude/worktrees/

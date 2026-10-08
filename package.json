@@ -1,0 +1,128 @@
+{
+  "name": "pkinative-cli",
+  "version": "1.0.0",
+  "description": "Official CLI for pkinative — inspect and verify X.509 certificates, CSRs, CRLs, OCSP responses, CMS SignedData and RFC 3161 timestamps; build certificate paths and one-call chain verdicts (RFC 5280, name and purpose checks, revocation); create certificates, CSRs, CMS signatures, OCSP and timestamp requests; open PKCS#8 and PKCS#12 (PBES2, PBMAC1); decode and encode ASN.1, PEM and OIDs — offline, with pkinative's frozen error codes behind a stable --json contract for AI agents. Zero extra runtime dependencies.",
+  "type": "module",
+  "bin": {
+    "pkinative": "./dist/cli.cjs"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md",
+    "CHANGELOG.md",
+    "SECURITY.md",
+    "THIRD-PARTY-NOTICES.md",
+    "AGENTS.md",
+    "llms.txt",
+    "docs/AGENT_CONTRACT.md",
+    "docs/data/errors.json"
+  ],
+  "scripts": {
+    "build": "tsup --silent",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:interop": "vitest run tests/interop/openssl.test.ts",
+    "test:lint-certs": "vitest run tests/interop/lint.test.ts",
+    "gate": "npx tsx scripts/gate.ts",
+    "gate:fast": "npx tsx scripts/gate.ts --fast",
+    "lint": "eslint src/ tests/",
+    "typecheck": "tsc --noEmit",
+    "typecheck:tests": "tsc --project tsconfig.test.json --noEmit",
+    "typecheck:scripts": "tsc --project tsconfig.scripts.json --noEmit",
+    "typecheck:all": "npm run typecheck && npm run typecheck:tests && npm run typecheck:scripts",
+    "hooks:install": "node scripts/install-git-hooks.mjs",
+    "hooks:uninstall": "node scripts/install-git-hooks.mjs --uninstall",
+    "prepublishOnly": "npm run build",
+    "samples:generate": "npx tsx scripts/generate-samples.ts",
+    "verify:samples": "npx tsx scripts/verify-samples.ts",
+    "surface:build": "npx tsx scripts/build-surface.ts && npx tsx scripts/build-engine-surface.ts",
+    "docs:build": "npx tsx scripts/build-docs.ts",
+    "schemas:build": "npx tsx scripts/build-report-schemas.ts",
+    "agents:rules": "npx tsx scripts/build-claude-rules.ts",
+    "verify:docs": "npx tsx scripts/verify-docs.ts",
+    "check:package": "npx tsx scripts/package-files.ts && publint",
+    "smoke:install": "npx tsx scripts/smoke-install.ts",
+    "check:npm-drift": "npx tsx scripts/check-npm-drift.ts",
+    "release:prepare": "npx tsx scripts/release-prepare.ts",
+    "mutate": "npx tsx scripts/mutate.ts",
+    "verify:issue": "node scripts/verify-issue.mjs"
+  },
+  "keywords": [
+    "pki",
+    "x509",
+    "certificate",
+    "csr",
+    "pkcs10",
+    "crl",
+    "ocsp",
+    "cms",
+    "pkcs7",
+    "rfc3161",
+    "timestamp",
+    "pkcs8",
+    "pkcs12",
+    "asn1",
+    "der",
+    "pem",
+    "rfc5280",
+    "chain-validation",
+    "path-building",
+    "cli",
+    "command-line",
+    "pkinative",
+    "zero-dependency",
+    "typescript",
+    "offline",
+    "json-output",
+    "json-schema",
+    "shell-completions",
+    "ai-agent",
+    "human-in-the-loop",
+    "sbom",
+    "supply-chain"
+  ],
+  "author": "Nizoka <hello@pdfnative.dev> (https://pdfnative.dev)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Nizoka/pkinative-cli.git"
+  },
+  "homepage": "https://github.com/Nizoka/pkinative-cli#readme",
+  "bugs": {
+    "url": "https://github.com/Nizoka/pkinative-cli/issues"
+  },
+  "funding": {
+    "type": "individual",
+    "url": "https://plika.app"
+  },
+  "engines": {
+    "node": "^22.22.2 || ^24.14.1 || >=25.8.2"
+  },
+  "packageManager": "npm@10.9.2",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "dependencies": {
+    "pkinative": "^1.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "@types/node": "^22.0.0",
+    "@vitest/coverage-v8": "^4.1.11",
+    "eslint": "^9.0.0",
+    "publint": "^0.3.12",
+    "tsup": "^8.0.0",
+    "tsx": "^4.22.4",
+    "typescript": "^5.4.0",
+    "typescript-eslint": "^8.59.2",
+    "vitest": "^4.1.11"
+  },
+  "overrides": {
+    "esbuild": "0.28.1",
+    "source-map-js": "^1.2.2"
+  }
+}

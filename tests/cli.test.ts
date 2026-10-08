@@ -1,0 +1,395 @@
+import { writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { describe, expect, it } from 'vitest';
+import { COMMANDS, GLOBAL_FLAGS, commandFlags } from '../src/commands/registry.js';
+import { REDACTED, redactMistypedPassword } from '../src/cli.js';
+import { CONFIG_FILENAME } from '../src/utils/config.js';
+import { CLI_VERSION } from '../src/utils/version.js';
+import { AT, cli, emptyDir, envelope, fixture } from './helpers/io.js';
+import { validate } from './helpers/json-schema.js';
+
+describe('run: help and version', () => {
+    it('prints the help with no arguments or --help', async () => {
+        for (const argv of [[], ['--help'], ['-h']]) {
+            const r = await cli(argv);
+            expect(r.code).toBe(0);
+            expect(r.stdout).toMatch(/^pkinative-cli — Official CLI/);
+            expect(r.stdout).toMatch(/Commands \(\d+\):/);
+        }
+    });
+
+    it('prints the version, with engine version under --json', async () => {
+        expect((await cli(['--version'])).stdout).toBe(`${CLI_VERSION}\n`);
+        expect((await cli(['-V'])).stdout).toBe(`${CLI_VERSION}\n`);
+        const json = JSON.parse((await cli(['--version', '--json'])).stdout) as Record<string, string>;
+        expect(json).toMatchObject({ name: 'pkinative-cli', version: CLI_VERSION });
+        expect(json['pkinative']).toMatch(/^1\./);
+        expect(JSON.parse((await cli(['-V'], { env: { PKINATIVE_JSON: '1' } })).stdout)).toHaveProperty('pkinative');
+        // AGENT_CONTRACT §6: --version --json and --help --json are the two invocations that write no envelope (audit C-39).
+        expect((await cli(['--version', '--json'])).stderr).toBe('');
+        expect((await cli(['--help', '--json'])).stderr).toBe('');
+    });
+
+    it('produces the PEM form wherever the help advertises --encoding pem (audit D-30)', async () => {
+        const dir = emptyDir();
+        writeFileSync(join(dir, 'name.json'), JSON.stringify({ CN: 'pem' }));
+        const invocations: ReadonlyArray<readonly string[]> = [
+            ['oid', 'encode', '1.2.840.113549.1.1.11', '--tlv'],
+            ['asn1', 'decode', fixture('leaf.crt.der'), '--reencode'],
+            ['cert', 'encode', 'name', '--spec', join(dir, 'name.json')],
+            ['ocsp', 'request', fixture('leaf.crt.pem'), '--issuer', fixture('inter.crt.pem')],
+            ['ocsp', 'cert-id', fixture('leaf.crt.pem'), '--issuer', fixture('inter.crt.pem')],
+            ['tsp', 'request', '--data', fixture('content.txt')],
+        ];
+        for (const argv of invocations) {
+            expect((await cli([...argv, '--encoding', 'pem'])).code, argv.join(' ')).toBe(2);
+            const r = await cli([...argv, '--encoding', 'pem', '--label', 'AUDIT']);
+            expect(r.code, argv.join(' ')).toBe(0);
+            expect(r.stdout, argv.join(' ')).toMatch(/^-----BEGIN AUDIT-----\n[A-Za-z0-9+/=\n]+-----END AUDIT-----\n$/);
+        }
+    });
+
+    it('prints a command help', async () => {
+        const r = await cli(['limits', '--help']);
+        expect(r.code).toBe(0);
+        expect(r.stdout).toMatch(/^pkinative limits —/);
+    });
+});
+
+describe('run: usage errors', () => {
+    it('refuses flags without a command', async () => {
+        const r = await cli(['--quiet']);
+        expect(r.code).toBe(2);
+        expect(r.stderr).toMatch(/^error E_USAGE: No command given/);
+    });
+
+    it('refuses an unknown command, listing the commands', async () => {
+        const r = await cli(['frobnicate']);
+        expect(r.code).toBe(2);
+        expect(r.stderr).toMatch(/Unknown command: frobnicate\. Commands: .*limits/);
+    });
+
+    it('refuses an unknown flag', async () => {
+        const r = await cli(['limits', '--frob']);
+        expect(r.code).toBe(2);
+        expect(r.stderr).toMatch(/Unknown flag --frob for "limits"/);
+    });
+
+    it('refuses a literal password anywhere, before the command runs', async () => {
+        const r = await cli(['limits', '--password', 'hunter2', '--json']);
+        expect(r.code).toBe(2);
+        const env = envelope(r.stderr);
+        // The envelope names the command (audit A2-13); the value is never echoed.
+        expect(env).toMatchObject({ ok: false, command: 'limits', error: { code: 'E_USAGE', remedy: expect.stringMatching(/--password-file/) } });
+        expect(r.stderr).not.toContain('hunter2');
+        const sub = await cli(['p12', 'open', fixture('leaf.p12'), '--password-stdin=hunter2', '--json']);
+        expect(envelope(sub.stderr)).toMatchObject({ ok: false, command: 'p12 open', error: { code: 'E_USAGE' } });
+        expect(sub.stderr).not.toContain('hunter2');
+        for (const argv of [['--password', 'hunter2'], ['--password', 'hunter2', '--help'], ['cert', '--password', 'hunter2', '--help']]) {
+            const refused = await cli(argv);
+            expect(refused.code, argv.join(' ')).toBe(2);
+            expect(refused.stdout + refused.stderr).not.toContain('hunter2');
+        }
+    });
+
+    it('never echoes a token typed after --password-stdin, whatever it starts with (audit A2-03, N-1, N-2)', async () => {
+        for (const json of [[], ['--json']]) {
+            const r = await cli(['p12', 'open', '--password-stdin', 'Zq9fresh', ...json], { stdin: 'pw\n' });
+            expect(r.code).toBe(1);
+            expect(r.stderr).toContain(REDACTED);
+            expect(r.stderr).not.toContain('Zq9fresh');
+        }
+        for (const token of ['-Zq9fresh', '--Zq9fresh', '-Z=q9fresh']) {
+            const r = await cli(['p12', 'open', fixture('leaf.p12'), '--password-stdin', token], { stdin: 'pw\n' });
+            expect(r.code, token).toBe(2);
+            expect(r.stderr, token).not.toMatch(/q9fresh/);
+        }
+        // Only the whole word is replaced: the rest of the message stays readable.
+        const short = await cli(['p12', 'open', '--password-stdin', 'e'], { stdin: 'pw\n' });
+        expect(short.stderr).toContain(`Cannot read PKCS#12 file "${REDACTED}"`);
+        // An existing path after the switch is the input, and is named; so is a known flag.
+        const named = await cli(['p12', 'verify-mac', '--password-stdin', fixture('nomac.p12'), '--max-input-bytes', '8'], { stdin: 'pw\n' });
+        expect(named.stderr).toContain('nomac.p12');
+        expect((await cli(['p12', 'open', fixture('leaf.p12'), '--password-stdin', '--format', 'bogus'], { stdin: 'pw\n' })).stderr).toMatch(/--format expects/);
+        // A path given elsewhere is still named.
+        expect((await cli(['p12', 'inspect', 'Zq9missing.p12'])).stderr).toContain('Zq9missing.p12');
+    });
+
+    it('writes a JSON envelope for usage errors under --json', async () => {
+        const r = await cli(['--json', 'limits', '--max-depth', '0']);
+        expect(r.code).toBe(2);
+        expect(envelope(r.stderr)).toMatchObject({ ok: false, command: 'limits', error: { code: 'E_USAGE' }, diagnostics: [] });
+    });
+});
+
+describe('run: a command', () => {
+    it('runs limits in text and json, flags before or after the command', async () => {
+        const text = await cli(['limits']);
+        expect(text.code).toBe(0);
+        expect(text.stdout).toMatch(/--max-input-bytes\s+67108864\s+CWE-400/);
+        const json = await cli(['--max-depth', '8', 'limits', '--json']);
+        expect(json.code).toBe(0);
+        const report = JSON.parse(json.stdout) as { limits: { limit: string; effective: number; default: number }[] };
+        expect(report.limits).toHaveLength(22);
+        expect(report.limits.find((l) => l.limit === 'maxDepth')).toMatchObject({ effective: 8, default: 64 });
+        expect(envelope(json.stderr)).toEqual({ ok: true, command: 'limits', diagnostics: [] });
+    });
+
+    it('marks changed bounds in text, and summarises them', async () => {
+        const text = await cli(['limits', '--max-depth', '8']);
+        expect(text.stdout).toMatch(/--max-depth\s+8 \(default 64\)/);
+        const summary = await cli(['limits', '--json', '--summary', '--max-depth', '8']);
+        expect(JSON.parse(summary.stdout)).toEqual({ changed: [{ limit: 'maxDepth', effective: 8 }] });
+    });
+
+    it('applies presentation defaults from a config file, and names the file', async () => {
+        const dir = emptyDir();
+        writeFileSync(join(dir, CONFIG_FILENAME), JSON.stringify({ limits: { format: 'json' } }));
+        const r = await cli(['limits'], { cwd: dir });
+        expect(JSON.parse(r.stdout)).toHaveProperty('limits');
+        expect(r.stderr).toBe(`note: defaults from ${join(dir, CONFIG_FILENAME)}\n`);
+        expect(envelope((await cli(['limits', '--json'], { cwd: dir })).stderr)).toMatchObject({ ok: true, config: join(dir, CONFIG_FILENAME) });
+        expect((await cli(['limits', '--quiet'], { cwd: dir })).stderr).toBe('');
+        expect((await cli(['limits', '--no-config'], { cwd: dir })).stdout).toMatch(/^--max-input-bytes/);
+        const failing = await cli(['limits', '--json', '--max-depth', 'x'], { cwd: dir });
+        expect(envelope(failing.stderr)).toMatchObject({ ok: false, config: join(dir, CONFIG_FILENAME) });
+    });
+
+    it('names no config file that supplied nothing', async () => {
+        const dir = emptyDir();
+        writeFileSync(join(dir, CONFIG_FILENAME), JSON.stringify({ limits: { format: 'json' }, cert: { format: 'json' } }));
+        // The flag is given, so the file applies nothing: no note, no config in the envelope.
+        const given = await cli(['limits', '--format', 'text'], { cwd: dir });
+        expect(given.code).toBe(0);
+        expect(given.stderr).toBe('');
+        expect(envelope((await cli(['limits', '--format', 'json', '--json'], { cwd: dir })).stderr)).toEqual({ ok: true, command: 'limits', diagnostics: [] });
+        const failing = await cli(['limits', '--format', 'json', '--json', '--max-depth', 'x'], { cwd: dir });
+        expect(failing.code).toBe(2);
+        expect(envelope(failing.stderr)).not.toHaveProperty('config');
+    });
+
+    it('accepts exactly the files schema config describes (audit A2-07)', async () => {
+        const schema = JSON.parse((await cli(['schema', 'config'])).stdout) as Record<string, unknown>;
+        const verdict = async (body: object): Promise<[boolean, boolean]> => {
+            const dir = emptyDir();
+            writeFileSync(join(dir, CONFIG_FILENAME), JSON.stringify(body));
+            return [(await cli(['limits'], { cwd: dir })).code !== 2, validate(body, schema).length === 0];
+        };
+        for (const body of [
+            { format: 'json', encoding: 'der', fields: 'a', json: false, pretty: true, quiet: true, 'no-color': true, summary: false, strict: true },
+            { cert: { format: 'json' }, 'cert inspect': { fields: 'subject' }, 'pem decode': { encoding: 'der' } },
+            { json: 'yes' }, { format: true }, { 'cert inspekt': {} }, { cert: true }, { trust: 'x' }, { 'chain verify': { at: 'now' } },
+        ]) {
+            const [loaded, valid] = await verdict(body);
+            expect(loaded, JSON.stringify(body)).toBe(valid);
+        }
+    });
+
+    it('applies a default only where the subcommand declares it (audit B-02)', async () => {
+        const dir = emptyDir();
+        writeFileSync(join(dir, CONFIG_FILENAME), JSON.stringify({ format: 'json', cert: { format: 'json' } }));
+        expect((await cli(['schema', 'list'], { cwd: dir })).code).toBe(0);
+        const created = await cli(['cert', 'inspect', fixture('leaf.crt.pem')], { cwd: dir });
+        expect(created.code).toBe(0);
+        expect(JSON.parse(created.stdout)).toHaveProperty('serialNumber');
+    });
+
+    it('never lets a planted config change what is read, trusted, when, or how (audit A-01, V-01)', async () => {
+        const planted = async (config: object, argv: readonly string[]): Promise<number> => {
+            const dir = emptyDir();
+            writeFileSync(join(dir, CONFIG_FILENAME), JSON.stringify(config));
+            const r = await cli(argv, { cwd: dir });
+            expect(r.stderr, JSON.stringify(config)).toMatch(/accepted on the command line only/);
+            return r.code;
+        };
+        const leaf = fixture('leaf.crt.pem');
+        const anchors = ['--trust', fixture('root.crt.pem'), '--untrusted', fixture('inter.crt.pem'), '--at', AT];
+        // Each key below turned a failing verdict into a pass before 1.0.0.
+        expect(await planted({ chain: { 'no-signatures': true } }, ['chain', 'validate', leaf, fixture('inter.crt.pem'), '--trust', fixture('root.crt.pem'), '--at', AT])).toBe(2);
+        expect(await planted({ trust: fixture('root.crt.pem'), untrusted: fixture('inter.crt.pem') }, ['chain', 'verify', leaf, '--at', AT])).toBe(2);
+        expect(await planted({ chain: { input: leaf } }, ['chain', 'verify', fixture('revoked.crt.pem'), ...anchors])).toBe(2);
+        expect(await planted({ at: '2025-01-01T00:00:00Z' }, ['chain', 'verify', leaf, ...anchors])).toBe(2);
+        expect(await planted({ crl: { 'stale-tolerance': 999999999999 } }, ['crl', 'check', fixture('inter.crl.der'), '--cert', leaf, '--issuer', fixture('inter.crt.pem')])).toBe(2);
+        expect(await planted({ ocsp: { 'responder-trusted': true } }, ['ocsp', 'check', fixture('leaf.ocsp.der')])).toBe(2);
+        expect(await planted({ 'max-depth': '1000' }, ['limits'])).toBe(2);
+    });
+
+    it('prints a stack trace with PKINATIVE_DEBUG=1', async () => {
+        const r = await cli(['limits', '--max-depth', 'x'], { env: { PKINATIVE_DEBUG: '1' } });
+        expect(r.code).toBe(2);
+        expect(r.stderr).toMatch(/\n\s+at /);
+    });
+});
+
+describe('run: defensive paths', () => {
+    it('refuses to load a command the registry does not know', async () => {
+        const { loadCommand } = await import('../src/cli.js');
+        await expect(loadCommand('nope')).rejects.toMatchObject({ code: 'E_USAGE' });
+    });
+
+    it('reports a non-CliError failure as E_RUNTIME', async () => {
+        const { reportFailure } = await import('../src/cli.js');
+        const { memoryIo } = await import('./helpers/io.js');
+        const m = memoryIo();
+        expect(reportFailure(m.io, 'x', new Error('boom'), undefined, false)).toBe(1);
+        expect(reportFailure(m.io, 'x', 'str', undefined, false)).toBe(1);
+        expect(m.stderr()).toBe('error E_RUNTIME: boom\nerror E_RUNTIME: str\n');
+    });
+});
+
+describe('run: quiet success', () => {
+    it('prints nothing on stderr under --quiet', async () => {
+        const r = await cli(['limits', '-q']);
+        expect(r.code).toBe(0);
+        expect(r.stderr).toBe('');
+    });
+});
+
+describe('run: diagnostics', () => {
+    it('prints the diagnostics before the error, and in the envelopes', async () => {
+        const { emptyDir: tmp } = await import('./helpers/io.js');
+        const dir = tmp();
+        const file = join(dir, 'ber.der');
+        writeFileSync(file, Buffer.from('308005000000', 'hex'));
+        const failed = await cli(['asn1', 'decode', file, '--ber', '--path', '5']);
+        expect(failed.stderr).toMatch(/^info PKI_DIAG_BER_CONSTRUCT_ACCEPTED: .*\nerror E_NOT_FOUND/);
+        const quiet = await cli(['asn1', 'decode', file, '--ber', '--path', '5', '-q']);
+        expect(quiet.stderr).toMatch(/^error E_NOT_FOUND/);
+        const ok = await cli(['asn1', 'decode', file, '--ber']);
+        expect(ok.stderr).toMatch(/^info PKI_DIAG_BER_CONSTRUCT_ACCEPTED/);
+        const okQuiet = await cli(['asn1', 'decode', file, '--ber', '--quiet']);
+        expect(okQuiet.code).toBe(0);
+        expect(okQuiet.stderr).toBe('');
+        const json = await cli(['asn1', 'decode', file, '--ber', '--json']);
+        expect(envelope(json.stderr)).toMatchObject({ ok: true, diagnostics: [{ code: 'PKI_DIAG_BER_CONSTRUCT_ACCEPTED', severity: 'info' }] });
+        const jsonFail = await cli(['asn1', 'decode', file, '--ber', '--path', '5', '--json']);
+        expect(envelope(jsonFail.stderr)).toMatchObject({ ok: false, diagnostics: [{ code: 'PKI_DIAG_BER_CONSTRUCT_ACCEPTED' }] });
+    });
+});
+
+describe('run: the parser enforces the registry (audit A-08, A-10, A-11, A-19)', () => {
+    it('refuses a repeated single-value flag instead of letting the order decide the verdict', async () => {
+        for (const hosts of [['example.test', 'evil.invalid'], ['evil.invalid', 'example.test']]) {
+            const r = await cli(['cert', 'check-name', fixture('leaf.crt.pem'), '--host', hosts[0] as string, '--host', hosts[1] as string]);
+            expect(r.code).toBe(2);
+            expect(r.stderr).toMatch(/--host is given 2 times/);
+        }
+    });
+
+    it('refuses a flag given under both its name and its alias', async () => {
+        const r = await cli(['fingerprint', '--input', fixture('leaf.crt.pem'), '-i', fixture('root.crt.pem')]);
+        expect(r.code).toBe(2);
+        expect(r.stderr).toMatch(/--input and -i are the same flag/);
+    });
+
+    it('holds an alias to every rule its flag obeys (audit A2-01, A2-02)', async () => {
+        // An operand beside -i is the same conflict as beside --input: the verdict never silently changes.
+        const both = await cli(['chain', 'verify', fixture('revoked.crt.pem'), '-i', fixture('leaf.crt.pem'), '--trust', fixture('root.crt.pem'), '--at', AT]);
+        expect(both.code).toBe(2);
+        expect(both.stderr).toMatch(/given --input and an argument/);
+        // -f is --format: honoured, and checked.
+        expect(JSON.parse((await cli(['cert', 'inspect', fixture('leaf.crt.pem'), '-f', 'json'])).stdout)).toHaveProperty('serialNumber');
+        const bogus = await cli(['cert', 'inspect', fixture('leaf.crt.pem'), '-f', 'bogus']);
+        expect(bogus.code).toBe(2);
+        expect(bogus.stderr).toMatch(/--format expects one of text\|json/);
+        // A bare -i is reported under the flag's name.
+        expect((await cli(['cert', 'inspect', '-i'])).stderr).toMatch(/Flag --input requires a value/);
+        // A flag given on the command line, under either name, beats the config file.
+        const dir = emptyDir();
+        writeFileSync(join(dir, CONFIG_FILENAME), JSON.stringify({ quiet: false, format: 'json' }));
+        const quiet = await cli(['limits', '-q'], { cwd: dir });
+        expect(quiet.stderr).toBe('');
+        const text = await cli(['limits', '-f', 'text', '--quiet'], { cwd: dir });
+        expect(text.stdout).toMatch(/^--max-input-bytes/);
+        for (const [alias, name] of [['-q', '--quiet'], ['-f', '--format']] as const) {
+            const value = alias === '-f' ? ['text'] : [];
+            const short = await cli(['limits', alias, ...value, '--json'], { cwd: dir });
+            const long = await cli(['limits', name, ...value, '--json'], { cwd: dir });
+            expect(short).toEqual(long);
+        }
+    });
+
+    it('gives every alias of the registry the outcome of its long form, in every invocation', async () => {
+        const dir = emptyDir();
+        let compared = 0;
+        for (const c of COMMANDS) {
+            for (const sub of c.subcommands.length > 0 ? c.subcommands.map((s) => s.name) : [undefined]) {
+                const head = sub === undefined ? [c.name] : [c.name, sub];
+                for (const f of [...GLOBAL_FLAGS, ...commandFlags(c, sub)].filter((x) => x.alias !== undefined && x.name !== 'help' && x.name !== 'version')) {
+                    const value = f.value === undefined ? [] : [f.name === 'format' ? 'json' : join(dir, `missing-${f.name}`)];
+                    const long = await cli([...head, `--${f.name}`, ...value, '--json'], { cwd: dir });
+                    const short = await cli([...head, `-${f.alias as string}`, ...value, '--json'], { cwd: dir });
+                    expect(short, `${head.join(' ')} -${f.alias as string}`).toEqual(long);
+                    compared++;
+                }
+            }
+        }
+        expect(compared).toBeGreaterThan(100);
+    });
+
+    it('refuses a switch given twice instead of letting the last one win (audit A2-11)', async () => {
+        const r = await cli(['chain', 'verify', fixture('leaf.crt.pem'), '--require-revocation', '--require-revocation=false']);
+        expect(r.code).toBe(2);
+        expect(r.stderr).toMatch(/--require-revocation is given more than once/);
+        expect((await cli(['chain', 'verify', fixture('leaf.crt.pem'), '--require-revocation=false', '--require-revocation'])).code).toBe(2);
+        expect((await cli(['chain', 'verify', fixture('leaf.crt.pem'), '--at', '--at', AT])).stderr).toMatch(/--at is given more than once/);
+    });
+
+    it('refuses surplus operands and an operand beside --input', async () => {
+        expect((await cli(['fingerprint', fixture('leaf.crt.pem'), fixture('root.crt.pem')])).stderr).toMatch(/takes at most 1 argument, got 2/);
+        expect((await cli(['cert', 'inspect', fixture('leaf.crt.pem'), '--input', fixture('root.crt.pem')])).stderr).toMatch(/given --input and an argument/);
+        expect((await cli(['doctor', 'extra'])).stderr).toMatch(/takes no arguments/);
+        expect((await cli(['oid', 'name', '2.5.4.3', '2.5.4.6'])).code).toBe(0);
+        // An operand beside --path, or beside explain --list, is the same conflict (audit A2-12).
+        expect((await cli(['chain', 'validate', fixture('leaf.crt.pem'), '--path', fixture('inter.crt.pem')])).stderr).toMatch(/given --path and an argument; give one or the other/);
+        expect((await cli(['explain', '--list', 'E_IO'])).stderr).toMatch(/given --list and an argument/);
+        expect((await cli(['explain', '--list'])).code).toBe(0);
+    });
+
+    it('never echoes a value typed after --password-stdin', async () => {
+        for (const argv of [['p12', 'open', fixture('leaf.p12'), '--password-stdin=hunter2'], ['p12', 'open', '--password-stdin', 'hunter2', fixture('leaf.p12')]]) {
+            const r = await cli(argv);
+            expect(r.code).toBe(2);
+            expect(r.stderr).not.toContain('hunter2');
+        }
+    });
+
+    it('refuses a date that does not exist', async () => {
+        const r = await cli(['chain', 'verify', fixture('leaf.crt.pem'), '--trust', fixture('root.crt.pem'), '--at', '2027-02-31T00:00:00Z']);
+        expect(r.code).toBe(2);
+        expect(r.stderr).toMatch(/--at expects/);
+    });
+
+    it('refuses a stdin password when the content is read from stdin', async () => {
+        const r = await cli(['cms', 'sign', '--content', '-', '--password-stdin', '--key', fixture('leaf.key.enc.pem'), '--cert', fixture('leaf.crt.pem')], { stdin: 'hello' });
+        expect(r.code).toBe(2);
+        expect(r.stderr).toMatch(/cannot come from stdin/);
+    });
+});
+
+describe('redactMistypedPassword', () => {
+    const cwd = emptyDir();
+    const redact = (argv: string[], message: string): unknown => redactMistypedPassword(argv, new Error(message), cwd);
+    const text = (argv: string[], message: string): string => (redact(argv, message) as Error).message;
+
+    it('replaces the whole argument after --password-stdin, never a part of another word', () => {
+        expect(text(['p12', '--password-stdin', 'Zq9'], 'x Zq9 "Zq9" xZq9 Zq9x Zq9.p12 -Zq9')).toBe(`x ${REDACTED} "${REDACTED}" xZq9 Zq9x Zq9.p12 -Zq9`);
+        // Regular-expression characters in the argument are literal.
+        expect(text(['--password-stdin', 'a.b'], 'axb a.b')).toBe(`axb ${REDACTED}`);
+        expect(text(['--password-stdin', '-Zq9'], 'flag -Zq9.')).toBe(`flag ${REDACTED}.`);
+    });
+
+    it('keeps a known flag (either spelling, = form included), stdin, the end of options, an existing path', () => {
+        const file = join(cwd, 'in.p12');
+        writeFileSync(file, '');
+        for (const next of ['-i', '--input', '--format=json', '-', '--', 'in.p12', file]) {
+            expect(text(['p12', '--password-stdin', next], `got ${next} here`), next).toBe(`got ${next} here`);
+        }
+    });
+
+    it('changes nothing without the switch, without an argument after it, or for a value that is not an Error', () => {
+        expect(text(['p12', 'Zq9'], 'Zq9')).toBe('Zq9');
+        expect(text(['p12', '--password-stdin'], 'Zq9')).toBe('Zq9');
+        expect(redactMistypedPassword(['--password-stdin', 'Zq9'], 'Zq9', cwd)).toBe('Zq9');
+    });
+});

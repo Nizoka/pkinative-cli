@@ -1,0 +1,112 @@
+name: Conformance
+
+# OpenSSL holds the CLI to the standards from outside: it verifies the
+# certificates, requests and CMS signatures the BUILT CLI writes, and reads its
+# OCSP and time-stamp requests (tests/interop/openssl.test.ts), and the
+# built-binary suite runs dist/cli.cjs end to end. REQUIRE_INTEROP=1 and
+# GATE_REQUIRE_ARTIFACTS=1 turn a missing tool or a missing build into a
+# failure. The tool versions are recorded first, so a red run is attributable
+# to "our bug" or to "runner image drift". The Windows and macOS legs of
+# ci.yml run the same suite on those platforms through the gate.
+#
+# No path filter: the ruleset requires the `conformance` check on every pull
+# request, and a filtered-out required check would block the merge.
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  schedule:
+    - cron: '17 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: conformance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  conformance:
+    # The required check name (.github/rulesets/main.json) — keep it equal.
+    name: conformance
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+            registry.npmjs.org:443
+            nodejs.org:443
+            release-assets.githubusercontent.com:443
+            pypi.org:443
+            files.pythonhosted.org:443
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      # The two certificate linters of tests/interop/lint.test.ts, pinned: zlint
+      # by the SHA-256 of its release archive, pkilint and every dependency by
+      # version and the SHA-256 of every file (--require-hashes), in a venv,
+      # with --only-binary so nothing is built.
+      - name: Install zlint (pinned, checksum-verified)
+        env:
+          ZLINT_VERSION: 3.7.2
+          ZLINT_SHA256: c2788575fc44da2648fcf9cfcdc1dae4d388d80a2b8edf9aafb215425cad4cc5
+        run: |
+          set -euo pipefail
+          ARCHIVE="zlint_${ZLINT_VERSION}_Linux_x86_64.tar.gz"
+          curl --fail --silent --show-error --location --proto '=https' \
+            --output "${RUNNER_TEMP}/${ARCHIVE}" \
+            "https://github.com/zmap/zlint/releases/download/v${ZLINT_VERSION}/${ARCHIVE}"
+          echo "${ZLINT_SHA256}  ${RUNNER_TEMP}/${ARCHIVE}" | sha256sum --check --strict
+          tar -xzf "${RUNNER_TEMP}/${ARCHIVE}" -C "${RUNNER_TEMP}"
+
+      - name: Install pkilint (pinned by hash)
+        run: |
+          set -euo pipefail
+          python3 -m venv "${RUNNER_TEMP}/lint-python"
+          "${RUNNER_TEMP}/lint-python/bin/python" -m pip install --require-hashes --no-deps --only-binary :all: -r scripts/data/lint-python-requirements.txt
+
+      - name: Record tool versions
+        shell: bash
+        run: |
+          {
+            echo '## Conformance tool versions'
+            echo '```'
+            echo "node $(node --version), bundled OpenSSL $(node -p process.versions.openssl)"
+            openssl version || echo 'openssl CLI: not found'
+            "${RUNNER_TEMP}/zlint_3.7.2_Linux_x86_64/zlint" -list-lints-source 2>/dev/null | head -n 1 || true
+            "${RUNNER_TEMP}/lint-python/bin/python" -c 'from importlib.metadata import version; print("pkilint", version("pkilint"))' || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Build the CLI under test
+        run: npm run build
+
+      - name: OpenSSL interoperability, certificate lint and the built binary (blocking)
+        env:
+          REQUIRE_INTEROP: '1'
+          REQUIRE_LINT: '1'
+          REQUIRE_PWSH: '1'
+          GATE_REQUIRE_ARTIFACTS: '1'
+          ZLINT: ${{ runner.temp }}/zlint_3.7.2_Linux_x86_64/zlint
+          PKILINT_PYTHON: ${{ runner.temp }}/lint-python/bin/python
+        run: npx vitest run tests/interop tests/integration

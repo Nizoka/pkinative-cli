@@ -1,0 +1,32 @@
+# Binary files must never go through EOL conversion: core.autocrlf=true would
+# otherwise rewrite the bytes of a small DER fixture at checkout while
+# `git status` stayed clean.
+* text=auto eol=lf
+
+# DER-encoded PKI objects are binary by definition.
+*.der   binary
+*.cer   binary
+*.crt   binary
+*.csr   binary
+*.crl   binary
+*.p7b   binary
+*.p7c   binary
+*.p7s   binary
+*.p7m   binary
+*.p8    binary
+*.key   binary
+*.p12   binary
+*.pfx   binary
+*.ocsp  binary
+*.tsq   binary
+*.tsr   binary
+*.tst   binary
+*.bin   binary
+*.png   binary
+
+# PEM is text; the CRLF variants are generated inside the tests, never committed.
+*.pem   text eol=lf
+
+# Generated files: collapsed in GitHub diffs and excluded from language stats.
+.claude/rules/*.md      linguist-generated=true
+package-lock.json       linguist-generated=true

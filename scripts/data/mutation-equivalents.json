@@ -1,0 +1,60 @@
+{
+  "$comment": "Reviewed equivalent mutants of scripts/mutate.ts: changes no test can distinguish, so no test is written for them. Each entry names the mutant by id (<file>:<line>:<column>:<operator>, as the runner prints it) and repeats its original and replacement text, so an entry whose source moved is reported STALE rather than silently matching something else; reason is the argument for equivalence, never the word TODO. An entry a test kills is reported REFUTED. Two kinds are admitted. Semantic: no input yields a different result, exit code, error class or envelope field. Message-only: the mutant changes nothing but the wording of a message that no contract fixes (the E_* class, exit code and envelope fields are unchanged). Empty is the goal; every entry is a claim a reviewer can check.",
+  "schema": 1,
+  "equivalents": [
+    {
+      "id": "src/cli.ts:50:9:if-false",
+      "original": "index === -1",
+      "replacement": "false",
+      "reason": "Semantic: with index -1 the fall-through returns command argv[-1], which is undefined, the same command as the early return; the only other difference is `rest`, which run() never reads when the command is undefined (every branch of that case returns or throws first)."
+    },
+    {
+      "id": "src/cli.ts:88:39:number+1",
+      "original": "0",
+      "replacement": "1",
+      "reason": "Semantic: `> 1` differs from `> 0` only for a command with exactly one subcommand, and no registered command has exactly one subcommand: each has 0 or at least 2 (COMMANDS is a constant, and tests/docs/usage.test.ts holds the registry)."
+    },
+    {
+      "id": "src/commands/completion.ts:59:64:number+1",
+      "original": "0",
+      "replacement": "1",
+      "reason": "Semantic: the filter keeps the same commands, because no registered command has exactly one subcommand: each has 0 or at least 2 (COMMANDS is a constant, and tests/docs/usage.test.ts holds the registry); the bash script is byte-identical."
+    },
+    {
+      "id": "src/commands/completion.ts:108:64:number+1",
+      "original": "0",
+      "replacement": "1",
+      "reason": "Semantic: the filter keeps the same commands, because no registered command has exactly one subcommand: each has 0 or at least 2 (COMMANDS is a constant, and tests/docs/usage.test.ts holds the registry); the zsh script is byte-identical."
+    },
+    {
+      "id": "src/commands/completion.ts:174:64:number+1",
+      "original": "0",
+      "replacement": "1",
+      "reason": "Semantic: the filter keeps the same commands, because no registered command has exactly one subcommand: each has 0 or at least 2 (COMMANDS is a constant, and tests/docs/usage.test.ts holds the registry); the PowerShell script is byte-identical."
+    },
+    {
+      "id": "src/commands/schema.ts:168:36:logical",
+      "original": "&&",
+      "replacement": "||",
+      "reason": "Semantic: the mutant also treats a string value under a non-$ref key as a reference; no such string in the generated INVOCATIONS or REPORT_DEFS names a $defs entry (replaying defsFor over every report and summary body gives no difference), and visiting a string is otherwise a no-op."
+    },
+    {
+      "id": "src/commands/schema.ts:281:40:number+1",
+      "original": "0",
+      "replacement": "1",
+      "reason": "Semantic: the manifest takes the same branch for every command, because no registered command has exactly one subcommand: each has 0 or at least 2 (COMMANDS is a constant, and tests/docs/usage.test.ts holds the registry); the manifest is byte-identical."
+    },
+    {
+      "id": "src/utils/wire.ts:28:23:relational",
+      "original": "<",
+      "replacement": "<=",
+      "reason": "Semantic: the extra iteration runs at i === out.length; it writes NaN to out[out.length], past the end of a Uint8Array, which JavaScript ignores, so the returned bytes and length are identical for every input."
+    },
+    {
+      "id": "src/utils/x509-spec.ts:222:44:number-1",
+      "original": "0x7f",
+      "replacement": "126",
+      "reason": "Semantic: (b & 0x7e) | 0x01 equals (b & 0x7f) | 0x01 for every octet b: the masks differ only in bit 0, which the following | 0x01 sets anyway, so the serial is identical for every random draw."
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+cff-version: 1.2.0
+message: >-
+  If you use pkinative-cli in academic work or cite it in publications,
+  please cite it using the metadata below.
+title: "pkinative-cli — the command line for the pkinative PKI toolkit"
+abstract: >-
+  The official command-line interface of pkinative: inspect and verify X.509
+  certificates, certification requests, CRLs, OCSP responses, CMS SignedData
+  and RFC 3161 time-stamps; build and validate certification paths; create
+  certificates, requests and CMS signatures; open PKCS#8 and PKCS#12 — offline,
+  with pkinative as its only runtime dependency, every export of the engine
+  reached by a command, and a stable JSON contract for scripts and AI agents.
+type: software
+authors:
+  - name: "Nizoka"
+    email: "hello@pdfnative.dev"
+    website: "https://pdfnative.dev"
+repository-code: "https://github.com/Nizoka/pkinative-cli"
+url: "https://github.com/Nizoka/pkinative-cli"
+license: MIT
+version: 1.0.0
+date-released: 2026-10-08
+keywords:
+  - pki
+  - x509
+  - cli
+  - asn1
+  - cms
+  - ocsp
+  - rfc5280
+  - rfc3161
+  - pkcs12
+  - typescript
+  - offline
+  - secure-by-default

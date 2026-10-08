@@ -1,0 +1,143 @@
+import { describe, expect, it } from 'vitest';
+import { COMMANDS, GLOBAL_FLAGS, commandFlags, type FlagSpec } from '../../src/commands/registry.js';
+import { COMMAND_USAGE, GLOBAL_USAGE, USAGE } from '../../src/commands/usage.js';
+
+const allFlags = (c: (typeof COMMANDS)[number]): FlagSpec[] => [...c.flags, ...c.subcommands.flatMap((s) => s.flags)];
+/** Flags of other tools quoted in the examples (curl). */
+const FOREIGN = new Set(['data-binary']);
+const mentioned = (text: string): Set<string> => new Set([...text.matchAll(/--([a-z0-9][a-z0-9-]*)/g)].map((m) => m[1] as string));
+
+describe('help text', () => {
+    it('has one block per command, and none extra', () => {
+        expect(Object.keys(COMMAND_USAGE).sort()).toEqual(COMMANDS.map((c) => c.name).sort());
+    });
+
+    it('lists every flag a command declares', () => {
+        for (const c of COMMANDS) {
+            const text = COMMAND_USAGE[c.name] as string;
+            for (const f of allFlags(c)) expect(text.includes(`--${f.name}`), `${c.name}: --${f.name}`).toBe(true);
+        }
+    });
+
+    it('mentions only flags that exist for the command or globally', () => {
+        const global = new Set(GLOBAL_FLAGS.map((f) => f.name));
+        for (const c of COMMANDS) {
+            const own = new Set(allFlags(c).map((f) => f.name));
+            for (const name of mentioned(COMMAND_USAGE[c.name] as string)) {
+                expect(own.has(name) || global.has(name) || name.startsWith('max-') || FOREIGN.has(name), `${c.name} mentions --${name}`).toBe(true);
+            }
+        }
+    });
+
+    it('shows a value placeholder for value flags only', () => {
+        for (const c of COMMANDS) {
+            const text = COMMAND_USAGE[c.name] as string;
+            for (const f of allFlags(c)) {
+                const withValue = new RegExp(`--${f.name}(?:, -\\w)? <`).test(text);
+                if (f.value === undefined) expect(withValue, `${c.name}: boolean --${f.name} shown with a value`).toBe(false);
+            }
+        }
+    });
+
+    it('lists every global flag in the global help', () => {
+        for (const f of GLOBAL_FLAGS) {
+            if (f.name.startsWith('max-') && f.name !== 'max-content-size') continue;
+            expect(USAGE.includes(`--${f.name}`), `--${f.name}`).toBe(true);
+        }
+        expect(GLOBAL_USAGE).toContain('--max-<limit>');
+    });
+
+    it('keeps every line within 80 columns', () => {
+        for (const [name, text] of [['global', USAGE], ...Object.entries(COMMAND_USAGE)] as [string, string][]) {
+            for (const line of text.split('\n')) expect(line.length, `${name}: ${line}`).toBeLessThanOrEqual(80);
+        }
+    });
+
+    it('declares no flag as both boolean and valued', () => {
+        const kinds = new Map<string, boolean>();
+        for (const f of [...GLOBAL_FLAGS, ...COMMANDS.flatMap(allFlags)]) {
+            const valued = f.value !== undefined;
+            expect(kinds.get(f.name) ?? valued, `--${f.name}`).toBe(valued);
+            kinds.set(f.name, valued);
+        }
+    });
+
+    it('describes a flag under a subcommand heading only when every subcommand named accepts it (audit B-07)', () => {
+        const problems: string[] = [];
+        for (const c of COMMANDS.filter((x) => x.subcommands.length > 0)) {
+            const subs = new Set(c.subcommands.map((s) => s.name));
+            let named: string[] = [];
+            for (const line of (COMMAND_USAGE[c.name] as string).split('\n')) {
+                if (line.trim() === '') {
+                    named = [];
+                    continue;
+                }
+                const heading = /^(\S[^:]*):/.exec(line);
+                if (heading !== null) named = [...new Set((heading[1] as string).split(/[\s,/()]+/).filter((w) => subs.has(w)))];
+                for (const flag of named.length === 0 ? [] : mentioned(line.replace(/^\S[^:]*:/, ''))) {
+                    if (GLOBAL_FLAGS.some((g) => g.name === flag) || FOREIGN.has(flag)) continue;
+                    for (const sub of named) {
+                        if (!commandFlags(c, sub).some((f) => f.name === flag)) problems.push(`${c.name} ${sub}: --${flag}`);
+                    }
+                }
+            }
+        }
+        expect(problems).toEqual([]);
+    });
+
+    it('describes every option line for exactly the subcommands that accept it (audit B2-09)', () => {
+        // An option line names its scope with a "sub, sub:" prefix, else its
+        // section heading does; with neither, it claims every subcommand.
+        const problems: string[] = [];
+        for (const c of COMMANDS.filter((x) => x.subcommands.length > 0)) {
+            const subs = c.subcommands.map((s) => s.name);
+            let section: string[] = [];
+            let fresh = true;
+            let pending = '';
+            for (const line of (COMMAND_USAGE[c.name] as string).split('\n')) {
+                // A heading (which may wrap: "Signing key (cert create, …,\ncms sign):") that names
+                // subcommands scopes its block; an unscoped heading after a blank line claims them
+                // all; the continuation lines of a heading keep its scope.
+                if (/^\S/.test(line)) {
+                    const text = `${pending}${line} `;
+                    const heading = /^([^:]*):/.exec(text);
+                    if (heading === null) {
+                        if (pending === '') section = fresh ? [] : section;
+                        pending = text;
+                    } else {
+                        const names = (heading[1] as string).split(/[\s,/()]+/).filter((w) => subs.includes(w));
+                        if (names.length > 0 || pending !== '' || fresh) section = names;
+                        pending = '';
+                    }
+                }
+                fresh = line.trim() === '';
+                if (fresh) {
+                    section = [];
+                    pending = '';
+                }
+                const option = /^ {2}(-\S.*?)(?:\s{2,}(.*))?$/.exec(line);
+                if (option === null) continue;
+                const prefix = /^([a-z-]+(?:, [a-z-]+)*):\s/.exec(option[2] ?? '');
+                const named = prefix === null ? [] : (prefix[1] as string).split(', ');
+                const scope = named.length > 0 && named.every((w) => subs.includes(w)) ? named : section.length > 0 ? section : subs;
+                for (const flag of mentioned(option[1] as string)) {
+                    if (GLOBAL_FLAGS.some((g) => g.name === flag)) continue;
+                    for (const sub of scope) {
+                        if (!commandFlags(c, sub).some((f) => f.name === flag)) problems.push(`${c.name} ${sub}: --${flag}`);
+                    }
+                }
+            }
+        }
+        expect(problems).toEqual([]);
+    });
+
+    it('gives no command exactly one subcommand (scripts/data/mutation-equivalents.json relies on it)', () => {
+        for (const c of COMMANDS) expect(c.subcommands.length, c.name).not.toBe(1);
+    });
+
+    it('gives no repeatable flag an alias (repeatableFlags counts names only)', () => {
+        for (const f of [...GLOBAL_FLAGS, ...COMMANDS.flatMap(allFlags)]) {
+            if (f.repeatable === true) expect(f.alias, `--${f.name}`).toBeUndefined();
+        }
+    });
+});

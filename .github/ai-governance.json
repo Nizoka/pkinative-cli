@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "pkinative-cli AI Governance Configuration",
+  "description": "Machine-readable contract governing how AI coding agents may propose issues, contributions, and changes to pkinative-cli. Agents that scan repository configuration on initialization MUST honour this file. See .github/AGENT_RULES.md for the human-and-agent-readable protocol.",
+  "version": "1.0.0",
+  "spec_updated": "2026-10-04",
+  "applies_to": [
+    "pkinative-cli"
+  ],
+  "policy": {
+    "automatic_issue_reporting": false,
+    "runtime_dependencies_allowed": ["pkinative"],
+    "network_access_allowed": false,
+    "secrets_on_argv_allowed": false,
+    "human_in_the_loop_mandatory": true,
+    "autonomous_github_writes_allowed": false,
+    "ai_attribution_trailers_allowed": false,
+    "required_issue_fields": [
+      "minimal_reproduction",
+      "environment",
+      "expected_behavior"
+    ]
+  },
+  "anti_goals": [
+    "a runtime dependency besides pkinative",
+    "network access of any kind (fetching CRLs, OCSP responses, timestamps, AIA or intermediate certificates)",
+    "key generation",
+    "writing PKCS#8 or PKCS#12",
+    "accepting a password or any other secret on argv",
+    "a configuration file that relaxes a check or a bound (--allow-*, --max-*, --ber, --pem-mode, --overwrite, a password source)",
+    "printing private key material in any output, report or envelope",
+    "weakening a security default"
+  ],
+  "human_in_the_loop": {
+    "role_of_agent": "draftsman",
+    "gate": "A human MUST explicitly review, sign off on, and trigger any GitHub issue, comment, PR, or release. The agent's authority ends at producing a local draft plus a compliance report.",
+    "identity_integrity": "Any issue or PR is published under the human user's GitHub identity. The agent MUST remind the user of their shared responsibility for the content before submission.",
+    "attribution": "Commits and pull requests carry no Co-Authored-By trailer, no 'generated with' footer and no other AI attribution.",
+    "draft_location": ".github/drafts/"
+  },
+  "pre_issue_checklist": [
+    "no_duplicate_open_or_closed_issue",
+    "single_runtime_dependency_preserved",
+    "no_security_default_weakened",
+    "local_minimal_reproduction_executed",
+    "exit_code_and_error_code_captured",
+    "expected_vs_actual_documented",
+    "environment_captured"
+  ],
+  "compliance_report": {
+    "description": "The structured summary an agent MUST present to the user alongside every draft.",
+    "required_fields": [
+      "zero_dependency_confirmed",
+      "reproduction_command",
+      "reproduction_result",
+      "duplicate_search_performed",
+      "affected_packages",
+      "identity_reminder_shown"
+    ]
+  },
+  "capability_manifest": {
+    "description": "Authoritative project context an agent SHOULD load before proposing changes.",
+    "sources": [
+      "AGENTS.md",
+      ".github/AGENT_RULES.md"
+    ],
+    "$comment": "on_demand: load lazily by topic. The two surface matrices say which pkinative export each command reaches and which engine change each test holds.",
+    "on_demand": [
+      "SECURITY.md",
+      "docs/data/core-exports.json",
+      "tests/regression/engine-surface.json",
+      "tests/regression/baselines/samples.sha256.json"
+    ],
+    "claude_code": {
+      "description": "How the policy is enforced inside a Claude Code session (settings, hook, skills).",
+      "settings": ".claude/settings.json",
+      "hooks": [
+        {
+          "event": "PreToolUse",
+          "matcher": "Bash|PowerShell — one matcher for every tool that reaches a shell; a hook that is never invoked parses nothing",
+          "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard.mjs\" — absolute through CLAUDE_PROJECT_DIR, so the guard runs whatever the working directory",
+          "denies": ["npm publish|unpublish|deprecate|dist-tag|version <bump>", "npx npm publish", "gh pr create|edit|close|merge|comment", "gh issue create|edit|close|comment", "gh release *", "gh api with --method POST|PUT|PATCH|DELETE, --input, -f/-F", "git push (any form)", "git add --renormalize", "git tag (except list forms)"],
+          "scope": "whole command, every shell segment, $( ) and backtick bodies, sh/bash/zsh -c, pwsh/powershell -Command, node -e and npx -c payloads; fails closed on unreadable input"
+        }
+      ],
+      "permissions_deny": "Read on generated bulk files (package-lock.json, coverage/**, dist/**, test-output/**, node_modules/**, the engine snapshot docs/data/pkinative/api.frozen.json), and the HITL commands above denied once per shell tool — Bash(...) and PowerShell(...) — since a family denied for one and allowed for the other is not denied",
+      "attribution": { "commit": "", "pr": "" },
+      "env_limits": { "BASH_MAX_OUTPUT_LENGTH": "16000", "BASH_DEFAULT_TIMEOUT_MS": "300000", "BASH_MAX_TIMEOUT_MS": "1800000", "NO_COLOR": "1" },
+      "skills": [
+        { "name": "release-audit", "path": ".claude/skills/release-audit/SKILL.md", "model_invocable": false, "purpose": "The pre-release audit, with its GO/NO-GO ledger under .audit/<version>/; run by the maintainer, never by the model on its own (disable-model-invocation: true)." }
+      ]
+    }
+  },
+  "verification": {
+    "command": "npm run verify:issue -- .github/drafts/<draft>.md",
+    "blocks_submission_on_failure": true,
+    "$comment": "Necessary, never sufficient: the human review gate of AGENT_RULES.md §5 always applies."
+  },
+  "references": {
+    "agent_rules": ".github/AGENT_RULES.md",
+    "issue_templates": [".github/ISSUE_TEMPLATE"],
+    "engine": "https://github.com/Nizoka/pkinative"
+  }
+}

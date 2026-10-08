@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a vulnerability privately
+    url: https://github.com/Nizoka/pkinative-cli/security/advisories/new
+    about: Security problems are never reported in a public issue. See SECURITY.md.
+  - name: pkinative engine behaviour
+    url: https://github.com/Nizoka/pkinative/issues
+    about: A decoding, validation or signing result the pkinative library itself produces belongs to the engine's tracker.

@@ -1,0 +1,80 @@
+name: Dependency Review
+
+# Fails on a pull request that introduces a dependency with a known high or
+# critical vulnerability, or one under a licence outside the allow-list.
+# pkinative is the one runtime dependency, so this covers it, the dev
+# toolchain, and any attempt to add a second runtime one. `dependency-review`
+# is a required check in .github/rulesets/main.json, so the failure blocks
+# the merge.
+#
+# The allow-list is the permissive licences the toolchain uses
+# (THIRD-PARTY-NOTICES.md). lightningcss is MPL-2.0: Vitest's bundler pulls
+# it in, it runs unmodified at test time and never ships, so it is named
+# package by package rather than allowing MPL-2.0 for everything. The same
+# rule covers the Python linter of conformance.yml and the publish gate
+# (scripts/data/lint-python-requirements.txt): pkilint and its dependencies
+# run unmodified in CI over the certificates the CLI creates and never ship
+# (MIT-0, MPL-2.0 and public-domain files among them), so each is named.
+#
+# Needs the repository's Dependency graph enabled (Settings → Code security).
+
+on:
+  pull_request:
+    branches: [main, master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dependency-review-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dependency-review:
+    # The required check name (.github/rulesets/main.json) — keep it equal.
+    name: dependency-review
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read # Read the manifests and lockfile on both sides of the diff.
+      pull-requests: write # Needed for comment-summary-in-pr.
+
+    steps:
+      - name: Harden the runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            github.com:443
+            api.github.com:443
+            api.securityscorecards.dev:443
+            api.deps.dev:443
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Review dependency changes
+        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
+        with:
+          fail-on-severity: high
+          allow-licenses: MIT, ISC, BSD-2-Clause, BSD-3-Clause, Apache-2.0, 0BSD, CC0-1.0, Unlicense, BlueOak-1.0.0, Python-2.0
+          allow-dependencies-licenses: >-
+            pkg:npm/lightningcss,
+            pkg:npm/lightningcss-android-arm64,
+            pkg:npm/lightningcss-darwin-arm64,
+            pkg:npm/lightningcss-darwin-x64,
+            pkg:npm/lightningcss-freebsd-x64,
+            pkg:npm/lightningcss-linux-arm-gnueabihf,
+            pkg:npm/lightningcss-linux-arm64-gnu,
+            pkg:npm/lightningcss-linux-arm64-musl,
+            pkg:npm/lightningcss-linux-x64-gnu,
+            pkg:npm/lightningcss-linux-x64-musl,
+            pkg:npm/lightningcss-win32-arm64-msvc,
+            pkg:npm/lightningcss-win32-x64-msvc,
+            pkg:pypi/pkilint,
+            pkg:pypi/cffi,
+            pkg:pypi/iso4217,
+            pkg:pypi/publicsuffixlist
+          comment-summary-in-pr: on-failure

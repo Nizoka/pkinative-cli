@@ -1,0 +1,21 @@
+{
+  "serialNumber": 4242,
+  "subject": {
+    "CN": "sample.example.test"
+  },
+  "notBefore": "2026-01-01T00:00:00Z",
+  "validityDays": 397,
+  "extensions": {
+    "keyUsage": [
+      "digitalSignature"
+    ],
+    "extendedKeyUsage": [
+      "serverAuth"
+    ],
+    "subjectAltName": {
+      "dns": [
+        "sample.example.test"
+      ]
+    }
+  }
+}
