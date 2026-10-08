@@ -157,8 +157,10 @@ async function verify(ctx: Ctx): Promise<void> {
     // (audit F-26). A structure the parser refuses is left to verifySignedData, whose verdict names the reason.
     try {
         parse(ctx, der);
-    } catch {
-        // the verdict below says why
+    } catch (e) {
+        // Under --strict the engine refuses at the first warning before any sink call: that refusal is the answer.
+        if (e instanceof CliError && e.pkiCode === 'PKI_STRICT_DIAGNOSTIC') throw e;
+        // Otherwise the verdict below says why.
     }
     const { content, contentDigest } = await contentInputs(ctx);
     const trustPaths = getStringFlagAll(ctx.args.flags, 'trust');
